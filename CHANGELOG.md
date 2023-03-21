@@ -2,6 +2,12 @@
 
 All notable changes to the "blogger-syntax" extension will be documented in this file.
 
+## [1.0.3] - 2023-03-21
+
+### Fixed
+
+- Error when publishing the update in vscode marketplace
+
 ## [1.0.2] - 2023-03-21
  
 ### Changed
