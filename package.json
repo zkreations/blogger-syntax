@@ -3,7 +3,7 @@
   "displayName": "Blogger Syntax",
   "description": "Support and autocomplete for Blogger syntax.",
   "icon": "images/blogger.png",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "publisher": "zkreations",
   "galleryBanner": {
     "color": "#15141b",
