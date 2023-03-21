@@ -12,4 +12,4 @@ Visual Studio extension that adds code snippets and autocomplete suggestions tha
 
 ## Special Thanks
 
-- BloggerCode: [bloggercode-blogconnexion](https://bloggercode-blogconnexion.blogspot.com/)
+- BloggerCode: bloggercode-blogconnexion (blogspot)
