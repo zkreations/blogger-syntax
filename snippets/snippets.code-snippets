@@ -1,0 +1,197 @@
+{
+  "Attribute tag": {
+    "prefix": "b:attr",
+    "body": [
+      "<b:attr name='ATTRIBUTE_NAME' value='VALUE'/>"
+    ],
+    "description": "Adds an attribute with its corresponding value to the parent node."
+  },
+  "Class tag": {
+    "prefix": "b:class",
+    "body": [
+      "<b:class name='CLASS_NAME'/>"
+    ],
+    "description": "Adds or increases classes to the parent node."
+  },
+  "Comment tag": {
+    "prefix": "b:comment",
+    "body": [
+      "<b:comment>",
+      "\t$2",
+      "</b:comment>"
+    ],
+    "description": "Creates comments that may or may not be visible on the client side."
+  },
+  "Default markup tags": {
+    "prefix": "b:defaultmarkups",
+    "body": [
+      "<b:defaultmarkups>",
+      "\t$2",
+      "</b:defaultmarkups>"
+    ],
+    "description": "Configures the default markup of the template."
+  },
+  "Default include tags": {
+    "prefix": "b:defaultmarkup",
+    "body": [
+      "<b:defaultmarkup type='WIDGET_TYPE'>",
+      "\t$2",
+      "</b:defaultmarkup>"
+    ],
+    "description": "Configures the default template includes."
+  },
+  "Expression tag": {
+    "prefix": "b:eval",
+    "body": [
+      "<b:eval expr='EXPRESSION'/>"
+    ],
+    "description": "Evaluates a Blogger expression and explicitly displays the result."
+  },
+  "Conditional tag": {
+    "prefix": "b:if",
+    "body": [
+      "<b:if cond='CONDITION'>",
+      "\t$2",
+      "</b:if>"
+    ],
+    "description": "Displays the content or not if the specified condition is true or false."
+  },
+  "Else if tag": {
+    "prefix": "b:elseif",
+    "body": [
+      "<b:elseif cond='CONDITION'/>",
+      "$2"
+    ],
+    "description": "Additional conditional based on a previous evaluation."
+  },
+  "Else tag": {
+    "prefix": "b:else",
+    "body": [
+      "<b:else/>",
+      "$2"
+    ],
+    "description": "Otherwise case of the previous evaluation."
+  },
+  "Includable tag": {
+    "prefix": "b:includable",
+    "body": [
+      "<b:includable id='INCLUDABLE_ID' var='VARIABLE_NAME'>",
+      "\t$2",
+      "</b:includable>"
+    ],
+    "description": "Stores data inside that can be requested."
+  },
+  "Include tag": {
+    "prefix": "b:include",
+    "body": [
+      "<b:include data='ALIAS_OR_OBJECT' name='INCLUDABLE_ID'/>"
+    ],
+    "description": "Returns the value stored by an includable tag."
+  },
+  "Loop tag": {
+    "prefix": "b:loop",
+    "body": [
+      "<b:loop values='ARRAY' var='VARIABLE_NAME'>",
+      "\t$2",
+      "</b:loop>"
+    ],
+    "description": "Allows access to the elements of an Array data type."
+  },
+  "Message tag": {
+    "prefix": "b:message",
+    "body": [
+      "<b:message name='ALIAS_MESSAGE'>",
+      "\t<b:param name='PARAM_NAME' value='PARAM_VALUE'/>",
+      "</b:message>$2"
+    ],
+    "description": "Accesses data from a limited number of message-type values."
+  },
+  "Section tag": {
+    "prefix": "b:section",
+    "body": [
+      "<b:section id='SECTION_ID' maxwidgets='NUMBER'>",
+      "\t$2",
+      "</b:section>"
+    ],
+    "description": "Creates sections for widgets. It can only contain b:widget tags."
+  },
+  "Skin tag": {
+    "prefix": "b:skin",
+    "body": [
+      "<b:skin>",
+      "\t<![CDATA[",
+      "\t\t$2",
+      "\t]]>",
+      "</b:skin>"
+    ],
+    "description": "Contains theme styles and variables intended for the Blogger Template Designer."
+  },
+  "Template skin tag": {
+    "prefix": "b:template-skin",
+    "body": [
+      "<b:template-skin>",
+      "\t<![CDATA[",
+      "\t\t$2",
+      "\t]]>",
+      "</b:template-skin>"
+    ],
+    "description": "Contains theme styles intended for the Blogger layout Mode."
+  },
+  "Group tag": {
+    "prefix": "Group",
+    "body": [
+      "<Group description=\"DESCRIPTION\" selector=\"SELECTOR_CSS\">",
+      "\t$2",
+      "</Group>"
+    ],
+    "description": "Groups variables and creates a section in the Blogger Template Designer."
+  },
+  "Variable tag": {
+    "prefix": "Variable",
+    "body": [
+      "<Variable name=\"NAME\" description=\"DESCRIPTION\" type=\"TYPE\" default=\"DEFAULT_VALUE\" value=\"CURRENT_VALUE\"/>"
+    ],
+    "description": "Create customization options for the Blogger Template Designer."
+  },
+  "Switch tag": {
+    "prefix": "b:switch",
+    "body": [
+      "<b:switch var='EXPRESSION'>",
+      "\t<b:case value='VALUE_1'/>",
+      "\t$2",
+      "\t<b:case value='VALUE_2'/>",
+      "\t",
+      "\t<b:default/>",
+      "\t",
+      "</Group>"
+    ],
+    "description": "Show or don't show the content depending on the expression and evaluated case."
+  },
+  "Tags tag": {
+    "prefix": "b:tag",
+    "body": [
+      "<b:tag name='TAG_NAME'>",
+      "\t$2",
+      "</b:tag>"
+    ],
+    "description": "Allows adding or creating any HTML tag."
+  },
+  "Widget tag": {
+    "prefix": "b:widget",
+    "body": [
+      "<b:widget id='WIDGET_ID' type='WIDGET_TYPE' title='WIDGET_TITLE' locked='BOOLEAN' version='2'>",
+      "\t$2",
+      "</b:widget>"
+    ],
+    "description": "Create widgets that can only be contained by a b:section tag."
+  },
+  "Alias tag": {
+    "prefix": "b:with",
+    "body": [
+      "<b:with value='EXPRESSION' var='VARIABLE_NAME'>",
+      "\t<data:VARIABLE_NAME/>",
+      "</b:with>$2"
+    ],
+    "description": "Store a expression in a variable, which can be retrieved in secondary nodes."
+  }
+}
