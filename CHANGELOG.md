@@ -2,8 +2,14 @@
 
 All notable changes to the "blogger-syntax" extension will be documented in this file.
 
-Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
-## [Unreleased]
+## [1.0.1] - 2023-03-20
+ 
+### Changed
 
-- Initial release
+- Minor changes for testing
+- Cleaner code
+
+## [1.0.0]
+
+- Initial version of the project

@@ -84,7 +84,7 @@
   "Include tag": {
     "prefix": "b:include",
     "body": [
-      "<b:include data='ALIAS_OR_OBJECT' name='INCLUDABLE_ID'/>"
+      "<b:include data='ALIAS' name='INCLUDABLE_ID'/>"
     ],
     "description": "Returns the value stored by an includable tag."
   },
