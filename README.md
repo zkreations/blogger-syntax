@@ -10,10 +10,6 @@ Visual Studio extension that adds code snippets and autocomplete suggestions tha
 - Search for Blogger Syntax
 - Click Install
 
-## Contact to developer
-
-- Twitter: [@danieI_abel](https://twitter.com/danieI_abel)
-
 ## Special Thanks
 
 - BloggerCode: [bloggercode-blogconnexion](https://bloggercode-blogconnexion.blogspot.com/)
