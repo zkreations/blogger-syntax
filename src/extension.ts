@@ -126,8 +126,8 @@ const bloggerData = {
     'widget',
   ],
   skin: [
-    'data:skin.override',
-    'data:skin.vars',
+    'override',
+    'vars',
   ],
   view: [
     'postId',
