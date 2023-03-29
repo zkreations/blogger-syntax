@@ -163,7 +163,7 @@
       "\t",
       "\t<b:default/>",
       "\t",
-      "</Group>"
+      "</b:switch>"
     ],
     "description": "Show or don't show the content depending on the expression and evaluated case."
   },
