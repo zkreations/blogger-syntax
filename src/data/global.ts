@@ -1,3 +1,6 @@
+// Blogger Data
+// docs: https://bloggercode-blogconnexion.blogspot.com/
+
 const data = {
   blog: {
     'adsenseAutoAds': 'boolean',

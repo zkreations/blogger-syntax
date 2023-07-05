@@ -1,4 +1,6 @@
 "use strict";
+// Blogger Data
+// docs: https://bloggercode-blogconnexion.blogspot.com/
 Object.defineProperty(exports, "__esModule", { value: true });
 const data = {
     blog: {

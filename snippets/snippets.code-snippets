@@ -26,7 +26,9 @@
     "prefix": "b:defaultmarkups",
     "body": [
       "<b:defaultmarkups>",
-      "\t$2",
+      "\t<b:defaultmarkup type='WIDGET_TYPE'>",
+      "\t\t$2",
+      "\t</b:defaultmarkup>",
       "</b:defaultmarkups>"
     ],
     "description": "Configures the default markup of the template."
@@ -167,6 +169,22 @@
     ],
     "description": "Show or don't show the content depending on the expression and evaluated case."
   },
+  "Case tag": {
+    "prefix": "b:case",
+    "body": [
+      "<b:case value='VALUE'/>",
+      "$2"
+    ],
+    "description": "Case of the previous switch evaluation."
+  },
+  "Default tag": {
+    "prefix": "b:default",
+    "body": [
+      "<b:default/>",
+      "$2"
+    ],
+    "description": "Default case of the previous switch evaluation."
+  },
   "Tags tag": {
     "prefix": "b:tag",
     "body": [
@@ -184,6 +202,26 @@
       "</b:widget>"
     ],
     "description": "Create widgets that can only be contained by a b:section tag."
+  },
+  "Widget settings tag": {
+    "prefix": "b:widget-settings",
+    "body": [
+      "<b:widget-settings>",
+      "\t<b:widget-setting name='SETTING_NAME'>",
+      "\t\t$2",
+      "\t</b:widget-setting>",
+      "</b:widget-settings>"
+    ],
+    "description": "Allows to configure the settings of a widget."
+  },
+  "Widget setting tag": {
+    "prefix": "b:widget-setting",
+    "body": [
+      "<b:widget-setting name='SETTING_NAME'>",
+      "\t$2",
+      "</b:widget-setting>"
+    ],
+    "description": "Allows to configure the settings of a widget."
   },
   "Alias tag": {
     "prefix": "b:with",
