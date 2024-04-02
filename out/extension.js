@@ -4,27 +4,30 @@ exports.activate = void 0;
 const vscode = require("vscode");
 const global_1 = require("./data/global");
 const widgets_1 = require("./data/widgets");
-// Get all keys from an object
-function getKeys(obj) {
-    return Object.keys(obj);
+const description_1 = require("./data/description");
+function getSuggestions(prefix, obj) {
+    if (Array.isArray(obj)) {
+        return { prefix, keys: obj };
+    }
+    return { prefix, keys: Object.keys(obj) };
 }
 const bloggerSuggestions = [
-    { prefix: 'data:', keys: getKeys(global_1.default) },
-    { prefix: 'data:blog.', keys: getKeys(global_1.default.blog) },
-    { prefix: 'data:blog.locale.', keys: getKeys(global_1.default.blog.locale) },
-    { prefix: 'data:messages.', keys: getKeys(global_1.default.messages) },
-    { prefix: 'data:skin.', keys: getKeys(global_1.default.skin) },
-    { prefix: 'data:view.', keys: getKeys(global_1.default.view) },
-    { prefix: 'data:view.archive.', keys: getKeys(global_1.default.view.archive) },
-    { prefix: 'data:view.search.', keys: getKeys(global_1.default.view.search) },
-    { prefix: 'data:widget.', keys: getKeys(global_1.default.widget) },
-    { prefix: 'data:widgets.', keys: getKeys(global_1.default.widgets) },
-    { prefix: 'data:widgets.Blog.', keys: getKeys(widgets_1.default.Blog) },
-    { prefix: 'data:post.', keys: getKeys(widgets_1.default.Blog.posts) },
-    { prefix: 'data:post.snippets.', keys: getKeys(widgets_1.default.Blog.posts.snippets) },
-    { prefix: 'data:post.author.', keys: getKeys(widgets_1.default.Blog.posts.author) },
-    { prefix: 'data:post.author.authorPhoto.', keys: getKeys(widgets_1.default.Blog.posts.author.authorPhoto) },
-    { prefix: 'data:post.location.', keys: getKeys(widgets_1.default.Blog.posts.location) },
+    getSuggestions('data:', global_1.default),
+    getSuggestions('data:blog.', global_1.default.blog),
+    getSuggestions('data:blog.locale.', global_1.default.blog.locale),
+    getSuggestions('data:messages.', global_1.default.messages),
+    getSuggestions('data:skin.', global_1.default.skin),
+    getSuggestions('data:view.', global_1.default.view),
+    getSuggestions('data:view.archive.', global_1.default.view.archive),
+    getSuggestions('data:view.search.', global_1.default.view.search),
+    getSuggestions('data:widget.', global_1.default.widget),
+    getSuggestions('data:widgets.', global_1.default.widgets),
+    getSuggestions('data:widgets.Blog.', widgets_1.default.Blog),
+    getSuggestions('data:post.', widgets_1.default.Blog.posts),
+    getSuggestions('data:post.snippets.', widgets_1.default.Blog.posts.snippets),
+    getSuggestions('data:post.author.', widgets_1.default.Blog.posts.author),
+    getSuggestions('data:post.author.authorPhoto.', widgets_1.default.Blog.posts.author.authorPhoto),
+    getSuggestions('data:post.location.', widgets_1.default.Blog.posts.location)
 ];
 // Create completion items from keys
 function createCompletionItems(keys) {
@@ -32,7 +35,13 @@ function createCompletionItems(keys) {
 }
 // Provide completion items
 function provideCompletionItems(document, position) {
-    const linePrefix = document.lineAt(position).text.substr(0, position.character);
+    const linePrefix = document.lineAt(position).text.slice(0, position.character);
+    // Verifica si la línea contiene la etiqueta HTML y el atributo
+    if (/<(Variable|Group)[^>]*description="$/.test(linePrefix)) {
+        // Aquí puedes definir tus sugerencias de autocompletado
+        const descriptionSuggestions = description_1.default;
+        return createCompletionItems(descriptionSuggestions);
+    }
     for (const suggestion of bloggerSuggestions) {
         const { prefix, keys } = suggestion;
         if (linePrefix.endsWith(prefix)) {
@@ -45,7 +54,7 @@ function provideCompletionItems(document, position) {
 function createCompletionProvider(language) {
     return vscode.languages.registerCompletionItemProvider(language, {
         provideCompletionItems: provideCompletionItems,
-    }, '.', ':');
+    }, '.', ':', '"');
 }
 // Activate extension
 function activate(context) {

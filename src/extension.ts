@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import data from './data/global';
 import widget from './data/widgets';
+import description from './data/description';
 
 interface Suggestion {
   prefix: string;
@@ -8,6 +9,10 @@ interface Suggestion {
 }
 
 function getSuggestions(prefix: string, obj: any): Suggestion {
+  if (Array.isArray(obj)) {
+    return { prefix, keys: obj };
+  }
+
   return { prefix, keys: Object.keys(obj) };
 }
 
@@ -27,7 +32,7 @@ const bloggerSuggestions: Suggestion[] = [
   getSuggestions('data:post.snippets.', widget.Blog.posts.snippets),
   getSuggestions('data:post.author.', widget.Blog.posts.author),
   getSuggestions('data:post.author.authorPhoto.', widget.Blog.posts.author.authorPhoto),
-  getSuggestions('data:post.location.', widget.Blog.posts.location),
+  getSuggestions('data:post.location.', widget.Blog.posts.location)
 ];
 
 // Create completion items from keys
@@ -38,7 +43,14 @@ function createCompletionItems(keys: string[]): vscode.CompletionItem[] {
 // Provide completion items
 function provideCompletionItems(document: vscode.TextDocument, position: vscode.Position) {
   const linePrefix = document.lineAt(position).text.slice(0, position.character);
+  
+  // Check if the line is a description attribute of a Variable or Group
+  if (/<(Variable|Group)[^>]*description="$/.test(linePrefix)) {
+    const descriptionSuggestions = description;
+    return createCompletionItems(descriptionSuggestions);
+  }
 
+  // Check if the line is a suggestion for a blogger object
   for (const suggestion of bloggerSuggestions) {
     const { prefix, keys } = suggestion;
 
@@ -54,7 +66,7 @@ function provideCompletionItems(document: vscode.TextDocument, position: vscode.
 function createCompletionProvider(language: string): vscode.Disposable {
   return vscode.languages.registerCompletionItemProvider(language, {
     provideCompletionItems: provideCompletionItems,
-  }, '.', ':');
+  }, '.', ':','"');
 }
 
 // Activate extension
