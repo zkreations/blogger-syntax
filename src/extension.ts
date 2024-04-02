@@ -37,7 +37,7 @@ function createCompletionItems(keys: string[]): vscode.CompletionItem[] {
 
 // Provide completion items
 function provideCompletionItems(document: vscode.TextDocument, position: vscode.Position) {
-  const linePrefix = document.lineAt(position).text.substr(0, position.character);
+  const linePrefix = document.lineAt(position).text.slice(0, position.character);
 
   for (const suggestion of bloggerSuggestions) {
     const { prefix, keys } = suggestion;
