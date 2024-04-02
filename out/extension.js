@@ -27,21 +27,23 @@ const bloggerSuggestions = [
     getSuggestions('data:post.snippets.', widgets_1.default.Blog.posts.snippets),
     getSuggestions('data:post.author.', widgets_1.default.Blog.posts.author),
     getSuggestions('data:post.author.authorPhoto.', widgets_1.default.Blog.posts.author.authorPhoto),
-    getSuggestions('data:post.location.', widgets_1.default.Blog.posts.location)
+    getSuggestions('data:post.location.', widgets_1.default.Blog.posts.location),
+    getSuggestions('description="', description_1.default),
 ];
+const completionItemsCache = new Map();
 // Create completion items from keys
 function createCompletionItems(keys) {
-    return keys.map(field => new vscode.CompletionItem(field, vscode.CompletionItemKind.Field));
+    if (completionItemsCache.has(keys)) {
+        return completionItemsCache.get(keys);
+    }
+    const items = keys.map(field => new vscode.CompletionItem(field, vscode.CompletionItemKind.Field));
+    completionItemsCache.set(keys, items);
+    return items;
 }
 // Provide completion items
 function provideCompletionItems(document, position) {
     const linePrefix = document.lineAt(position).text.slice(0, position.character);
-    // Verifica si la línea contiene la etiqueta HTML y el atributo
-    if (/<(Variable|Group)[^>]*description="$/.test(linePrefix)) {
-        // Aquí puedes definir tus sugerencias de autocompletado
-        const descriptionSuggestions = description_1.default;
-        return createCompletionItems(descriptionSuggestions);
-    }
+    // Check if the line is a suggestion for a blogger object
     for (const suggestion of bloggerSuggestions) {
         const { prefix, keys } = suggestion;
         if (linePrefix.endsWith(prefix)) {

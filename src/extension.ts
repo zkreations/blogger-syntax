@@ -32,23 +32,28 @@ const bloggerSuggestions: Suggestion[] = [
   getSuggestions('data:post.snippets.', widget.Blog.posts.snippets),
   getSuggestions('data:post.author.', widget.Blog.posts.author),
   getSuggestions('data:post.author.authorPhoto.', widget.Blog.posts.author.authorPhoto),
-  getSuggestions('data:post.location.', widget.Blog.posts.location)
+  getSuggestions('data:post.location.', widget.Blog.posts.location),
+  getSuggestions('description="', description),
 ];
+
+const completionItemsCache = new Map<string[], vscode.CompletionItem[]>();
 
 // Create completion items from keys
 function createCompletionItems(keys: string[]): vscode.CompletionItem[] {
-  return keys.map(field => new vscode.CompletionItem(field, vscode.CompletionItemKind.Field));
+  if (completionItemsCache.has(keys)) {
+    return completionItemsCache.get(keys)!;
+  }
+
+  const items = keys.map(field => new vscode.CompletionItem(field, vscode.CompletionItemKind.Field));
+
+  completionItemsCache.set(keys, items);
+
+  return items;
 }
 
 // Provide completion items
 function provideCompletionItems(document: vscode.TextDocument, position: vscode.Position) {
   const linePrefix = document.lineAt(position).text.slice(0, position.character);
-  
-  // Check if the line is a description attribute of a Variable or Group
-  if (/<(Variable|Group)[^>]*description="$/.test(linePrefix)) {
-    const descriptionSuggestions = description;
-    return createCompletionItems(descriptionSuggestions);
-  }
 
   // Check if the line is a suggestion for a blogger object
   for (const suggestion of bloggerSuggestions) {
