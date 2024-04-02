@@ -7,28 +7,27 @@ interface Suggestion {
   keys: string[];
 }
 
-// Get all keys from an object
-function getKeys(obj: any): string[] {
-  return Object.keys(obj);
+function getSuggestions(prefix: string, obj: any): Suggestion {
+  return { prefix, keys: Object.keys(obj) };
 }
 
 const bloggerSuggestions: Suggestion[] = [
-  { prefix: 'data:', keys: getKeys(data) },
-  { prefix: 'data:blog.', keys: getKeys(data.blog) },
-  { prefix: 'data:blog.locale.', keys: getKeys(data.blog.locale) },
-  { prefix: 'data:messages.', keys: getKeys(data.messages) },
-  { prefix: 'data:skin.', keys: getKeys(data.skin) },
-  { prefix: 'data:view.', keys: getKeys(data.view) },
-  { prefix: 'data:view.archive.', keys: getKeys(data.view.archive) },
-  { prefix: 'data:view.search.', keys: getKeys(data.view.search) },
-  { prefix: 'data:widget.', keys: getKeys(data.widget) },
-  { prefix: 'data:widgets.', keys: getKeys(data.widgets) },
-  { prefix: 'data:widgets.Blog.', keys: getKeys(widget.Blog) },
-  { prefix: 'data:post.', keys: getKeys(widget.Blog.posts) },
-  { prefix: 'data:post.snippets.', keys: getKeys(widget.Blog.posts.snippets) },
-  { prefix: 'data:post.author.', keys: getKeys(widget.Blog.posts.author) },
-  { prefix: 'data:post.author.authorPhoto.', keys: getKeys(widget.Blog.posts.author.authorPhoto) },
-  { prefix: 'data:post.location.', keys: getKeys(widget.Blog.posts.location) },
+  getSuggestions('data:', data),
+  getSuggestions('data:blog.', data.blog),
+  getSuggestions('data:blog.locale.', data.blog.locale),
+  getSuggestions('data:messages.', data.messages),
+  getSuggestions('data:skin.', data.skin),
+  getSuggestions('data:view.', data.view),
+  getSuggestions('data:view.archive.', data.view.archive),
+  getSuggestions('data:view.search.', data.view.search),
+  getSuggestions('data:widget.', data.widget),
+  getSuggestions('data:widgets.', data.widgets),
+  getSuggestions('data:widgets.Blog.', widget.Blog),
+  getSuggestions('data:post.', widget.Blog.posts),
+  getSuggestions('data:post.snippets.', widget.Blog.posts.snippets),
+  getSuggestions('data:post.author.', widget.Blog.posts.author),
+  getSuggestions('data:post.author.authorPhoto.', widget.Blog.posts.author.authorPhoto),
+  getSuggestions('data:post.location.', widget.Blog.posts.location),
 ];
 
 // Create completion items from keys
