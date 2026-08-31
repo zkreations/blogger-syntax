@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { isCursorInsideEmptyDescription, registerCursorSuggestListener } from '../../src/vscode/listeners/cursorListener.js';
+import {
+  isCursorInsideEmptyAttribute,
+  isCursorInsideEmptyDescription,
+  registerCursorSuggestListener,
+} from '../../src/vscode/listeners/cursorListener.js';
 
 describe('cursorListener', () => {
   describe('isCursorInsideEmptyDescription', () => {
@@ -42,6 +46,32 @@ describe('cursorListener', () => {
     it('should return false for plain lines without description', () => {
       const line = '<b:include name="main" />';
       expect(isCursorInsideEmptyDescription(line, 5)).toBe(false);
+    });
+  });
+
+  describe('isCursorInsideEmptyAttribute', () => {
+    it('should return true when cursor is inside empty type="" in b:widget', () => {
+      const line = '<b:widget id="main" type="" />';
+      const cursorChar = line.indexOf('type=""') + 'type="'.length;
+      expect(isCursorInsideEmptyAttribute(line, cursorChar)).toBe(true);
+    });
+
+    it('should return true when cursor is inside empty type=\'\' in b:defaultmarkup', () => {
+      const line = '<b:defaultmarkup type=\'\' />';
+      const cursorChar = line.indexOf('type=\'\'') + 'type=\''.length;
+      expect(isCursorInsideEmptyAttribute(line, cursorChar)).toBe(true);
+    });
+
+    it('should return true when cursor is inside empty description=""', () => {
+      const line = '<Variable description="" />';
+      const cursorChar = line.indexOf('description=""') + 'description="'.length;
+      expect(isCursorInsideEmptyAttribute(line, cursorChar)).toBe(true);
+    });
+
+    it('should return false when attribute has content', () => {
+      const line = '<b:widget type="Blog" />';
+      const cursorChar = line.indexOf('Blog');
+      expect(isCursorInsideEmptyAttribute(line, cursorChar)).toBe(false);
     });
   });
 

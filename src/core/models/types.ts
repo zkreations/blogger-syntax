@@ -25,6 +25,7 @@ export interface BloggerSuggestion {
   readonly name: string;
   readonly type: BloggerDataType;
   readonly description?: string | undefined;
+  readonly detail?: string | undefined;
   readonly insertText?: string | undefined;
   readonly isSnippet?: boolean | undefined;
   readonly kind: BloggerSuggestionKind;

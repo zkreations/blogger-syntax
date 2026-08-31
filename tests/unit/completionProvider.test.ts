@@ -7,9 +7,13 @@ describe('bloggerCompletionProvider', () => {
   const pathResolver = new BloggerPathResolver();
   const provider = new BloggerCompletionProvider(pathResolver);
 
-  function createMockDocument(lineText: string): vscode.TextDocument {
+  function createMockDocument(input: string | string[]): vscode.TextDocument {
+    const lines = Array.isArray(input) ? input : [input];
     return {
-      lineAt: () => ({ text: lineText }),
+      lineAt: (lineOrPos: number | vscode.Position) => {
+        const lineNum = typeof lineOrPos === 'number' ? lineOrPos : lineOrPos.line;
+        return { text: lines[lineNum] ?? '' };
+      },
     } as unknown as vscode.TextDocument;
   }
 
@@ -25,8 +29,9 @@ describe('bloggerCompletionProvider', () => {
     const titleItem = items.find(item => item.label === 'title');
     expect(titleItem).toBeDefined();
     expect(titleItem?.range).toBeDefined();
-    expect(titleItem?.range?.start.character).toBe(text.indexOf('blog.t') + 'blog.'.length);
-    expect(titleItem?.range?.end.character).toBe(text.indexOf('blog.t') + 'blog.t'.length);
+    const range = titleItem?.range as vscode.Range;
+    expect(range.start.character).toBe(text.indexOf('blog.t') + 'blog.'.length);
+    expect(range.end.character).toBe(text.indexOf('blog.t') + 'blog.t'.length);
   });
 
   it('should provide completion items for Blogger tags <b:', () => {
@@ -57,6 +62,50 @@ describe('bloggerCompletionProvider', () => {
     expect(loopItem?.insertText).toBe('b:loop>');
   });
 
+  it('should provide completion items for b:widget type attribute', () => {
+    const text = '<b:widget id="main" type="';
+    const document = createMockDocument(text);
+    const position = new vscode.Position(0, text.length);
+
+    const items = provider.provideCompletionItems(document, position) as vscode.CompletionItem[];
+    expect(items).toBeDefined();
+    expect(items.length).toBe(25);
+
+    const blogItem = items.find(item => item.label === 'Blog');
+    expect(blogItem).toBeDefined();
+    expect(blogItem?.kind).toBe(vscode.CompletionItemKind.EnumMember);
+    expect(blogItem?.detail).toBe('(Blogger Widget Type)');
+  });
+
+  it('should provide completion items for b:defaultmarkup type attribute', () => {
+    const text = '<b:defaultmarkup type="';
+    const document = createMockDocument(text);
+    const position = new vscode.Position(0, text.length);
+
+    const items = provider.provideCompletionItems(document, position) as vscode.CompletionItem[];
+    expect(items).toBeDefined();
+    expect(items.length).toBe(27);
+
+    const allItem = items.find(item => item.label === 'All');
+    expect(allItem).toBeDefined();
+    expect(allItem?.kind).toBe(vscode.CompletionItemKind.EnumMember);
+    expect(allItem?.detail).toBe('(Blogger Default Markup Type)');
+  });
+
+  it('should provide completion items for multi-line b:widget tag', () => {
+    const lines = [
+      '<b:widget',
+      '  id="Blog1"',
+      '  type="',
+    ];
+    const multiDoc = createMockDocument(lines);
+    const position = new vscode.Position(2, lines[2]!.length);
+
+    const items = provider.provideCompletionItems(multiDoc, position) as vscode.CompletionItem[];
+    expect(items).toBeDefined();
+    expect(items.length).toBe(25);
+  });
+
   it('should return undefined for plain text with no matching prefix', () => {
     const text = '<div class="container">';
     const document = createMockDocument(text);
@@ -66,4 +115,3 @@ describe('bloggerCompletionProvider', () => {
     expect(items).toBeUndefined();
   });
 });
-

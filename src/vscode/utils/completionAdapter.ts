@@ -1,4 +1,4 @@
-import type { BloggerDataType, BloggerSuggestion, BloggerSuggestionKind } from '../../core/models/types.js';
+import type { BloggerSuggestion, BloggerSuggestionKind } from '../../core/models/types.js';
 import * as vscode from 'vscode';
 import { buildCompletionDocumentation } from './docBuilder.js';
 
@@ -14,14 +14,17 @@ function mapSuggestionKindToVsCode(kind: BloggerSuggestionKind): vscode.Completi
   }
 }
 
-function formatDetail(type: BloggerDataType, kind: BloggerSuggestionKind): string {
-  if (kind === 'enumMember') {
+function formatDetail(suggestion: BloggerSuggestion): string {
+  if (suggestion.detail) {
+    return suggestion.detail;
+  }
+  if (suggestion.kind === 'enumMember') {
     return '(Blogger Skin Description)';
   }
-  if (kind === 'snippet') {
+  if (suggestion.kind === 'snippet') {
     return '(Blogger Tag)';
   }
-  const typeFormatted = type.charAt(0).toUpperCase() + type.slice(1);
+  const typeFormatted = suggestion.type.charAt(0).toUpperCase() + suggestion.type.slice(1);
   return `(Blogger Data: ${typeFormatted})`;
 }
 
@@ -34,7 +37,7 @@ export function createCompletionItem(
     mapSuggestionKindToVsCode(suggestion.kind),
   );
 
-  item.detail = formatDetail(suggestion.type, suggestion.kind);
+  item.detail = formatDetail(suggestion);
   item.documentation = buildCompletionDocumentation(suggestion);
 
   if (range) {

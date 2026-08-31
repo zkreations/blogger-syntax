@@ -2,10 +2,14 @@ import * as vscode from 'vscode';
 import { CURSOR_SUGGEST_DEBOUNCE_MS, SUPPORTED_LANGUAGES } from '../constants.js';
 
 /**
- * Determines whether the cursor is positioned directly between empty quotes of a description attribute
- * (e.g. `description=""` or `description=''`).
+ * Determines whether the cursor is positioned directly between empty quotes of a specific attribute
+ * (e.g. `description=""`, `type=""`, etc.).
  */
-export function isCursorInsideEmptyDescription(lineText: string, character: number): boolean {
+export function isCursorInsideEmptyAttribute(
+  lineText: string,
+  character: number,
+  attributeNames: readonly string[] = ['description', 'type'],
+): boolean {
   if (character < 0 || character > lineText.length) {
     return false;
   }
@@ -13,7 +17,9 @@ export function isCursorInsideEmptyDescription(lineText: string, character: numb
   const prefix = lineText.slice(0, character);
   const suffix = lineText.slice(character);
 
-  const match = /\bdescription\s*=\s*(["'])$/.exec(prefix);
+  const attrPattern = attributeNames.join('|');
+  const regex = new RegExp(`\\b(?:${attrPattern})\\s*=\\s*(["'])$`);
+  const match = regex.exec(prefix);
   if (!match || !match[1]) {
     return false;
   }
@@ -23,8 +29,16 @@ export function isCursorInsideEmptyDescription(lineText: string, character: numb
 }
 
 /**
+ * Determines whether the cursor is positioned directly between empty quotes of a description attribute
+ * (e.g. `description=""` or `description=''`).
+ */
+export function isCursorInsideEmptyDescription(lineText: string, character: number): boolean {
+  return isCursorInsideEmptyAttribute(lineText, character, ['description']);
+}
+
+/**
  * Registers an editor selection change listener that automatically triggers code completion
- * when the cursor is positioned inside an empty `description=""` attribute in supported documents.
+ * when the cursor is positioned inside empty attributes like `description=""` or `type=""` in supported documents.
  */
 export function registerCursorSuggestListener(
   debounceMs: number = CURSOR_SUGGEST_DEBOUNCE_MS,
@@ -56,7 +70,7 @@ export function registerCursorSuggestListener(
       const position = activeEditor.selection.active;
       const lineText = activeEditor.document.lineAt(position.line).text;
 
-      if (isCursorInsideEmptyDescription(lineText, position.character)) {
+      if (isCursorInsideEmptyAttribute(lineText, position.character)) {
         vscode.commands.executeCommand('editor.action.triggerSuggest');
       }
     }, debounceMs);

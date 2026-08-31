@@ -9,10 +9,21 @@ export class BloggerCompletionProvider implements vscode.CompletionItemProvider 
     document: vscode.TextDocument,
     position: vscode.Position,
   ): vscode.ProviderResult<vscode.CompletionItem[]> {
-    const lineText = document.lineAt(position).text;
+    const lineText = document.lineAt(position.line).text;
     const linePrefix = lineText.slice(0, position.character);
 
-    const result = this.pathResolver.resolveFromLinePrefix(linePrefix);
+    let result = this.pathResolver.resolveFromLinePrefix(linePrefix);
+
+    if (!result && position.line > 0 && /\b[\w:-]+\s*=\s*["'][^"']*$/.test(linePrefix)) {
+      const startLine = Math.max(0, position.line - 15);
+      const precedingLines: string[] = [];
+      for (let l = startLine; l < position.line; l++) {
+        precedingLines.push(document.lineAt(l).text);
+      }
+      precedingLines.push(linePrefix);
+      const multiLineText = precedingLines.join('\n');
+      result = this.pathResolver.resolveFromLinePrefix(multiLineText);
+    }
 
     if (!result || result.suggestions.length === 0) {
       return undefined;

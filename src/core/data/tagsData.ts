@@ -1,4 +1,5 @@
 import type { BloggerTagDefinition } from '../models/types.js';
+import { bloggerDefaultMarkupTypes, bloggerWidgetTypes } from './widgetTypes.js';
 
 export const bloggerTags: Record<string, BloggerTagDefinition> = {
   'b:attr': {
@@ -38,7 +39,7 @@ export const bloggerTags: Record<string, BloggerTagDefinition> = {
     snippetBody: 'b:defaultmarkup type="${1:Blog}">\n\t$0\n</b:defaultmarkup>',
     docUrl: 'https://bloggercode.orbiona.com/2017/05/tag-b-defaultmarkups.html',
     attributes: {
-      type: { name: 'type', type: 'string', required: true, description: 'Widget type to define default markup for.' },
+      type: { name: 'type', type: 'string', required: true, description: 'Widget type to define default markup for.', values: bloggerDefaultMarkupTypes },
     },
   },
   'b:eval': {
@@ -218,7 +219,7 @@ export const bloggerTags: Record<string, BloggerTagDefinition> = {
     ],
     attributes: {
       id: { name: 'id', type: 'string', required: true, description: 'Unique widget ID (e.g. Blog1, Header1).' },
-      type: { name: 'type', type: 'string', required: true, description: 'Widget type (e.g. Blog, Header, HTML).' },
+      type: { name: 'type', type: 'string', required: true, description: 'Widget type (e.g. Blog, Header, HTML).', values: bloggerWidgetTypes },
       title: { name: 'title', type: 'string', required: false, description: 'Widget display title.' },
       locked: { name: 'locked', type: 'string', required: false, description: 'Lock widget position in layout editor (true / false).', docUrl: 'https://bloggercode.orbiona.com/2021/10/attribute-locked.html' },
       version: { name: 'version', type: 'string', required: false, description: 'Widget syntax version (1 or 2).' },

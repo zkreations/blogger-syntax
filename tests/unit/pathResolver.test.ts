@@ -139,6 +139,89 @@ describe('bloggerPathResolver', () => {
     });
   });
 
+  describe('resolveWidgetTypes', () => {
+    it('should return all 25 widget types', () => {
+      const suggestions = resolver.resolveWidgetTypes();
+      expect(suggestions.length).toBe(25);
+      expect(suggestions.map(s => s.name)).toEqual([
+        'AdSense',
+        'Attribution',
+        'Blog',
+        'BlogArchive',
+        'BloggerButton',
+        'BlogList',
+        'BlogSearch',
+        'ContactForm',
+        'FeaturedPost',
+        'Feed',
+        'Followers',
+        'Header',
+        'HTML',
+        'Image',
+        'Label',
+        'LinkList',
+        'PageList',
+        'PopularPosts',
+        'Profile',
+        'Stats',
+        'Subscribe',
+        'Text',
+        'TextList',
+        'Translate',
+        'Wikipedia',
+      ]);
+      expect(suggestions.every(s => s.kind === 'enumMember')).toBe(true);
+      expect(suggestions.every(s => s.detail === '(Blogger Widget Type)')).toBe(true);
+
+      const blogWidget = suggestions.find(s => s.name === 'Blog');
+      expect(blogWidget).toBeDefined();
+      expect(blogWidget!.example).toContain('<b:widget id="Blog1" type="Blog"');
+      expect(blogWidget!.docUrl).toBe('https://bloggercode.orbiona.com/1979/07/Ressource-Blog.html');
+    });
+  });
+
+  describe('resolveDefaultMarkupTypes', () => {
+    it('should return all 27 defaultmarkup types including All and Common', () => {
+      const suggestions = resolver.resolveDefaultMarkupTypes();
+      expect(suggestions.length).toBe(27);
+      expect(suggestions.map(s => s.name)).toEqual([
+        'All',
+        'Common',
+        'AdSense',
+        'Attribution',
+        'Blog',
+        'BlogArchive',
+        'BloggerButton',
+        'BlogList',
+        'BlogSearch',
+        'ContactForm',
+        'FeaturedPost',
+        'Feed',
+        'Followers',
+        'Header',
+        'HTML',
+        'Image',
+        'Label',
+        'LinkList',
+        'PageList',
+        'PopularPosts',
+        'Profile',
+        'Stats',
+        'Subscribe',
+        'Text',
+        'TextList',
+        'Translate',
+        'Wikipedia',
+      ]);
+      expect(suggestions.every(s => s.kind === 'enumMember')).toBe(true);
+      expect(suggestions.every(s => s.detail === '(Blogger Default Markup Type)')).toBe(true);
+
+      const allType = suggestions.find(s => s.name === 'All');
+      expect(allType).toBeDefined();
+      expect(allType!.example).toContain('<b:defaultmarkup type="All">');
+    });
+  });
+
   describe('resolveBloggerTags', () => {
     it('should propagate attributes and snippet body for tags', () => {
       const suggestions = resolver.resolveBloggerTags(true);
@@ -211,6 +294,49 @@ describe('bloggerPathResolver', () => {
       expect(result!.suggestions.length).toBe(bloggerDescriptions.length);
     });
 
+    it('should resolve widget types for <b:widget type="', () => {
+      const result = resolver.resolveFromLinePrefix('<b:widget id="main" type="');
+      expect(result).toBeDefined();
+      expect(result!.replacementLength).toBe(0);
+      expect(result!.suggestions.length).toBe(25);
+      const names = result!.suggestions.map(s => s.name);
+      expect(names).toContain('AdSense');
+      expect(names).toContain('Blog');
+      expect(names).toContain('Wikipedia');
+    });
+
+    it('should resolve widget types for <b:widget type="Blo with replacementLength', () => {
+      const result = resolver.resolveFromLinePrefix('<b:widget type="Blo');
+      expect(result).toBeDefined();
+      expect(result!.replacementLength).toBe(3);
+      expect(result!.suggestions.length).toBe(25);
+    });
+
+    it('should resolve defaultmarkup types for <b:defaultmarkup type="', () => {
+      const result = resolver.resolveFromLinePrefix('<b:defaultmarkup type="');
+      expect(result).toBeDefined();
+      expect(result!.replacementLength).toBe(0);
+      expect(result!.suggestions.length).toBe(27);
+      const names = result!.suggestions.map(s => s.name);
+      expect(names[0]).toBe('All');
+      expect(names[1]).toBe('Common');
+      expect(names).toContain('Blog');
+    });
+
+    it('should resolve defaultmarkup types for <b:defaultmarkup type=\'All with replacementLength', () => {
+      const result = resolver.resolveFromLinePrefix('<b:defaultmarkup type=\'All');
+      expect(result).toBeDefined();
+      expect(result!.replacementLength).toBe(3);
+      expect(result!.suggestions.length).toBe(27);
+    });
+
+    it('should resolve widget types for multi-line b:widget tag', () => {
+      const result = resolver.resolveFromLinePrefix('<b:widget\n  id="Blog1"\n  type="');
+      expect(result).toBeDefined();
+      expect(result!.replacementLength).toBe(0);
+      expect(result!.suggestions.length).toBe(25);
+    });
+
     it('should resolve Blogger tags for "</b:" as closing tags', () => {
       const result = resolver.resolveFromLinePrefix('</b:');
       expect(result).toBeDefined();
@@ -231,9 +357,10 @@ describe('bloggerPathResolver', () => {
       expect(loopTag!.isSnippet).toBe(false);
     });
 
-    it('should return undefined for non-matching lines', () => {
-      const result = resolver.resolveFromLinePrefix('<div class="container">');
-      expect(result).toBeUndefined();
+    it('should return undefined for non-matching lines or unsupported tag attributes', () => {
+      expect(resolver.resolveFromLinePrefix('<div class="container">')).toBeUndefined();
+      expect(resolver.resolveFromLinePrefix('<b:section id="main" type="')).toBeUndefined();
+      expect(resolver.resolveFromLinePrefix('<input type="text"')).toBeUndefined();
     });
   });
 });

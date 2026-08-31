@@ -53,4 +53,19 @@ describe('completionAdapter', () => {
     expect(docValue).toContain('Renders child content if the condition evaluates to true.');
     expect(docValue).toContain('```xml\n<b:if cond="condition">\n\t\n</b:if>\n```');
   });
+
+  it('should preserve custom detail when provided on suggestion', () => {
+    const suggestion: BloggerSuggestion = {
+      name: 'Blog',
+      type: 'string',
+      description: 'Blog widget',
+      detail: '(Blogger Widget Type)',
+      kind: 'enumMember',
+    };
+
+    const item = createCompletionItem(suggestion);
+    expect(item.label).toBe('Blog');
+    expect(item.kind).toBe(vscode.CompletionItemKind.EnumMember);
+    expect(item.detail).toBe('(Blogger Widget Type)');
+  });
 });

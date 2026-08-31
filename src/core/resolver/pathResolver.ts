@@ -4,6 +4,12 @@ import { bloggerDescriptions } from '../data/descriptions.js';
 import { bloggerGlobalRoot } from '../data/globalData.js';
 import { bloggerTags } from '../data/tagsData.js';
 import { bloggerWidgetsSchema, singlePostProperties } from '../data/widgetsData.js';
+import {
+  bloggerDefaultMarkupTypeDetails,
+  bloggerDefaultMarkupTypes,
+  bloggerWidgetTypeDetails,
+  bloggerWidgetTypes,
+} from '../data/widgetTypes.js';
 
 function normalizeDocUrls(docUrl?: string | readonly string[]): readonly string[] | undefined {
   if (!docUrl) {
@@ -137,6 +143,48 @@ export class BloggerPathResolver {
   }
 
   /**
+   * Resolves suggestions for Blogger b:widget type attribute
+   */
+  public resolveWidgetTypes(): BloggerSuggestion[] {
+    return bloggerWidgetTypes.map((widgetType) => {
+      const details = bloggerWidgetTypeDetails[widgetType];
+      const docUrl = details?.docUrl ?? 'https://bloggercode.orbiona.com/2016/03/tag-b-widget.html';
+      const description = details?.description ?? `Blogger ${widgetType} widget.`;
+
+      return {
+        name: widgetType,
+        type: 'string',
+        kind: 'enumMember',
+        detail: '(Blogger Widget Type)',
+        description,
+        example: `<b:widget id="${widgetType}1" type="${widgetType}" version="2">\n\t<b:includable id="main">\n\t\t\n\t</b:includable>\n</b:widget>`,
+        docUrl,
+      };
+    });
+  }
+
+  /**
+   * Resolves suggestions for Blogger b:defaultmarkup type attribute
+   */
+  public resolveDefaultMarkupTypes(): BloggerSuggestion[] {
+    return bloggerDefaultMarkupTypes.map((markupType) => {
+      const details = bloggerDefaultMarkupTypeDetails[markupType] ?? bloggerWidgetTypeDetails[markupType];
+      const docUrl = details?.docUrl ?? 'https://bloggercode.orbiona.com/2017/05/tag-b-defaultmarkups.html';
+      const description = details?.description ?? `Default template markup for ${markupType} widget type.`;
+
+      return {
+        name: markupType,
+        type: 'string',
+        kind: 'enumMember',
+        detail: '(Blogger Default Markup Type)',
+        description,
+        example: `<b:defaultmarkup type="${markupType}">\n\t<b:includable id="main">\n\t\t\n\t</b:includable>\n</b:defaultmarkup>`,
+        docUrl,
+      };
+    });
+  }
+
+  /**
    * Resolves suggestions for Blogger b:* tags
    */
   public resolveBloggerTags(hasOpenBracket: boolean, isClosingTag: boolean = false): BloggerSuggestion[] {
@@ -173,14 +221,39 @@ export class BloggerPathResolver {
    * Analyzes the text preceding the cursor and returns appropriate suggestions and replacement length.
    */
   public resolveFromLinePrefix(linePrefix: string): BloggerResolveResult | undefined {
-    // 1. Check for description attribute: description="..." or description='...'
-    const descMatch = /\bdescription=["']([^"']*)$/.exec(linePrefix);
-    if (descMatch) {
-      const typedText = descMatch[1] ?? '';
-      return {
-        suggestions: this.resolveDescriptions(),
-        replacementLength: typedText.length,
-      };
+    // 1. Check for attribute value completions (e.g. description="...", b:widget type="...", b:defaultmarkup type="...")
+    const attrMatch = /\b([\w:-]+)\s*=\s*["']([^"']*)$/.exec(linePrefix);
+    if (attrMatch && attrMatch[1] && attrMatch[2] !== undefined) {
+      const attrName = attrMatch[1];
+      const typedText = attrMatch[2];
+      const beforeAttr = linePrefix.slice(0, attrMatch.index);
+
+      if (attrName === 'description') {
+        return {
+          suggestions: this.resolveDescriptions(),
+          replacementLength: typedText.length,
+        };
+      }
+
+      if (attrName === 'type') {
+        const tagMatch = /<([\w:-]+)(?:\s[^>]*)?$/.exec(beforeAttr)
+          || /(?:^|\s)([\w:-]+)(?:\s[^>]*)?$/.exec(beforeAttr);
+        const tagName = tagMatch?.[1];
+
+        if (tagName === 'b:widget') {
+          return {
+            suggestions: this.resolveWidgetTypes(),
+            replacementLength: typedText.length,
+          };
+        }
+
+        if (tagName === 'b:defaultmarkup') {
+          return {
+            suggestions: this.resolveDefaultMarkupTypes(),
+            replacementLength: typedText.length,
+          };
+        }
+      }
     }
 
     // 2. Check for data: expression
