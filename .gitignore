@@ -1,4 +1,9 @@
 node_modules
+out
+dist
 *.vsix
+.vscode-test
+coverage
 .codegraph
 package-lock.json
+*.log
