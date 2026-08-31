@@ -47,10 +47,11 @@
     ]
   },
   "scripts": {
-    "build": "node esbuild.js --production",
+    "build": "npm run snippets:generate && node esbuild.js --production",
     "compile": "node esbuild.js",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
+    "snippets:generate": "node scripts/generateSnippets.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",

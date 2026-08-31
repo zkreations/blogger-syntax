@@ -1,5 +1,5 @@
 {
-  "Attribute tag": {
+  "Attr tag": {
     "prefix": "b:attr",
     "body": [
       "<b:attr name=\"${1:name}\" value=\"${2:value}\"/>$0"
@@ -20,9 +20,9 @@
       "\t$0",
       "</b:comment>"
     ],
-    "description": "Creates comments that may or may not be visible on the client side."
+    "description": "Creates comments that can be rendered or omitted in the client output."
   },
-  "Default markup tags": {
+  "Defaultmarkups tag": {
     "prefix": "b:defaultmarkups",
     "body": [
       "<b:defaultmarkups>",
@@ -31,46 +31,46 @@
       "\t</b:defaultmarkup>",
       "</b:defaultmarkups>"
     ],
-    "description": "Configures the default markup of the template."
+    "description": "Configures default markup includes for template widgets."
   },
-  "Default include tags": {
+  "Defaultmarkup tag": {
     "prefix": "b:defaultmarkup",
     "body": [
       "<b:defaultmarkup type=\"${1:Blog}\">",
       "\t$0",
       "</b:defaultmarkup>"
     ],
-    "description": "Configures default template includes for a widget type."
+    "description": "Configures default template includes for a specific widget type."
   },
-  "Expression tag": {
+  "Eval tag": {
     "prefix": "b:eval",
     "body": [
       "<b:eval expr=\"${1:expression}\"/>$0"
     ],
     "description": "Evaluates a Blogger expression and explicitly outputs the result."
   },
-  "Conditional tag": {
+  "If tag": {
     "prefix": "b:if",
     "body": [
       "<b:if cond=\"${1:condition}\">",
       "\t$0",
       "</b:if>"
     ],
-    "description": "Renders content if the specified condition evaluates to true."
+    "description": "Renders child content if the condition evaluates to true."
   },
-  "Else if tag": {
+  "Elseif tag": {
     "prefix": "b:elseif",
     "body": [
       "<b:elseif cond=\"${1:condition}\"/>$0"
     ],
-    "description": "Additional conditional branch based on a previous b:if evaluation."
+    "description": "Alternative condition branch inside a b:if block."
   },
   "Else tag": {
     "prefix": "b:else",
     "body": [
       "<b:else/>$0"
     ],
-    "description": "Otherwise case of the previous conditional evaluation."
+    "description": "Fallback branch inside a b:if block."
   },
   "Includable tag": {
     "prefix": "b:includable",
@@ -79,14 +79,14 @@
       "\t$0",
       "</b:includable>"
     ],
-    "description": "Defines a reusable template section or macro."
+    "description": "Defines a reusable template section / macro that can be called by b:include."
   },
   "Include tag": {
     "prefix": "b:include",
     "body": [
       "<b:include name=\"${1:main}\" data=\"${2:data}\"/>$0"
     ],
-    "description": "Executes and renders a b:includable section."
+    "description": "Executes and renders a b:includable section by name."
   },
   "Loop tag": {
     "prefix": "b:loop",
@@ -95,7 +95,7 @@
       "\t$0",
       "</b:loop>"
     ],
-    "description": "Allows iterating over elements of an Array data type."
+    "description": "Iterates through an array expression."
   },
   "Message tag": {
     "prefix": "b:message",
@@ -104,7 +104,7 @@
       "\t<b:param name=\"${2:name}\" value=\"${3:value}\"/>",
       "</b:message>$0"
     ],
-    "description": "Accesses and formats a localized UI message from Blogger."
+    "description": "Renders a localized message from the Blogger message dictionary."
   },
   "Section tag": {
     "prefix": "b:section",
@@ -113,7 +113,7 @@
       "\t$0",
       "</b:section>"
     ],
-    "description": "Creates sections for widgets. It can only contain b:widget tags."
+    "description": "Defines a layout section that can contain b:widget tags."
   },
   "Skin tag": {
     "prefix": "b:skin",
@@ -124,9 +124,9 @@
       "\t]]>",
       "</b:skin>"
     ],
-    "description": "Contains theme styles and variables intended for the Blogger Template Designer."
+    "description": "Contains CSS styles and variables for the Blogger Template Designer."
   },
-  "Template skin tag": {
+  "Template Skin tag": {
     "prefix": "b:template-skin",
     "body": [
       "<b:template-skin>",
@@ -135,7 +135,79 @@
       "\t]]>",
       "</b:template-skin>"
     ],
-    "description": "Contains theme styles intended for the Blogger layout Mode."
+    "description": "Contains layout mode specific CSS styles."
+  },
+  "Switch tag": {
+    "prefix": "b:switch",
+    "body": [
+      "<b:switch var=\"${1:data:blog.pageType}\">",
+      "\t<b:case value=\"${2:item}\"/>",
+      "\t\t$0",
+      "\t<b:default/>",
+      "</b:switch>"
+    ],
+    "description": "Evaluates an expression and switches between b:case branches."
+  },
+  "Case tag": {
+    "prefix": "b:case",
+    "body": [
+      "<b:case value=\"${1:value}\"/>$0"
+    ],
+    "description": "Branch inside a b:switch statement matching a specific value."
+  },
+  "Default tag": {
+    "prefix": "b:default",
+    "body": [
+      "<b:default/>$0"
+    ],
+    "description": "Default fallback branch inside a b:switch statement."
+  },
+  "Tag tag": {
+    "prefix": "b:tag",
+    "body": [
+      "<b:tag name=\"${1:div}\">",
+      "\t$0",
+      "</b:tag>"
+    ],
+    "description": "Dynamically generates any HTML tag by name."
+  },
+  "Widget tag": {
+    "prefix": "b:widget",
+    "body": [
+      "<b:widget id=\"${1:Blog1}\" type=\"${2:Blog}\" title=\"${3:Blog Posts}\" locked=\"${4:false}\" version=\"2\">",
+      "\t$0",
+      "</b:widget>"
+    ],
+    "description": "Defines a Blogger widget component."
+  },
+  "Widget Settings tag": {
+    "prefix": "b:widget-settings",
+    "body": [
+      "<b:widget-settings>",
+      "\t<b:widget-setting name=\"${1:name}\">",
+      "\t\t$0",
+      "\t</b:widget-setting>",
+      "</b:widget-settings>"
+    ],
+    "description": "Configuration container for a widget settings list."
+  },
+  "Widget Setting tag": {
+    "prefix": "b:widget-setting",
+    "body": [
+      "<b:widget-setting name=\"${1:name}\">",
+      "\t$0",
+      "</b:widget-setting>"
+    ],
+    "description": "Single setting key-value pair for a widget."
+  },
+  "With tag": {
+    "prefix": "b:with",
+    "body": [
+      "<b:with value=\"${1:expression}\" var=\"${2:alias}\">",
+      "\t$0",
+      "</b:with>"
+    ],
+    "description": "Assigns an expression value to a local alias variable scope."
   },
   "Group tag": {
     "prefix": "Group",
@@ -152,77 +224,5 @@
       "<Variable name=\"${1:name}\" description=\"${2|Accents,Action color,Action font,Action font (large),Action font (small),Alternate Color,Attribution,Attribution link color,Attribution text color,Attribution text font,Author color,Author font,Author profile,Background blur,Background Color,Background color,Background color (Bottom),Background color (text-only post),Background color (Top),Background color (Top) - HD,Background height,Background icons color,Backgrounds,Bevel Color,Blockquote color,Blockquote font,Blockquote font (large),Blockquote font (small),Blockquotes,Blog Description,Blog Description Background Color,Blog Description Color,Blog Description Font,Blog Title,Blog title,Blog Title Background Color,Blog Title Color,Blog Title Font,Body,Body background color,Border Color,Bottom Sidebar Background Color,Bottom Sidebar Link Color,Bottom Sidebar Text Color,Bottom Sidebar Title Color,Bottom Sidebar Visited Link Color,Button color,Button font,Caption color,Caption font,Caption Text Color,Caption text color,Collapsed title color,Collapsed title font,Color,Comments,Content color,Content font,Content margin,Content width,Date and Footer Color,Date Header,Date Header Color,Date Header Font,Date Ribbon,Description Background Color,Description Color,Description font,Dialog action color,Dialog action font,Dialog input color,Dialog input font,Dialog title color,Dialog title font,Dialogs,Featured post,Featured post background color (secondary),Featured post buttons color (secondary),Featured post drop cap color (secondary),Featured post main background color,Featured post main buttons color,Featured post main link color,Featured post main text color,Featured post main title color,Featured post text color (secondary),Feed,Feed Links,Filter background color,Filter keyword color,Filter keyword font (large),Filter keyword font (small),Filter link color,Filter link font (large),Filter link font (small),Filter text color,Filter text font,Filter text font (large),Filter text font (small),Font,Footer,Footer Background,Footer color,Footer color (text-only post),Footer Links,Footer Text Color,Gadget Background,Gadget Links,Gadget Text,Gadget text color,Gadget text font,Gadget Title,Gadget Title Color,Gadget title color,Gadget title font,Gadget title font (large),Gadget title font (small),Gadgets,Header,Header Background,Header Bar,Header bar color,Header color,Header color (text-only post),Header font,Header icons color,Header separator color,Hover Color,Icon color,Individual Post or Page,Input color,Input font,Images,Label background color,Label font,Label font size,Label text color,Labels,Link Color,Link color,Link font,Link Hover Color,Link Text,Link Visited Color,Links,Main Background,Main Background Color,Mobile Button Color,Outer Background,Page,Page Background Color,Page Header Background Color,Page Header Color,Page Header Corners Color,Page Header Font,Page Header Text Color,Page list color,Page list color (selected page),Page list font,Page list font (selected page),Page Text,Pager,Pictures,Placeholder text color,Placeholder text font,Popular post background color,Popular post byline color,Popular post link color,Popular post text color,Popular post title color,Popular posts,Popup background color,Popup selected color,Popup text color,Post,Post Background,Post background color,Post Border Color,Post byline color,Post byline font,Post border radius,Post Footer,Post Footer Color,Post Footer Font,Post Footer Link Color,Post icons color,Post link color,Post navigation,Post navigation links color,Post navigation links visited color,Post navigations links hover color,Post snippet text font,Post snippet text line height,Post subtitle color,Post subtitle font,Post text color,Post text font,Post text line height,Post Title,Post Title Background Color,Post title background color,Post Title Color,Post title color,Post Title Font,Post title font,Post title stream font,Post width (stream),Posts,Profile description color,Profile description font,Profile link color,Profile link font,Profile name color,Profile name font,Profile text color,Profile title color,Search,Search bar,Selected Color,Selected color,Separator Color,Separator color,Separator Line Color,Shadow Color,Sharing,Sharing background color,Sharing icons color,Sharing text color,Sharing text font,Sidebar,Sidebar Background,Sidebar Background Color,Sidebar icons color,Sidebar Link Color,Sidebar Text Color,Sidebar Title Background Color,Sidebar Title Color,Sidebar Title Font,Sidebar Title Text Color,Sidebar Visited Link Color,Sidebar width,Tabs,Tabs Background,Tabs background color,Tabs Border Color,Tabs Text,Tabs text,Text Color,Text color,Text Font,Text font,Text font (large),Text font (small),Title Color,Title color,Title color (text-only post),Title Font,Title font (large),Title font (small),Top Sidebar Background Color,Top Sidebar Link Color,Top Sidebar Text Color,Top Sidebar Title Color,Top Sidebar Visited Link Color,Visited Color,Visited Link Color,Visited link color,Widths|}\" type=\"${3|color,font,length,string,background|}\" default=\"${4:default}\" value=\"${5:value}\"/>$0"
     ],
     "description": "Creates customization options for the Blogger Template Designer."
-  },
-  "Switch tag": {
-    "prefix": "b:switch",
-    "body": [
-      "<b:switch var=\"${1:data:blog.pageType}\">",
-      "\t<b:case value=\"${2:item}\"/>",
-      "\t\t$0",
-      "\t<b:default/>",
-      "</b:switch>"
-    ],
-    "description": "Renders branches depending on evaluated switch expression."
-  },
-  "Case tag": {
-    "prefix": "b:case",
-    "body": [
-      "<b:case value=\"${1:value}\"/>$0"
-    ],
-    "description": "Case branch of the previous switch evaluation."
-  },
-  "Default tag": {
-    "prefix": "b:default",
-    "body": [
-      "<b:default/>$0"
-    ],
-    "description": "Default fallback case of the previous switch evaluation."
-  },
-  "Tag tag": {
-    "prefix": "b:tag",
-    "body": [
-      "<b:tag name=\"${1:div}\">",
-      "\t$0",
-      "</b:tag>"
-    ],
-    "description": "Allows adding or creating any HTML tag dynamically."
-  },
-  "Widget tag": {
-    "prefix": "b:widget",
-    "body": [
-      "<b:widget id=\"${1:Blog1}\" type=\"${2:Blog}\" title=\"${3:Blog Posts}\" locked=\"${4:false}\" version=\"2\">",
-      "\t$0",
-      "</b:widget>"
-    ],
-    "description": "Creates widgets that can only be contained by a b:section tag."
-  },
-  "Widget settings tag": {
-    "prefix": "b:widget-settings",
-    "body": [
-      "<b:widget-settings>",
-      "\t<b:widget-setting name=\"${1:name}\">",
-      "\t\t$0",
-      "\t</b:widget-setting>",
-      "</b:widget-settings>"
-    ],
-    "description": "Allows configuring the settings container of a widget."
-  },
-  "Widget setting tag": {
-    "prefix": "b:widget-setting",
-    "body": [
-      "<b:widget-setting name=\"${1:name}\">",
-      "\t$0",
-      "</b:widget-setting>"
-    ],
-    "description": "Configures a single setting item of a widget."
-  },
-  "Alias tag": {
-    "prefix": "b:with",
-    "body": [
-      "<b:with value=\"${1:expression}\" var=\"${2:alias}\">",
-      "\t$0",
-      "</b:with>"
-    ],
-    "description": "Stores an expression in a scoped alias variable."
   }
 }
