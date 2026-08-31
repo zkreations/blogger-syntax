@@ -1,2 +1,4 @@
 node_modules
 *.vsix
+.codegraph
+package-lock.json
