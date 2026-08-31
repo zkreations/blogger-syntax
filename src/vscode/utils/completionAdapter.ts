@@ -6,12 +6,6 @@ function mapSuggestionKindToVsCode(kind: BloggerSuggestionKind): vscode.Completi
   switch (kind) {
     case 'enumMember':
       return vscode.CompletionItemKind.EnumMember;
-    case 'variable':
-      return vscode.CompletionItemKind.Variable;
-    case 'class':
-      return vscode.CompletionItemKind.Class;
-    case 'value':
-      return vscode.CompletionItemKind.Value;
     case 'snippet':
       return vscode.CompletionItemKind.Snippet;
     case 'property':

@@ -10,24 +10,16 @@ export function activate(context: vscode.ExtensionContext): void {
   const completionProvider = new BloggerCompletionProvider(pathResolver);
   const hoverProvider = new BloggerHoverProvider(pathResolver);
 
-  for (const language of SUPPORTED_LANGUAGES) {
-    const completionDisposable = vscode.languages.registerCompletionItemProvider(
-      language,
+  context.subscriptions.push(
+    vscode.languages.registerCompletionItemProvider(
+      SUPPORTED_LANGUAGES,
       completionProvider,
       ...TRIGGER_CHARACTERS,
-    );
-
-    const hoverDisposable = vscode.languages.registerHoverProvider(
-      language,
+    ),
+    vscode.languages.registerHoverProvider(
+      SUPPORTED_LANGUAGES,
       hoverProvider,
-    );
-
-    context.subscriptions.push(completionDisposable, hoverDisposable);
-  }
-
-  registerCursorSuggestListener(context);
-}
-
-export function deactivate(): void {
-  // Cleanup hook
+    ),
+    registerCursorSuggestListener(),
+  );
 }

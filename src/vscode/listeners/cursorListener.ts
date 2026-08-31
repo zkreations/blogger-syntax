@@ -1,13 +1,32 @@
 import * as vscode from 'vscode';
 import { CURSOR_SUGGEST_DEBOUNCE_MS, SUPPORTED_LANGUAGES } from '../constants.js';
-import { isCursorInsideEmptyDescription } from '../utils/cursorDetector.js';
+
+/**
+ * Determines whether the cursor is positioned directly between empty quotes of a description attribute
+ * (e.g. `description=""` or `description=''`).
+ */
+export function isCursorInsideEmptyDescription(lineText: string, character: number): boolean {
+  if (character < 0 || character > lineText.length) {
+    return false;
+  }
+
+  const prefix = lineText.slice(0, character);
+  const suffix = lineText.slice(character);
+
+  const match = /\bdescription\s*=\s*(["'])$/.exec(prefix);
+  if (!match || !match[1]) {
+    return false;
+  }
+
+  const quote = match[1];
+  return suffix.startsWith(quote);
+}
 
 /**
  * Registers an editor selection change listener that automatically triggers code completion
  * when the cursor is positioned inside an empty `description=""` attribute in supported documents.
  */
 export function registerCursorSuggestListener(
-  context: vscode.ExtensionContext,
   debounceMs: number = CURSOR_SUGGEST_DEBOUNCE_MS,
 ): vscode.Disposable {
   let debounceTimer: ReturnType<typeof setTimeout> | undefined;
@@ -43,13 +62,10 @@ export function registerCursorSuggestListener(
     }, debounceMs);
   });
 
-  const cleanupDisposable = new vscode.Disposable(() => {
+  return new vscode.Disposable(() => {
     if (debounceTimer) {
       clearTimeout(debounceTimer);
     }
     disposable.dispose();
   });
-
-  context.subscriptions.push(cleanupDisposable);
-  return cleanupDisposable;
 }

@@ -19,7 +19,7 @@ export interface BloggerProperty {
   readonly children?: Record<string, BloggerProperty> | undefined;
 }
 
-export type BloggerSuggestionKind = 'property' | 'enumMember' | 'variable' | 'class' | 'value' | 'snippet';
+export type BloggerSuggestionKind = 'property' | 'enumMember' | 'snippet';
 
 export interface BloggerSuggestion {
   readonly name: string;
@@ -52,9 +52,8 @@ export interface BloggerTagAttribute {
 export interface BloggerTagDefinition {
   readonly name: string;
   readonly description: string;
+  readonly snippetBody: string;
   readonly attributes?: Record<string, BloggerTagAttribute> | undefined;
-  readonly selfClosing?: boolean | undefined;
-  readonly snippetBody?: string | undefined;
   readonly example?: string | undefined;
   readonly docUrl?: string | readonly string[] | undefined;
 }

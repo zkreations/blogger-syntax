@@ -5,21 +5,22 @@ import { cleanSnippetBody } from '../../core/utils/snippetFormatter.js';
 /**
  * Returns a human-friendly label for a documentation URL based on its host or context.
  */
-export function getDocUrlLabel(url: string, index: number, total: number): string {
+export function getDocUrlLabel(url: string, index: number = 0, total: number = 1): string {
   try {
     const parsed = new URL(url);
-    if (parsed.hostname.includes('support.google.com') || parsed.hostname.includes('google.com')) {
+    const host = parsed.hostname;
+    if (host.includes('support.google.com') || host.includes('google.com')) {
       return 'Google Documentation';
     }
-    if (parsed.hostname.includes('orbiona.com') || parsed.hostname.includes('bloggercode')) {
+    if (host.includes('orbiona.com') || host.includes('bloggercode')) {
       return 'BloggerCode Reference';
     }
-    if (parsed.hostname.includes('zkreations.com')) {
+    if (host.includes('zkreations.com')) {
       return 'zkreations Reference';
     }
   }
   catch {
-    // Fallback if URL constructor fails
+    // Non-standard URL format fallback
   }
 
   if (total === 1) {
@@ -43,8 +44,22 @@ export function formatDocLinks(docUrls?: string | readonly string[]): string | u
     return undefined;
   }
 
+  const baseLabels = validUrls.map((url, i) => getDocUrlLabel(url, i, validUrls.length));
+  const labelCounts = new Map<string, number>();
+  for (const label of baseLabels) {
+    labelCounts.set(label, (labelCounts.get(label) ?? 0) + 1);
+  }
+
+  const labelIndex = new Map<string, number>();
   const links = validUrls.map((url, i) => {
-    const label = getDocUrlLabel(url, i, validUrls.length);
+    const base = baseLabels[i]!;
+    const count = labelCounts.get(base) ?? 1;
+    let label = base;
+    if (count > 1) {
+      const currentIdx = (labelIndex.get(base) ?? 0) + 1;
+      labelIndex.set(base, currentIdx);
+      label = `${base} ${currentIdx}`;
+    }
     return `[${label}](${url.trim()})`;
   });
 
