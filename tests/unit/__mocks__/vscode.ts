@@ -77,9 +77,26 @@ export class CompletionItem {
 export class MarkdownString {
   public value: string;
   public isTrusted?: boolean;
+  public supportThemeIcons?: boolean;
 
-  constructor(value: string = '') {
+  constructor(value: string = '', supportThemeIcons?: boolean) {
     this.value = value;
+    this.supportThemeIcons = supportThemeIcons;
+  }
+
+  public appendText(value: string): MarkdownString {
+    this.value += value;
+    return this;
+  }
+
+  public appendMarkdown(value: string): MarkdownString {
+    this.value += value;
+    return this;
+  }
+
+  public appendCodeblock(value: string, language: string = ''): MarkdownString {
+    this.value += `\n\`\`\`${language}\n${value}\n\`\`\`\n`;
+    return this;
   }
 }
 

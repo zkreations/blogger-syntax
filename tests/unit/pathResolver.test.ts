@@ -118,15 +118,35 @@ describe('bloggerPathResolver', () => {
       const suggestions = resolver.resolveDataPath(['nonexistent', 'path']);
       expect(suggestions).toEqual([]);
     });
+
+    it('should include contextual data path examples on suggestions', () => {
+      const suggestions = resolver.resolveDataPath(['blog', 'locale']);
+      const countrySuggestion = suggestions.find(s => s.name === 'country');
+      expect(countrySuggestion).toBeDefined();
+      expect(countrySuggestion!.example).toBe('data:blog.locale.country');
+    });
   });
 
   describe('resolveDescriptions', () => {
-    it('should return all descriptions', () => {
+    it('should return all descriptions with variable examples', () => {
       const suggestions = resolver.resolveDescriptions();
       expect(suggestions.length).toBe(bloggerDescriptions.length);
       expect(suggestions.every(s => s.kind === 'enumMember')).toBe(true);
       expect(suggestions.some(s => s.name === 'Blog Title')).toBe(true);
       expect(suggestions.some(s => s.name === 'Background Color')).toBe(true);
+      const titleDesc = suggestions.find(s => s.name === 'Blog Title');
+      expect(titleDesc!.example).toContain('<Variable name="myVar" description="Blog Title"');
+    });
+  });
+
+  describe('resolveBloggerTags', () => {
+    it('should propagate attributes and snippet body for tags', () => {
+      const suggestions = resolver.resolveBloggerTags(true);
+      const ifTag = suggestions.find(s => s.name === 'b:if');
+      expect(ifTag).toBeDefined();
+      expect(ifTag!.attributes).toBeDefined();
+      expect(ifTag!.attributes!.cond).toBeDefined();
+      expect(ifTag!.insertText).toBeDefined();
     });
   });
 

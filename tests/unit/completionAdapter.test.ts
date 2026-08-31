@@ -31,5 +31,26 @@ describe('completionAdapter', () => {
     expect(item.label).toBe('Blog Title');
     expect(item.kind).toBe(vscode.CompletionItemKind.EnumMember);
     expect(item.detail).toBe('(Blogger Skin Description)');
+    expect((item.documentation as vscode.MarkdownString).value).toContain('```xml');
+  });
+
+  it('should map snippet suggestion with cleaned code block in documentation', () => {
+    const suggestion: BloggerSuggestion = {
+      name: 'b:if',
+      type: 'string',
+      description: 'Renders child content if the condition evaluates to true.',
+      insertText: 'b:if cond="${1:condition}">\n\t$0\n</b:if>',
+      isSnippet: true,
+      kind: 'snippet',
+    };
+
+    const item = createCompletionItem(suggestion);
+    expect(item.label).toBe('b:if');
+    expect(item.kind).toBe(vscode.CompletionItemKind.Snippet);
+    expect(item.detail).toBe('(Blogger Tag)');
+    expect(item.insertText).toBeInstanceOf(vscode.SnippetString);
+    const docValue = (item.documentation as vscode.MarkdownString).value;
+    expect(docValue).toContain('Renders child content if the condition evaluates to true.');
+    expect(docValue).toContain('```xml\n<b:if cond="condition">\n\t\n</b:if>\n```');
   });
 });

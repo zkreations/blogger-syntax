@@ -14,6 +14,8 @@ export interface BloggerProperty {
   readonly type: BloggerDataType;
   readonly description?: string | undefined;
   readonly deprecated?: boolean | undefined;
+  readonly example?: string | undefined;
+  readonly docUrl?: string | undefined;
   readonly children?: Record<string, BloggerProperty> | undefined;
 }
 
@@ -26,6 +28,11 @@ export interface BloggerSuggestion {
   readonly insertText?: string | undefined;
   readonly isSnippet?: boolean | undefined;
   readonly kind: BloggerSuggestionKind;
+  readonly example?: string | undefined;
+  readonly exampleLanguage?: string | undefined;
+  readonly attributes?: Record<string, BloggerTagAttribute> | undefined;
+  readonly deprecated?: boolean | undefined;
+  readonly docUrl?: string | undefined;
 }
 
 export interface BloggerResolveResult {
@@ -47,4 +54,6 @@ export interface BloggerTagDefinition {
   readonly attributes?: Record<string, BloggerTagAttribute> | undefined;
   readonly selfClosing?: boolean | undefined;
   readonly snippetBody?: string | undefined;
+  readonly example?: string | undefined;
+  readonly docUrl?: string | undefined;
 }

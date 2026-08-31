@@ -41,6 +41,9 @@ export class BloggerPathResolver {
         name: prop.name,
         type: prop.type,
         description: prop.description,
+        example: prop.example ?? `data:${prop.name}`,
+        deprecated: prop.deprecated,
+        docUrl: prop.docUrl,
         kind: 'property',
       }));
     }
@@ -63,10 +66,14 @@ export class BloggerPathResolver {
       return [];
     }
 
+    const basePath = segments.join('.');
     return Object.values(currentMap).map(prop => ({
       name: prop.name,
       type: prop.type,
       description: prop.description,
+      example: prop.example ?? `data:${basePath}.${prop.name}`,
+      deprecated: prop.deprecated,
+      docUrl: prop.docUrl,
       kind: 'property',
     }));
   }
@@ -79,6 +86,7 @@ export class BloggerPathResolver {
       name: desc,
       type: 'string',
       description: `Blogger Skin Variable / Group description: "${desc}"`,
+      example: `<Variable name="myVar" description="${desc}" type="color" default="#000000" value="#000000"/>`,
       kind: 'enumMember',
     }));
   }
@@ -94,6 +102,9 @@ export class BloggerPathResolver {
       insertText: hasOpenBracket ? tag.snippetBody : `<${tag.snippetBody}`,
       isSnippet: true,
       kind: 'snippet',
+      example: tag.example,
+      attributes: tag.attributes,
+      docUrl: tag.docUrl,
     }));
   }
 

@@ -1,5 +1,6 @@
 import type { BloggerDataType, BloggerSuggestion, BloggerSuggestionKind } from '../../core/models/types.js';
 import * as vscode from 'vscode';
+import { buildCompletionDocumentation } from './docBuilder.js';
 
 function mapSuggestionKindToVsCode(kind: BloggerSuggestionKind): vscode.CompletionItemKind {
   switch (kind) {
@@ -40,10 +41,7 @@ export function createCompletionItem(
   );
 
   item.detail = formatDetail(suggestion.type, suggestion.kind);
-
-  if (suggestion.description) {
-    item.documentation = new vscode.MarkdownString(suggestion.description);
-  }
+  item.documentation = buildCompletionDocumentation(suggestion);
 
   if (range) {
     item.range = range;
