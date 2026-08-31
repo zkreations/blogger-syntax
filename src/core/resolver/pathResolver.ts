@@ -15,39 +15,42 @@ function normalizeDocUrls(docUrl?: string | readonly string[]): readonly string[
   return docUrl;
 }
 
-export class BloggerPathResolver {
-  private readonly rootTree: Record<string, BloggerProperty>;
+function createBloggerRootTree(): Record<string, BloggerProperty> {
+  const tree: Record<string, BloggerProperty> = {
+    ...bloggerGlobalRoot,
+    posts: {
+      name: 'posts',
+      type: 'array',
+      description: 'Collection of posts available in the current widget context.',
+      docUrl: 'https://bloggercode.orbiona.com/1971/08/data-posts.html',
+      children: singlePostProperties,
+    },
+    post: {
+      name: 'post',
+      type: 'object',
+      description: 'Current post object context.',
+      children: singlePostProperties,
+    },
+  };
 
-  constructor() {
-    this.rootTree = {
-      ...bloggerGlobalRoot,
-      posts: {
-        name: 'posts',
-        type: 'array',
-        description: 'Collection of posts available in the current widget context.',
-        docUrl: 'https://bloggercode.orbiona.com/1971/08/data-posts.html',
-        children: singlePostProperties,
-      },
-      post: {
-        name: 'post',
-        type: 'object',
-        description: 'Current post object context.',
-        children: singlePostProperties,
+  const widgetsProperty = tree.widgets;
+  if (widgetsProperty && widgetsProperty.children) {
+    tree.widgets = {
+      ...widgetsProperty,
+      children: {
+        ...widgetsProperty.children,
+        ...bloggerWidgetsSchema,
       },
     };
-
-    // Link widgets schema (e.g. data:widgets.Blog.*)
-    const widgetsProperty = this.rootTree.widgets;
-    if (widgetsProperty && widgetsProperty.children) {
-      this.rootTree.widgets = {
-        ...widgetsProperty,
-        children: {
-          ...widgetsProperty.children,
-          ...bloggerWidgetsSchema,
-        },
-      };
-    }
   }
+
+  return tree;
+}
+
+const STATIC_ROOT_TREE = createBloggerRootTree();
+
+export class BloggerPathResolver {
+  private readonly rootTree: Record<string, BloggerProperty> = STATIC_ROOT_TREE;
 
   /**
    * Resolves a property from a sequence of path segments (e.g. ['blog', 'locale', 'country'])
@@ -136,18 +139,34 @@ export class BloggerPathResolver {
   /**
    * Resolves suggestions for Blogger b:* tags
    */
-  public resolveBloggerTags(hasOpenBracket: boolean): BloggerSuggestion[] {
-    return Object.values(bloggerTags).map(tag => ({
-      name: tag.name,
-      type: 'string',
-      description: tag.description,
-      insertText: hasOpenBracket ? tag.snippetBody : `<${tag.snippetBody}`,
-      isSnippet: true,
-      kind: 'snippet',
-      example: tag.example,
-      attributes: tag.attributes,
-      docUrl: tag.docUrl,
-    }));
+  public resolveBloggerTags(hasOpenBracket: boolean, isClosingTag: boolean = false): BloggerSuggestion[] {
+    return Object.values(bloggerTags).map((tag) => {
+      let insertText: string;
+      let isSnippet = true;
+
+      if (isClosingTag) {
+        insertText = `${tag.name}>`;
+        isSnippet = false;
+      }
+      else if (hasOpenBracket) {
+        insertText = tag.snippetBody;
+      }
+      else {
+        insertText = `<${tag.snippetBody}`;
+      }
+
+      return {
+        name: tag.name,
+        type: 'string',
+        description: tag.description,
+        insertText,
+        isSnippet,
+        kind: 'snippet',
+        example: tag.example,
+        attributes: tag.attributes,
+        docUrl: tag.docUrl,
+      };
+    });
   }
 
   /**
@@ -193,13 +212,15 @@ export class BloggerPathResolver {
       };
     }
 
-    // 3. Check for Blogger tags: <b: or b:
-    const tagMatch = /(?:^|[^\w:])(<)?(b:[\w-]*)$/.exec(linePrefix);
+    // 3. Check for Blogger tags: </b: or <b: or b:
+    const tagMatch = /(?:^|[^\w:])(<\/|<)?(b:[\w-]*)$/.exec(linePrefix);
     if (tagMatch && tagMatch[2] !== undefined) {
-      const hasOpenBracket = Boolean(tagMatch[1]);
+      const bracketPrefix = tagMatch[1];
+      const isClosingTag = bracketPrefix === '</';
+      const hasOpenBracket = bracketPrefix === '<';
       const typedTag = tagMatch[2]; // e.g. "b:", "b:i", "b:if"
       return {
-        suggestions: this.resolveBloggerTags(hasOpenBracket),
+        suggestions: this.resolveBloggerTags(hasOpenBracket, isClosingTag),
         replacementLength: typedTag.length,
       };
     }

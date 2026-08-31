@@ -111,8 +111,27 @@ export class Hover {
   }
 }
 
+export class Disposable {
+  constructor(private readonly callOnDispose: () => void) {}
+
+  public dispose(): void {
+    this.callOnDispose();
+  }
+}
+
 export const languages = {
-  registerCompletionItemProvider: () => ({ dispose: () => {} }),
-  registerHoverProvider: () => ({ dispose: () => {} }),
+  registerCompletionItemProvider: () => new Disposable(() => {}),
+  registerHoverProvider: () => new Disposable(() => {}),
 };
 
+export const window = {
+  activeTextEditor: undefined as {
+    document: { lineAt: (line: number) => { text: string }; lineCount: number };
+    selection: { active: Position };
+  } | undefined,
+  onDidChangeTextEditorSelection: () => new Disposable(() => {}),
+};
+
+export const commands = {
+  executeCommand: async () => {},
+};

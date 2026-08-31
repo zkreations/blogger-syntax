@@ -211,6 +211,26 @@ describe('bloggerPathResolver', () => {
       expect(result!.suggestions.length).toBe(bloggerDescriptions.length);
     });
 
+    it('should resolve Blogger tags for "</b:" as closing tags', () => {
+      const result = resolver.resolveFromLinePrefix('</b:');
+      expect(result).toBeDefined();
+      expect(result!.replacementLength).toBe(2); // "b:".length
+      const ifTag = result!.suggestions.find(s => s.name === 'b:if');
+      expect(ifTag).toBeDefined();
+      expect(ifTag!.insertText).toBe('b:if>');
+      expect(ifTag!.isSnippet).toBe(false);
+    });
+
+    it('should resolve Blogger tags for "</b:lo" with correct replacement length', () => {
+      const result = resolver.resolveFromLinePrefix('<div>\n  </b:lo');
+      expect(result).toBeDefined();
+      expect(result!.replacementLength).toBe(4); // "b:lo".length
+      const loopTag = result!.suggestions.find(s => s.name === 'b:loop');
+      expect(loopTag).toBeDefined();
+      expect(loopTag!.insertText).toBe('b:loop>');
+      expect(loopTag!.isSnippet).toBe(false);
+    });
+
     it('should return undefined for non-matching lines', () => {
       const result = resolver.resolveFromLinePrefix('<div class="container">');
       expect(result).toBeUndefined();
