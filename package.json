@@ -15,13 +15,13 @@
     "Programming Languages"
   ],
   "main": "./dist/extension.cjs",
-  "icon": "images/blogger.png",
+  "icon": "images/logo.png",
   "browser": "./dist/web/extension.js",
   "engines": {
     "vscode": "^1.95.0"
   },
   "galleryBanner": {
-    "color": "#15141b",
+    "color": "#0a0316",
     "theme": "dark"
   },
   "capabilities": {
