@@ -1,3 +1,4 @@
+export * from './data/attributesData.js';
 export * from './data/descriptions.js';
 export * from './data/globalData.js';
 export * from './data/tagsData.js';

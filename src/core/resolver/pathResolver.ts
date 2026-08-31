@@ -1,8 +1,19 @@
-import type { BloggerProperty, BloggerResolveResult, BloggerSuggestion } from '../models/types.js';
+import type { BloggerHoverResult, BloggerProperty, BloggerResolveResult, BloggerSuggestion } from '../models/types.js';
+import { bloggerCommonAttributes, bloggerExprPrefixInfo } from '../data/attributesData.js';
 import { bloggerDescriptions } from '../data/descriptions.js';
 import { bloggerGlobalRoot } from '../data/globalData.js';
 import { bloggerTags } from '../data/tagsData.js';
 import { bloggerWidgetsSchema, singlePostProperties } from '../data/widgetsData.js';
+
+function normalizeDocUrls(docUrl?: string | readonly string[]): readonly string[] | undefined {
+  if (!docUrl) {
+    return undefined;
+  }
+  if (typeof docUrl === 'string') {
+    return [docUrl];
+  }
+  return docUrl;
+}
 
 export class BloggerPathResolver {
   private readonly rootTree: Record<string, BloggerProperty>;
@@ -10,7 +21,13 @@ export class BloggerPathResolver {
   constructor() {
     this.rootTree = {
       ...bloggerGlobalRoot,
-      // Alias 'post' directly to singlePostProperties for expressions like data:post.title
+      posts: {
+        name: 'posts',
+        type: 'array',
+        description: 'Collection of posts available in the current widget context.',
+        docUrl: 'https://bloggercode.orbiona.com/1971/08/data-posts.html',
+        children: singlePostProperties,
+      },
       post: {
         name: 'post',
         type: 'object',
@@ -30,6 +47,31 @@ export class BloggerPathResolver {
         },
       };
     }
+  }
+
+  /**
+   * Resolves a property from a sequence of path segments (e.g. ['blog', 'locale', 'country'])
+   */
+  public resolvePropertyFromPath(segments: readonly string[]): BloggerProperty | undefined {
+    if (segments.length === 0) {
+      return undefined;
+    }
+
+    let currentMap: Record<string, BloggerProperty> | undefined = this.rootTree;
+    let targetProperty: BloggerProperty | undefined;
+
+    for (const segment of segments) {
+      if (!currentMap || !segment) {
+        return undefined;
+      }
+      targetProperty = currentMap[segment];
+      if (!targetProperty) {
+        return undefined;
+      }
+      currentMap = targetProperty.children;
+    }
+
+    return targetProperty;
   }
 
   /**
@@ -160,6 +202,125 @@ export class BloggerPathResolver {
         suggestions: this.resolveBloggerTags(hasOpenBracket),
         replacementLength: typedTag.length,
       };
+    }
+
+    return undefined;
+  }
+
+  /**
+   * Resolves hover information at a specific character offset in a line of code.
+   */
+  public resolveHoverAtPosition(lineText: string, character: number): BloggerHoverResult | undefined {
+    if (character < 0 || character > lineText.length) {
+      return undefined;
+    }
+
+    // 1. Check data: expressions (e.g. data:blog.title, data:posts, data:view.isHomepage)
+    const dataRegex = /(?:^|[^\w:.])(data:[\w.]*)/g;
+    for (const match of lineText.matchAll(dataRegex)) {
+      const token = match[1];
+      if (!token || token === 'data:' || match.index === undefined) {
+        continue;
+      }
+      const tokenStart = match.index + (match[0].length - token.length);
+      const tokenEnd = tokenStart + token.length;
+
+      if (character >= tokenStart && character <= tokenEnd) {
+        const rawPath = token.slice('data:'.length);
+        const segments = rawPath.split('.').filter(Boolean);
+        const resolved = this.resolvePropertyFromPath(segments);
+        if (resolved) {
+          return {
+            hover: {
+              title: token,
+              category: 'data',
+              type: resolved.type,
+              description: resolved.description,
+              example: resolved.example ?? token,
+              docUrls: normalizeDocUrls(resolved.docUrl),
+            },
+            range: { start: tokenStart, end: tokenEnd },
+          };
+        }
+      }
+    }
+
+    // 2. Check Blogger tags (e.g. <b:if>, </b:loop>, b:section)
+    const tagRegex = /(<\/?)b:([\w-]+)/g;
+    for (const match of lineText.matchAll(tagRegex)) {
+      const tagBase = match[2];
+      if (!tagBase || match.index === undefined) {
+        continue;
+      }
+      const fullTagName = `b:${tagBase}`;
+      const tokenStart = match.index;
+      const tokenEnd = tokenStart + match[0].length;
+
+      if (character >= tokenStart && character <= tokenEnd) {
+        const tagDef = bloggerTags[fullTagName];
+        if (tagDef) {
+          return {
+            hover: {
+              title: `<${fullTagName}>`,
+              category: 'tag',
+              description: tagDef.description,
+              example: tagDef.snippetBody,
+              docUrls: normalizeDocUrls(tagDef.docUrl),
+            },
+            range: { start: tokenStart, end: tokenEnd },
+          };
+        }
+      }
+    }
+
+    // 3. Check expr: prefix attributes (e.g. expr:class, expr:title, expr:href)
+    const exprRegex = /\b(expr:[\w-]*)/g;
+    for (const match of lineText.matchAll(exprRegex)) {
+      if (match.index === undefined) {
+        continue;
+      }
+      const tokenStart = match.index;
+      const tokenEnd = tokenStart + match[0].length;
+
+      if (character >= tokenStart && character <= tokenEnd) {
+        return {
+          hover: {
+            title: `${match[0]} (Expression Attribute)`,
+            category: 'prefix',
+            type: 'attribute-prefix',
+            description: bloggerExprPrefixInfo.description,
+            docUrls: normalizeDocUrls(bloggerExprPrefixInfo.docUrl),
+          },
+          range: { start: tokenStart, end: tokenEnd },
+        };
+      }
+    }
+
+    // 4. Check known Blogger tag attributes (e.g. cond=, maxwidgets=, locked=, values=)
+    const attrRegex = /\b([\w-]+)\s*=/g;
+    for (const match of lineText.matchAll(attrRegex)) {
+      const attrName = match[1];
+      if (!attrName || attrName.startsWith('expr:') || match.index === undefined) {
+        continue;
+      }
+      const tokenStart = match.index;
+      const tokenEnd = tokenStart + attrName.length;
+
+      if (character >= tokenStart && character <= tokenEnd) {
+        const attrDef = bloggerCommonAttributes[attrName];
+        if (attrDef) {
+          return {
+            hover: {
+              title: attrName,
+              category: 'attribute',
+              type: attrDef.type,
+              description: attrDef.description,
+              docUrls: normalizeDocUrls(attrDef.docUrl),
+            },
+            range: { start: tokenStart, end: tokenEnd },
+          };
+        }
+      }
     }
 
     return undefined;

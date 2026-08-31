@@ -100,6 +100,19 @@ export class MarkdownString {
   }
 }
 
+export class Hover {
+  public contents: (MarkdownString | string)[];
+
+  constructor(
+    contents: MarkdownString | string | (MarkdownString | string)[],
+    public readonly range?: Range,
+  ) {
+    this.contents = Array.isArray(contents) ? contents : [contents];
+  }
+}
+
 export const languages = {
   registerCompletionItemProvider: () => ({ dispose: () => {} }),
+  registerHoverProvider: () => ({ dispose: () => {} }),
 };
+

@@ -15,7 +15,7 @@ export interface BloggerProperty {
   readonly description?: string | undefined;
   readonly deprecated?: boolean | undefined;
   readonly example?: string | undefined;
-  readonly docUrl?: string | undefined;
+  readonly docUrl?: string | readonly string[] | undefined;
   readonly children?: Record<string, BloggerProperty> | undefined;
 }
 
@@ -32,7 +32,7 @@ export interface BloggerSuggestion {
   readonly exampleLanguage?: string | undefined;
   readonly attributes?: Record<string, BloggerTagAttribute> | undefined;
   readonly deprecated?: boolean | undefined;
-  readonly docUrl?: string | undefined;
+  readonly docUrl?: string | readonly string[] | undefined;
 }
 
 export interface BloggerResolveResult {
@@ -46,6 +46,7 @@ export interface BloggerTagAttribute {
   readonly required?: boolean | undefined;
   readonly description?: string | undefined;
   readonly values?: readonly string[] | undefined;
+  readonly docUrl?: string | readonly string[] | undefined;
 }
 
 export interface BloggerTagDefinition {
@@ -55,5 +56,22 @@ export interface BloggerTagDefinition {
   readonly selfClosing?: boolean | undefined;
   readonly snippetBody?: string | undefined;
   readonly example?: string | undefined;
-  readonly docUrl?: string | undefined;
+  readonly docUrl?: string | readonly string[] | undefined;
+}
+
+export interface BloggerHoverInfo {
+  readonly title: string;
+  readonly category: 'tag' | 'data' | 'attribute' | 'prefix';
+  readonly type?: BloggerDataType | string | undefined;
+  readonly description?: string | undefined;
+  readonly example?: string | undefined;
+  readonly docUrls?: readonly string[] | undefined;
+}
+
+export interface BloggerHoverResult {
+  readonly hover: BloggerHoverInfo;
+  readonly range: {
+    readonly start: number;
+    readonly end: number;
+  };
 }
