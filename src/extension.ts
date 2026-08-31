@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { BloggerPathResolver } from './core/resolver/pathResolver.js';
 import { SUPPORTED_LANGUAGES, TRIGGER_CHARACTERS } from './vscode/constants.js';
+import { registerCursorSuggestListener } from './vscode/listeners/cursorListener.js';
 import { BloggerCompletionProvider } from './vscode/providers/completionProvider.js';
 
 export function activate(context: vscode.ExtensionContext): void {
@@ -16,6 +17,8 @@ export function activate(context: vscode.ExtensionContext): void {
 
     context.subscriptions.push(disposable);
   }
+
+  registerCursorSuggestListener(context);
 }
 
 export function deactivate(): void {
