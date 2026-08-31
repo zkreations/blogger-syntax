@@ -1,7 +1,8 @@
-// Blogger Data
-// docs: https://bloggercode-blogconnexion.blogspot.com/2014/06/tag-b-skin-b-template-skin.html#chapitre-07
-
-const description = [
+/**
+ * Blogger Template Skin / Designer variable descriptions
+ * Reference: https://bloggercode-blogconnexion.blogspot.com/2014/06/tag-b-skin-b-template-skin.html#chapitre-07
+ */
+export const bloggerDescriptions: readonly string[] = [
   'Accents',
   'Action color',
   'Action font',
@@ -268,7 +269,5 @@ const description = [
   'Visited Color',
   'Visited Link Color',
   'Visited link color',
-  'Widths'
+  'Widths',
 ];
-
-export default description;
