@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { isCursorInsideEmptyDescription } from '../../src/vscode/utils/cursorDetector.js';
+import { isCursorInsideEmptyDescription, registerCursorSuggestListener } from '../../src/vscode/listeners/cursorListener.js';
 
-describe('cursorDetector', () => {
+describe('cursorListener', () => {
   describe('isCursorInsideEmptyDescription', () => {
     it('should return true when cursor is between empty double quotes description=""', () => {
       const line = '<Variable name="test" description="" type="color"/>';
@@ -42,6 +42,15 @@ describe('cursorDetector', () => {
     it('should return false for plain lines without description', () => {
       const line = '<b:include name="main" />';
       expect(isCursorInsideEmptyDescription(line, 5)).toBe(false);
+    });
+  });
+
+  describe('registerCursorSuggestListener', () => {
+    it('should return a disposable object', () => {
+      const disposable = registerCursorSuggestListener();
+      expect(disposable).toBeDefined();
+      expect(typeof disposable.dispose).toBe('function');
+      expect(() => disposable.dispose()).not.toThrow();
     });
   });
 });
