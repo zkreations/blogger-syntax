@@ -106,6 +106,30 @@ describe('bloggerCompletionProvider', () => {
     expect(items.length).toBe(25);
   });
 
+  it('should provide completion items for b:param tag', () => {
+    const text = '<b:pa';
+    const document = createMockDocument(text);
+    const position = new vscode.Position(0, text.length);
+
+    const items = provider.provideCompletionItems(document, position) as vscode.CompletionItem[];
+    expect(items).toBeDefined();
+    const paramItem = items.find(item => item.label === 'b:param');
+    expect(paramItem).toBeDefined();
+    expect(paramItem?.kind).toBe(vscode.CompletionItemKind.Snippet);
+  });
+
+  it('should safely clamp range start character to 0 when replacementLength is large', () => {
+    const text = '<b:p';
+    const document = createMockDocument(text);
+    const position = new vscode.Position(0, 4);
+
+    const items = provider.provideCompletionItems(document, position) as vscode.CompletionItem[];
+    expect(items).toBeDefined();
+    const item = items[0];
+    expect(item?.range).toBeDefined();
+    expect((item?.range as vscode.Range).start.character).toBeGreaterThanOrEqual(0);
+  });
+
   it('should return undefined for plain text with no matching prefix', () => {
     const text = '<div class="container">';
     const document = createMockDocument(text);

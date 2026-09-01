@@ -29,7 +29,7 @@ export class BloggerCompletionProvider implements vscode.CompletionItemProvider 
       return undefined;
     }
 
-    const startChar = position.character - result.replacementLength;
+    const startChar = Math.max(0, position.character - result.replacementLength);
     const range = new vscode.Range(position.line, startChar, position.line, position.character);
 
     return createCompletionItems(result.suggestions, range);
