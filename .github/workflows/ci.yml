@@ -8,10 +8,10 @@ on:
     paths-ignore:
       - '**.md'
       - 'images/**'
-      - 'LICENSE'
+      - LICENSE
       - '.vscode/**'
-      - '.gitignore'
-      - '.gitattributes'
+      - .gitignore
+      - .gitattributes
 
   pull_request:
     branches:
@@ -20,10 +20,10 @@ on:
     paths-ignore:
       - '**.md'
       - 'images/**'
-      - 'LICENSE'
+      - LICENSE
       - '.vscode/**'
-      - '.gitignore'
-      - '.gitattributes'
+      - .gitignore
+      - .gitattributes
 
 jobs:
   validate:
