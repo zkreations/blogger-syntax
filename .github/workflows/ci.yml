@@ -5,15 +5,31 @@ on:
     branches:
       - main
       - master
+    paths-ignore:
+      - '**.md'
+      - 'images/**'
+      - 'LICENSE'
+      - '.vscode/**'
+      - '.gitignore'
+      - '.gitattributes'
+
   pull_request:
     branches:
       - main
       - master
+    paths-ignore:
+      - '**.md'
+      - 'images/**'
+      - 'LICENSE'
+      - '.vscode/**'
+      - '.gitignore'
+      - '.gitattributes'
 
 jobs:
   validate:
-    name: Lint, Typecheck & Test (${{ matrix.os }})
+    name: Lint, Typecheck & Test (${{ matrix.os }}, Node ${{ matrix.node-version }})
     runs-on: ${{ matrix.os }}
+
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest]
