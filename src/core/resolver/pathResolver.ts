@@ -123,14 +123,48 @@ export class BloggerPathResolver {
     };
   }
 
-  private navigatePath(segments: readonly string[]): { target?: BloggerProperty | undefined; children?: Record<string, BloggerProperty> | undefined } | undefined {
-    let currentMap: Record<string, BloggerProperty> | undefined = this.rootTree;
-    let targetProperty: BloggerProperty | undefined;
+  private navigatePath(
+    segments: readonly string[],
+    localVariables?: Record<string, BloggerProperty>,
+  ): { target?: BloggerProperty | undefined; children?: Record<string, BloggerProperty> | undefined } | undefined {
+    if (segments.length === 0) {
+      return undefined;
+    }
 
-    for (const segment of segments) {
-      if (!currentMap || !segment) {
+    const [firstSegment, ...restSegments] = segments;
+    if (!firstSegment) {
+      return undefined;
+    }
+
+    let targetProperty: BloggerProperty | undefined
+      = localVariables?.[firstSegment] ?? this.rootTree[firstSegment];
+
+    if (!targetProperty) {
+      return undefined;
+    }
+
+    let currentMap: Record<string, BloggerProperty> | undefined = targetProperty.children;
+
+    for (const segment of restSegments) {
+      if (!segment) {
         return undefined;
       }
+
+      if ((segment === 'first' || segment === 'last') && targetProperty?.type === 'array') {
+        targetProperty = {
+          name: segment,
+          type: 'object',
+          description: `Element from ${targetProperty.name}`,
+          children: targetProperty.children,
+        };
+        currentMap = targetProperty.children;
+        continue;
+      }
+
+      if (!currentMap) {
+        return undefined;
+      }
+
       targetProperty = currentMap[segment];
       if (!targetProperty) {
         return undefined;
@@ -141,19 +175,26 @@ export class BloggerPathResolver {
     return { target: targetProperty, children: currentMap };
   }
 
-  public resolvePropertyFromPath(segments: readonly string[]): BloggerProperty | undefined {
+  public resolvePropertyFromPath(
+    segments: readonly string[],
+    localVariables?: Record<string, BloggerProperty>,
+  ): BloggerProperty | undefined {
     if (segments.length === 0) {
       return undefined;
     }
-    return this.navigatePath(segments)?.target;
+    return this.navigatePath(segments, localVariables)?.target;
   }
 
-  public resolveDataPath(segments: readonly string[]): readonly BloggerSuggestion[] {
+  public resolveDataPath(
+    segments: readonly string[],
+    localVariables?: Record<string, BloggerProperty>,
+  ): readonly BloggerSuggestion[] {
     if (segments.length === 0) {
-      return Object.values(this.rootTree).map(prop => this.mapPropertyToSuggestion(prop));
+      const mergedRoots: Record<string, BloggerProperty> = { ...this.rootTree, ...localVariables };
+      return Object.values(mergedRoots).map(prop => this.mapPropertyToSuggestion(prop));
     }
 
-    const node = this.navigatePath(segments);
+    const node = this.navigatePath(segments, localVariables);
     if (!node?.children) {
       return [];
     }
@@ -181,7 +222,11 @@ export class BloggerPathResolver {
     return hasOpenBracket ? STATIC_TAG_SUGGESTIONS_OPEN : STATIC_TAG_SUGGESTIONS_BARE;
   }
 
-  public resolveFromLinePrefix(linePrefix: string): BloggerResolveResult | undefined {
+  public resolveFromLinePrefix(
+    linePrefix: string,
+    options?: { localVariables?: Record<string, BloggerProperty> },
+  ): BloggerResolveResult | undefined {
+    const localVariables = options?.localVariables;
     const attrMatch = ATTR_VALUE_REGEX.exec(linePrefix);
     if (attrMatch && attrMatch[1] && attrMatch[2] !== undefined) {
       const attrName = attrMatch[1];
@@ -225,7 +270,7 @@ export class BloggerPathResolver {
 
       if (rawPath === '') {
         return {
-          suggestions: this.resolveDataPath([]),
+          suggestions: this.resolveDataPath([], localVariables),
           replacementLength: 0,
         };
       }
@@ -233,7 +278,7 @@ export class BloggerPathResolver {
       if (rawPath.endsWith('.')) {
         const segments = rawPath.slice(0, -1).split('.').filter(Boolean);
         return {
-          suggestions: this.resolveDataPath(segments),
+          suggestions: this.resolveDataPath(segments, localVariables),
           replacementLength: 0,
         };
       }
@@ -241,7 +286,7 @@ export class BloggerPathResolver {
       const segments = rawPath.split('.').filter(Boolean);
       const lastSegment = segments.pop() ?? '';
       return {
-        suggestions: this.resolveDataPath(segments),
+        suggestions: this.resolveDataPath(segments, localVariables),
         replacementLength: lastSegment.length,
       };
     }
@@ -265,6 +310,7 @@ export class BloggerPathResolver {
     lineText: string,
     character: number,
     precedingContext?: string | (() => string | undefined),
+    options?: { localVariables?: Record<string, BloggerProperty> },
   ): BloggerHoverResult | undefined {
     if (character < 0 || character > lineText.length) {
       return undefined;
@@ -281,7 +327,7 @@ export class BloggerPathResolver {
       if (character >= tokenStart && character <= tokenEnd) {
         const rawPath = token.slice('data:'.length);
         const segments = rawPath.split('.').filter(Boolean);
-        const resolved = this.resolvePropertyFromPath(segments);
+        const resolved = this.resolvePropertyFromPath(segments, options?.localVariables);
         if (resolved) {
           return {
             hover: {

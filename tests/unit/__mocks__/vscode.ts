@@ -140,4 +140,5 @@ export const workspace = {
   getConfiguration: () => ({
     get: <T>(_key: string, defaultValue: T): T => defaultValue,
   }),
+  onDidCloseTextDocument: () => new Disposable(() => {}),
 };

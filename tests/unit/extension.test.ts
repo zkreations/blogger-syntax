@@ -16,7 +16,7 @@ describe('extension lifecycle', () => {
 
     expect(completionSpy).toHaveBeenCalled();
     expect(hoverSpy).toHaveBeenCalled();
-    expect(subscriptions.length).toBe(3);
+    expect(subscriptions.length).toBe(4);
 
     for (const subscription of subscriptions) {
       expect(typeof subscription.dispose).toBe('function');
