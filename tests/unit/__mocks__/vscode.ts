@@ -62,13 +62,13 @@ export class SnippetString {
 
 export class CompletionItem {
   public label: string;
-  public kind?: CompletionItemKind;
-  public detail?: string;
-  public documentation?: MarkdownString | string;
-  public range?: Range;
-  public insertText?: string | SnippetString;
+  public kind?: CompletionItemKind | undefined;
+  public detail?: string | undefined;
+  public documentation?: MarkdownString | string | undefined;
+  public range?: Range | undefined;
+  public insertText?: string | SnippetString | undefined;
 
-  constructor(label: string, kind?: CompletionItemKind) {
+  constructor(label: string, kind?: CompletionItemKind | undefined) {
     this.label = label;
     this.kind = kind;
   }
@@ -76,10 +76,10 @@ export class CompletionItem {
 
 export class MarkdownString {
   public value: string;
-  public isTrusted?: boolean;
-  public supportThemeIcons?: boolean;
+  public isTrusted?: boolean | undefined;
+  public supportThemeIcons?: boolean | undefined;
 
-  constructor(value: string = '', supportThemeIcons?: boolean) {
+  constructor(value: string = '', supportThemeIcons?: boolean | undefined) {
     this.value = value;
     this.supportThemeIcons = supportThemeIcons;
   }
@@ -134,4 +134,10 @@ export const window = {
 
 export const commands = {
   executeCommand: async () => {},
+};
+
+export const workspace = {
+  getConfiguration: () => ({
+    get: <T>(_key: string, defaultValue: T): T => defaultValue,
+  }),
 };

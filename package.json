@@ -35,6 +35,16 @@
     "onLanguage:handlebars"
   ],
   "contributes": {
+    "configuration": {
+      "title": "Blogger Syntax",
+      "properties": {
+        "bloggerSyntax.autoTriggerInEmptyAttributes": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically trigger suggestions when moving the cursor inside empty description=\"\" or type=\"\" attributes."
+        }
+      }
+    },
     "snippets": [
       {
         "language": "xml",
@@ -47,7 +57,7 @@
     ]
   },
   "scripts": {
-    "build": "npm run snippets:generate && node esbuild.js --production",
+    "build": "node scripts/generateSnippets.js && node esbuild.js --production",
     "compile": "node esbuild.js",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
