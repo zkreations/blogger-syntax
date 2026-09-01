@@ -1,5 +1,8 @@
 import type { BloggerTagDefinition } from '../models/types.js';
+import { bloggerDescriptions } from './descriptions.js';
 import { bloggerDefaultMarkupTypes, bloggerWidgetTypes } from './widgetTypes.js';
+
+const descriptionsChoices = bloggerDescriptions.join(',');
 
 export const bloggerTags: Record<string, BloggerTagDefinition> = {
   'b:attr': {
@@ -261,6 +264,29 @@ export const bloggerTags: Record<string, BloggerTagDefinition> = {
     attributes: {
       value: { name: 'value', type: 'string', required: true, description: 'Expression value to bind.' },
       var: { name: 'var', type: 'string', required: true, description: 'Variable name to hold the bound value.' },
+    },
+  },
+  'Group': {
+    name: 'Group',
+    description: 'Groups variables and creates a section in the Blogger Template Designer.',
+    snippetBody: `Group description="\${1|${descriptionsChoices}|}" selector="\${2:selector}">\n\t$0\n</Group>`,
+    docUrl: 'https://bloggercode-blogconnexion.blogspot.com/2014/06/tag-b-skin-b-template-skin.html',
+    attributes: {
+      description: { name: 'description', type: 'string', required: true, description: 'Variable group description in Template Designer.' },
+      selector: { name: 'selector', type: 'string', required: false, description: 'CSS selector targeted by the variable group.' },
+    },
+  },
+  'Variable': {
+    name: 'Variable',
+    description: 'Creates customization options for the Blogger Template Designer.',
+    snippetBody: `Variable name="\${1:name}" description="\${2|${descriptionsChoices}|}" type="\${3|color,font,length,string,background|}" default="\${4:default}" value="\${5:value}"/>$0`,
+    docUrl: 'https://bloggercode-blogconnexion.blogspot.com/2014/06/tag-b-skin-b-template-skin.html',
+    attributes: {
+      name: { name: 'name', type: 'string', required: true, description: 'Unique variable identifier name.' },
+      description: { name: 'description', type: 'string', required: true, description: 'Variable label shown in Template Designer.' },
+      type: { name: 'type', type: 'string', required: true, description: 'Variable type (color, font, length, string, background).' },
+      default: { name: 'default', type: 'string', required: true, description: 'Default CSS value.' },
+      value: { name: 'value', type: 'string', required: true, description: 'Current CSS value.' },
     },
   },
 };

@@ -1,45 +1,38 @@
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { bloggerTags } from '../../src/core/data/tagsData.js';
+import { BloggerPathResolver } from '../../src/core/resolver/pathResolver.js';
 
-interface SnippetEntry {
-  prefix: string;
-  body: string[];
-  description: string;
-}
+describe('tags and snippets validation', () => {
+  const resolver = new BloggerPathResolver();
+  const allTagSuggestions = resolver.resolveBloggerTags(false, false);
 
-describe('snippets Validation', () => {
-  const snippetsPath = resolve(__dirname, '../../snippets/snippets.code-snippets');
-  const fileContent = readFileSync(snippetsPath, 'utf-8');
-  const snippetsJson = JSON.parse(fileContent) as Record<string, SnippetEntry>;
-
-  it('should be valid JSON with entries', () => {
-    expect(typeof snippetsJson).toBe('object');
-    expect(Object.keys(snippetsJson).length).toBeGreaterThan(20);
+  it('should have all 27 tags defined in bloggerTags', () => {
+    expect(typeof bloggerTags).toBe('object');
+    expect(Object.keys(bloggerTags).length).toBe(27);
   });
 
-  it('every snippet should have valid prefix, body, and description', () => {
-    const prefixes = new Set<string>();
+  it('every tag suggestion should have valid name, description, and snippetBody', () => {
+    const names = new Set<string>();
 
-    for (const [title, snippet] of Object.entries(snippetsJson)) {
-      expect(typeof snippet.prefix, `Snippet "${title}" has invalid prefix`).toBe('string');
-      expect(snippet.prefix.length).toBeGreaterThan(0);
+    for (const tag of allTagSuggestions) {
+      expect(typeof tag.name, `Tag has invalid name: ${tag.name}`).toBe('string');
+      expect(tag.name.length).toBeGreaterThan(0);
 
-      expect(Array.isArray(snippet.body), `Snippet "${title}" body should be an array`).toBe(true);
-      expect(snippet.body.length).toBeGreaterThan(0);
+      expect(typeof tag.description, `Tag "${tag.name}" description should be string`).toBe('string');
+      expect(tag.description!.length).toBeGreaterThan(0);
 
-      expect(typeof snippet.description, `Snippet "${title}" description should be string`).toBe('string');
-      expect(snippet.description.length).toBeGreaterThan(0);
+      expect(typeof tag.insertText, `Tag "${tag.name}" insertText should be string`).toBe('string');
+      expect(tag.insertText!.length).toBeGreaterThan(0);
 
-      expect(prefixes.has(snippet.prefix), `Duplicate prefix found: "${snippet.prefix}" in "${title}"`).toBe(false);
-      prefixes.add(snippet.prefix);
+      expect(names.has(tag.name), `Duplicate tag found: "${tag.name}"`).toBe(false);
+      names.add(tag.name);
     }
   });
 
-  it('should include all essential Blogger b:* tags', () => {
-    const prefixes = Object.values(snippetsJson).map(s => s.prefix);
+  it('should include all essential Blogger b:* tags as well as Group and Variable', () => {
+    const names = allTagSuggestions.map(s => s.name);
 
-    const essentialPrefixes = [
+    const essentialTags = [
       'b:attr',
       'b:class',
       'b:comment',
@@ -69,8 +62,22 @@ describe('snippets Validation', () => {
       'b:with',
     ];
 
-    for (const prefix of essentialPrefixes) {
-      expect(prefixes, `Missing essential snippet prefix: ${prefix}`).toContain(prefix);
+    for (const tag of essentialTags) {
+      expect(names, `Missing essential tag: ${tag}`).toContain(tag);
     }
+  });
+
+  it('should format snippetBody correctly with and without open bracket', () => {
+    const suggestionsBare = resolver.resolveBloggerTags(false, false);
+    const suggestionsOpen = resolver.resolveBloggerTags(true, false);
+    const suggestionsClose = resolver.resolveBloggerTags(false, true);
+
+    const varBare = suggestionsBare.find(s => s.name === 'Variable');
+    const varOpen = suggestionsOpen.find(s => s.name === 'Variable');
+    const varClose = suggestionsClose.find(s => s.name === 'Variable');
+
+    expect(varBare?.insertText).toMatch(/^<Variable\s/);
+    expect(varOpen?.insertText).toMatch(/^Variable\s/);
+    expect(varClose?.insertText).toBe('Variable>');
   });
 });

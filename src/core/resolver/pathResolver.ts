@@ -19,9 +19,9 @@ import {
 const ATTR_VALUE_REGEX = /\b([\w:-]+)\s*=\s*["']([^"']*)$/;
 const TAG_CONTEXT_REGEX = /<([\w:-]+)(?:\s[^>]*)?$/;
 const DATA_PREFIX_REGEX = /(?:^|[^\w:.])(data:[\w.]*)$/;
-const BLOGGER_TAG_PREFIX_REGEX = /(?:^|[^\w:])(<\/|<)?(b:[\w-]*)$/;
+const TAG_PREFIX_REGEX = /(?:^|[^\w:])(?:(<\/|<)(b:[\w-]*|Var\w*|Gro\w*)?|(b:[\w-]*|Variable\w*|Group\w*))$/i;
 const HOVER_DATA_REGEX = /(?:^|[^\w:.])(data:[\w.]*)/g;
-const HOVER_TAG_REGEX = /(<\/?)b:([\w-]+)/g;
+const HOVER_TAG_REGEX = /(<\/?)(b:[\w-]+|Variable|Group)/g;
 const HOVER_EXPR_REGEX = /\b(expr:[\w-]*)/g;
 const HOVER_ATTR_REGEX = /\b([\w-]+)\s*=/g;
 
@@ -246,12 +246,12 @@ export class BloggerPathResolver {
       };
     }
 
-    const tagMatch = BLOGGER_TAG_PREFIX_REGEX.exec(linePrefix);
-    if (tagMatch && tagMatch[2] !== undefined) {
+    const tagMatch = TAG_PREFIX_REGEX.exec(linePrefix);
+    if (tagMatch) {
       const bracketPrefix = tagMatch[1];
       const isClosingTag = bracketPrefix === '</';
       const hasOpenBracket = bracketPrefix === '<';
-      const typedTag = tagMatch[2];
+      const typedTag = tagMatch[2] ?? tagMatch[3] ?? '';
       return {
         suggestions: this.resolveBloggerTags(hasOpenBracket, isClosingTag),
         replacementLength: typedTag.length,
@@ -299,11 +299,10 @@ export class BloggerPathResolver {
     }
 
     for (const match of lineText.matchAll(HOVER_TAG_REGEX)) {
-      const tagBase = match[2];
-      if (!tagBase || match.index === undefined) {
+      const fullTagName = match[2];
+      if (!fullTagName || match.index === undefined) {
         continue;
       }
-      const fullTagName = `b:${tagBase}`;
       const tokenStart = match.index;
       const tokenEnd = tokenStart + match[0].length;
 

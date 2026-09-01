@@ -375,5 +375,23 @@ describe('bloggerPathResolver', () => {
       expect(names).toContain('title');
       expect(names).toContain('pageType');
     });
+
+    it('should resolve Blogger tags for "<Var" with correct replacement length', () => {
+      const result = resolver.resolveFromLinePrefix('<Var');
+      expect(result).toBeDefined();
+      expect(result!.replacementLength).toBe(3);
+      const varTag = result!.suggestions.find(s => s.name === 'Variable');
+      expect(varTag).toBeDefined();
+      expect(varTag!.insertText).toMatch(/^Variable\s/);
+    });
+
+    it('should resolve Blogger tags for "Group" bare tag', () => {
+      const result = resolver.resolveFromLinePrefix('Group');
+      expect(result).toBeDefined();
+      expect(result!.replacementLength).toBe(5);
+      const groupTag = result!.suggestions.find(s => s.name === 'Group');
+      expect(groupTag).toBeDefined();
+      expect(groupTag!.insertText).toMatch(/^<Group\s/);
+    });
   });
 });

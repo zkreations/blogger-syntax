@@ -100,6 +100,28 @@ describe('bloggerPathResolver hover resolution', () => {
         'https://bloggercode.orbiona.com/2016/03/tag-b-eval.html',
       ]);
     });
+
+    it('should resolve hover on <Variable>', () => {
+      const line = '<Variable name="color" description="Color" />';
+      const charIndex = line.indexOf('Variable');
+      const result = resolver.resolveHoverAtPosition(line, charIndex);
+
+      expect(result).toBeDefined();
+      expect(result?.hover.title).toBe('<Variable>');
+      expect(result?.hover.category).toBe('tag');
+      expect(result?.hover.description).toContain('customization options');
+    });
+
+    it('should resolve hover on <Group>', () => {
+      const line = '<Group description="Main Group">';
+      const charIndex = line.indexOf('Group');
+      const result = resolver.resolveHoverAtPosition(line, charIndex);
+
+      expect(result).toBeDefined();
+      expect(result?.hover.title).toBe('<Group>');
+      expect(result?.hover.category).toBe('tag');
+      expect(result?.hover.description).toContain('Groups variables');
+    });
   });
 
   describe('expr: prefix hover', () => {

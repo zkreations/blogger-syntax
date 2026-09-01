@@ -138,4 +138,29 @@ describe('bloggerCompletionProvider', () => {
     const items = provider.provideCompletionItems(document, position);
     expect(items).toBeUndefined();
   });
+
+  it('should provide completion items for <Variable tag with snippet kind and rich docs', () => {
+    const text = '<Var';
+    const document = createMockDocument(text);
+    const position = new vscode.Position(0, text.length);
+
+    const items = provider.provideCompletionItems(document, position) as vscode.CompletionItem[];
+    expect(items).toBeDefined();
+    const varItem = items.find(item => item.label === 'Variable');
+    expect(varItem).toBeDefined();
+    expect(varItem?.kind).toBe(vscode.CompletionItemKind.Snippet);
+    expect(varItem?.documentation).toBeDefined();
+  });
+
+  it('should provide completion items for <Group tag', () => {
+    const text = '<Gro';
+    const document = createMockDocument(text);
+    const position = new vscode.Position(0, text.length);
+
+    const items = provider.provideCompletionItems(document, position) as vscode.CompletionItem[];
+    expect(items).toBeDefined();
+    const groupItem = items.find(item => item.label === 'Group');
+    expect(groupItem).toBeDefined();
+    expect(groupItem?.kind).toBe(vscode.CompletionItemKind.Snippet);
+  });
 });
