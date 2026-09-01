@@ -362,5 +362,18 @@ describe('bloggerPathResolver', () => {
       expect(resolver.resolveFromLinePrefix('<b:section id="main" type="')).toBeUndefined();
       expect(resolver.resolveFromLinePrefix('<input type="text"')).toBeUndefined();
     });
+
+    it('should NOT suggest skin descriptions in non-skin tags like <meta description="">', () => {
+      expect(resolver.resolveFromLinePrefix('<meta description="')).toBeUndefined();
+      expect(resolver.resolveFromLinePrefix('<div description="')).toBeUndefined();
+    });
+
+    it('should resolve data expressions inside complex expressions with operators', () => {
+      const result = resolver.resolveFromLinePrefix('<b:if cond="!data:view.isHomepage && data:blog.');
+      expect(result).toBeDefined();
+      const names = result!.suggestions.map(s => s.name);
+      expect(names).toContain('title');
+      expect(names).toContain('pageType');
+    });
   });
 });

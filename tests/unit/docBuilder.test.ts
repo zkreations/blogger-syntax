@@ -152,5 +152,19 @@ describe('docBuilder', () => {
       expect(doc.value).toContain('True when viewing the blog homepage.');
       expect(doc.value).toContain('[BloggerCode Reference](https://bloggercode.orbiona.com/1978/10/data-view-isHomepage.html)');
     });
+
+    it('should format hover documentation with code example when provided on tag', () => {
+      const hoverInfo: BloggerHoverInfo = {
+        title: '<b:if>',
+        category: 'tag',
+        description: 'Conditional block',
+        example: 'b:if cond="${1:condition}">\n\t$0\n</b:if>',
+      };
+
+      const doc = buildHoverDocumentation(hoverInfo);
+      expect(doc.value).toContain('(tag) **`<b:if>`**');
+      expect(doc.value).toContain('Conditional block');
+      expect(doc.value).toContain('```xml\n<b:if cond="condition">\n\t\n</b:if>\n```');
+    });
   });
 });
