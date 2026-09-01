@@ -42,12 +42,32 @@ describe('bloggerHoverProvider', () => {
     expect(markdown.value).toContain('Renders child content if the condition evaluates to true.');
   });
 
-  it('should return undefined when cursor is on non-Blogger text', () => {
-    const text = '<div><span>Some plain text</span></div>';
+  it('should return undefined when cursor is on non-Blogger text or standard HTML attributes', () => {
+    const text = '<div class="container"><span id="title">Some plain text</span></div>';
     const document = createMockDocument(text);
-    const position = new vscode.Position(0, 10);
+    const position = new vscode.Position(0, text.indexOf('class'));
 
     const hover = provider.provideHover(document, position);
     expect(hover).toBeUndefined();
+  });
+
+  it('should provide hover for multi-line Blogger widget attributes', () => {
+    const lines = [
+      '<b:widget',
+      '  id="Blog1"',
+      '  type="Blog">',
+    ];
+    const multiDoc = {
+      lineAt: (lineOrPos: number | vscode.Position) => {
+        const lineNum = typeof lineOrPos === 'number' ? lineOrPos : lineOrPos.line;
+        return { text: lines[lineNum] ?? '' };
+      },
+    } as unknown as vscode.TextDocument;
+
+    const position = new vscode.Position(2, lines[2]!.indexOf('type'));
+    const hover = provider.provideHover(multiDoc, position) as vscode.Hover;
+    expect(hover).toBeDefined();
+    const markdown = hover.contents[0] as vscode.MarkdownString;
+    expect(markdown.value).toContain('(attribute: string) **`type`**');
   });
 });

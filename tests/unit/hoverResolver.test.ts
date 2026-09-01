@@ -66,6 +66,18 @@ describe('bloggerPathResolver hover resolution', () => {
       expect(result?.hover.docUrls).toContain('https://bloggercode.orbiona.com/2016/03/tag-b-if-b-else-b-elseif.html');
     });
 
+    it('should resolve hover on <b:param>', () => {
+      const line = '<b:param name="foo" value="bar"/>';
+      const charIndex = line.indexOf('b:param');
+      const result = resolver.resolveHoverAtPosition(line, charIndex);
+
+      expect(result).toBeDefined();
+      expect(result?.hover.title).toBe('<b:param>');
+      expect(result?.hover.category).toBe('tag');
+      expect(result?.hover.description).toContain('b:message');
+      expect(result?.hover.docUrls).toContain('https://bloggercode.orbiona.com/2018/02/tag-b-message-b-param.html');
+    });
+
     it('should resolve hover on closing tag </b:loop>', () => {
       const line = '  </b:loop>';
       const charIndex = line.indexOf('b:loop');
@@ -104,7 +116,7 @@ describe('bloggerPathResolver hover resolution', () => {
   });
 
   describe('tag attributes hover', () => {
-    it('should resolve hover on cond attribute', () => {
+    it('should resolve hover on cond attribute in <b:if>', () => {
       const line = '<b:if cond="data:view.isHomepage">';
       const charIndex = line.indexOf('cond');
       const result = resolver.resolveHoverAtPosition(line, charIndex);
@@ -116,7 +128,7 @@ describe('bloggerPathResolver hover resolution', () => {
       expect(result?.hover.docUrls).toContain('https://bloggercode.orbiona.com/2018/02/attribute-cond.html');
     });
 
-    it('should resolve hover on maxwidgets attribute', () => {
+    it('should resolve hover on maxwidgets attribute in <b:section>', () => {
       const line = '<b:section id="main" maxwidgets="3">';
       const charIndex = line.indexOf('maxwidgets');
       const result = resolver.resolveHoverAtPosition(line, charIndex);
@@ -125,6 +137,29 @@ describe('bloggerPathResolver hover resolution', () => {
       expect(result?.hover.category).toBe('attribute');
       expect(result?.hover.title).toBe('maxwidgets');
       expect(result?.hover.docUrls).toContain('https://bloggercode.orbiona.com/2021/11/attribute-maxwidgets.html');
+    });
+
+    it('should resolve hover on Blogger attributes in multi-line context', () => {
+      const line = '  type="Blog">';
+      const preceding = '<b:widget\n  id="Blog1"';
+      const charIndex = line.indexOf('type');
+      const result = resolver.resolveHoverAtPosition(line, charIndex, preceding);
+
+      expect(result).toBeDefined();
+      expect(result?.hover.category).toBe('attribute');
+      expect(result?.hover.title).toBe('type');
+    });
+
+    it('should NOT resolve hover for standard HTML tag attributes', () => {
+      const divLine = '<div class="container" id="app" title="Hello">';
+      expect(resolver.resolveHoverAtPosition(divLine, divLine.indexOf('class'))).toBeUndefined();
+      expect(resolver.resolveHoverAtPosition(divLine, divLine.indexOf('id'))).toBeUndefined();
+      expect(resolver.resolveHoverAtPosition(divLine, divLine.indexOf('title'))).toBeUndefined();
+
+      const inputLine = '<input type="text" name="query" value="search"/>';
+      expect(resolver.resolveHoverAtPosition(inputLine, inputLine.indexOf('type'))).toBeUndefined();
+      expect(resolver.resolveHoverAtPosition(inputLine, inputLine.indexOf('name'))).toBeUndefined();
+      expect(resolver.resolveHoverAtPosition(inputLine, inputLine.indexOf('value'))).toBeUndefined();
     });
   });
 

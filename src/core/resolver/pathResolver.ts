@@ -58,14 +58,7 @@ const STATIC_ROOT_TREE = createBloggerRootTree();
 export class BloggerPathResolver {
   private readonly rootTree: Record<string, BloggerProperty> = STATIC_ROOT_TREE;
 
-  /**
-   * Resolves a property from a sequence of path segments (e.g. ['blog', 'locale', 'country'])
-   */
-  public resolvePropertyFromPath(segments: readonly string[]): BloggerProperty | undefined {
-    if (segments.length === 0) {
-      return undefined;
-    }
-
+  private navigatePath(segments: readonly string[]): { target?: BloggerProperty | undefined; children?: Record<string, BloggerProperty> | undefined } | undefined {
     let currentMap: Record<string, BloggerProperty> | undefined = this.rootTree;
     let targetProperty: BloggerProperty | undefined;
 
@@ -80,7 +73,18 @@ export class BloggerPathResolver {
       currentMap = targetProperty.children;
     }
 
-    return targetProperty;
+    return { target: targetProperty, children: currentMap };
+  }
+
+  /**
+   * Resolves a property from a sequence of path segments (e.g. ['blog', 'locale', 'country'])
+   */
+  public resolvePropertyFromPath(segments: readonly string[]): BloggerProperty | undefined {
+    if (segments.length === 0) {
+      return undefined;
+    }
+
+    return this.navigatePath(segments)?.target;
   }
 
   /**
@@ -99,26 +103,13 @@ export class BloggerPathResolver {
       }));
     }
 
-    let currentMap: Record<string, BloggerProperty> | undefined = this.rootTree;
-    let targetProperty: BloggerProperty | undefined;
-
-    for (const segment of segments) {
-      if (!currentMap || !segment) {
-        return [];
-      }
-      targetProperty = currentMap[segment];
-      if (!targetProperty) {
-        return [];
-      }
-      currentMap = targetProperty.children;
-    }
-
-    if (!currentMap) {
+    const node = this.navigatePath(segments);
+    if (!node?.children) {
       return [];
     }
 
     const basePath = segments.join('.');
-    return Object.values(currentMap).map(prop => ({
+    return Object.values(node.children).map(prop => ({
       name: prop.name,
       type: prop.type,
       description: prop.description,
@@ -304,7 +295,11 @@ export class BloggerPathResolver {
   /**
    * Resolves hover information at a specific character offset in a line of code.
    */
-  public resolveHoverAtPosition(lineText: string, character: number): BloggerHoverResult | undefined {
+  public resolveHoverAtPosition(
+    lineText: string,
+    character: number,
+    precedingContext?: string,
+  ): BloggerHoverResult | undefined {
     if (character < 0 || character > lineText.length) {
       return undefined;
     }
@@ -391,6 +386,7 @@ export class BloggerPathResolver {
     }
 
     // 4. Check known Blogger tag attributes (e.g. cond=, maxwidgets=, locked=, values=)
+    // Only resolve if inside a Blogger tag (e.g. <b:section>, <b:widget>, <Variable>, <Group>)
     const attrRegex = /\b([\w-]+)\s*=/g;
     for (const match of lineText.matchAll(attrRegex)) {
       const attrName = match[1];
@@ -401,6 +397,16 @@ export class BloggerPathResolver {
       const tokenEnd = tokenStart + attrName.length;
 
       if (character >= tokenStart && character <= tokenEnd) {
+        const beforeAttr = lineText.slice(0, tokenStart);
+        const fullContext = precedingContext ? `${precedingContext}\n${beforeAttr}` : beforeAttr;
+        const tagMatch = /<([\w:-]+)(?:\s[^>]*)?$/.exec(fullContext);
+        const tagName = tagMatch?.[1];
+
+        const isBloggerTag = tagName && (tagName.startsWith('b:') || tagName === 'Variable' || tagName === 'Group');
+        if (!isBloggerTag) {
+          continue;
+        }
+
         const attrDef = bloggerCommonAttributes[attrName];
         if (attrDef) {
           return {
