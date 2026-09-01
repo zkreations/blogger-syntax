@@ -483,13 +483,3 @@ export const blogWidgetProperties: Record<string, BloggerProperty> = {
     children: singlePostProperties,
   },
 };
-
-export const bloggerWidgetsSchema: Record<string, BloggerProperty> = {
-  Blog: {
-    name: 'Blog',
-    type: 'object',
-    description: 'Main Blog widget containing posts, comments, and pager.',
-    docUrl: 'https://bloggercode.orbiona.com/1979/07/Ressource-Blog.html',
-    children: blogWidgetProperties,
-  },
-};

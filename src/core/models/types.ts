@@ -30,7 +30,6 @@ export interface BloggerSuggestion {
   readonly isSnippet?: boolean | undefined;
   readonly kind: BloggerSuggestionKind;
   readonly example?: string | undefined;
-  readonly exampleLanguage?: string | undefined;
   readonly attributes?: Record<string, BloggerTagAttribute> | undefined;
   readonly deprecated?: boolean | undefined;
   readonly docUrl?: string | readonly string[] | undefined;

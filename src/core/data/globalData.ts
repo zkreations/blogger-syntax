@@ -1,4 +1,5 @@
 import type { BloggerProperty } from '../models/types.js';
+import { blogWidgetProperties, singlePostProperties } from './widgetsData.js';
 
 export const blogProperties: Record<string, BloggerProperty> = {
   adsenseAutoAds: {
@@ -594,9 +595,10 @@ export const widgetsMapProperties: Record<string, BloggerProperty> = {
   },
   Blog: {
     name: 'Blog',
-    type: 'array',
-    description: 'Array of Blog widgets on the blog.',
+    type: 'object',
+    description: 'Main Blog widget containing posts, comments, and pager.',
     docUrl: 'https://bloggercode.orbiona.com/1979/07/Ressource-Blog.html',
+    children: blogWidgetProperties,
   },
   BlogArchive: {
     name: 'BlogArchive',
@@ -746,6 +748,19 @@ export const bloggerGlobalRoot: Record<string, BloggerProperty> = {
     description: 'Localized Blogger UI message dictionary.',
     docUrl: 'https://bloggercode.orbiona.com/1979/12/Ressource-data-messages.html',
     children: messagesProperties,
+  },
+  post: {
+    name: 'post',
+    type: 'object',
+    description: 'Current post object context.',
+    children: singlePostProperties,
+  },
+  posts: {
+    name: 'posts',
+    type: 'array',
+    description: 'Collection of posts available in the current widget context.',
+    docUrl: 'https://bloggercode.orbiona.com/1971/08/data-posts.html',
+    children: singlePostProperties,
   },
   skin: {
     name: 'skin',
