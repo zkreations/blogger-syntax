@@ -4,8 +4,6 @@ VS Code extension adding IntelliSense and snippets for the Blogger (Blogspot) XM
 
 ![App Preview](./images/Screenshot/preview.gif)
 
----
-
 ## Features
 
 **Autocomplete**
@@ -32,23 +30,17 @@ VS Code extension adding IntelliSense and snippets for the Blogger (Blogspot) XM
 **Runtime**
 - Runs on VS Code Desktop, VS Code for Web (`vscode.dev`, `github.dev`), GitHub Codespaces, Remote SSH, and Dev Containers with no runtime dependencies.
 
----
-
 ## Supported Languages
 
 Active automatically for:
 - **XML** (`.xml`)
 - **Handlebars** (`.hbs`, `.handlebars`)
 
----
-
 ## Configuration
 
 | Setting | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
 | `bloggerSyntax.autoTriggerInEmptyAttributes` | `boolean` | `true` | Automatically trigger suggestions when moving the cursor inside empty `description=""` or `type=""` attributes. |
-
----
 
 ## Snippets
 
@@ -82,8 +74,6 @@ Active automatically for:
 | `b:widget-setting` | `<b:widget-setting>` | Single widget setting key-value pair. |
 | `b:with` | `<b:with>` | Binds an expression to a local scoped variable. |
 
----
-
 ## Development
 
 ### Requirements
@@ -108,14 +98,10 @@ pnpm run build     # Build bundle
 pnpm run watch     # Watch mode during development
 ```
 
----
-
 ## Credits
 
 - BloggerCode (orbiona) for comprehensive Blogger syntax references.
 
----
-
 ## License
 
-[MIT](LICENSE)
+**Blogger Syntax** is licensed under the MIT License
