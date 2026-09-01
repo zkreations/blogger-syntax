@@ -53,6 +53,7 @@ describe('snippets Validation', () => {
       'b:include',
       'b:loop',
       'b:message',
+      'b:param',
       'b:section',
       'b:skin',
       'b:template-skin',

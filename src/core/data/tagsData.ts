@@ -136,6 +136,16 @@ export const bloggerTags: Record<string, BloggerTagDefinition> = {
       name: { name: 'name', type: 'string', required: true, description: 'Name key of the message to render.' },
     },
   },
+  'b:param': {
+    name: 'b:param',
+    description: 'Passes a parameter value to a parent b:message tag.',
+    snippetBody: 'b:param name="${1:name}" value="${2:value}"/>$0',
+    docUrl: 'https://bloggercode.orbiona.com/2018/02/tag-b-message-b-param.html',
+    attributes: {
+      name: { name: 'name', type: 'string', required: true, description: 'Parameter name identifier matching the placeholder in the message.' },
+      value: { name: 'value', type: 'string', required: true, description: 'Value to substitute for the parameter.' },
+    },
+  },
   'b:section': {
     name: 'b:section',
     description: 'Defines a layout section that can contain b:widget tags.',
