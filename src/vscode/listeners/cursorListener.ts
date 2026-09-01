@@ -29,15 +29,7 @@ export function isCursorInsideEmptyAttribute(
 }
 
 /**
- * Determines whether the cursor is positioned directly between empty quotes of a description attribute
- * (e.g. `description=""` or `description=''`).
- */
-export function isCursorInsideEmptyDescription(lineText: string, character: number): boolean {
-  return isCursorInsideEmptyAttribute(lineText, character, ['description']);
-}
-
-/**
- * Registers an editor selection change listener that automatically triggers code completion
+ * Registers an editor selection change listener that triggers code completion
  * when the cursor is positioned inside empty attributes like `description=""` or `type=""` in supported documents.
  */
 export function registerCursorSuggestListener(
@@ -67,11 +59,20 @@ export function registerCursorSuggestListener(
         return;
       }
 
+      const isEnabled = vscode.workspace.getConfiguration('bloggerSyntax').get<boolean>('autoTriggerInEmptyAttributes', true);
+      if (!isEnabled) {
+        return;
+      }
+
       const position = activeEditor.selection.active;
+      if (position.line >= activeEditor.document.lineCount) {
+        return;
+      }
+
       const lineText = activeEditor.document.lineAt(position.line).text;
 
       if (isCursorInsideEmptyAttribute(lineText, position.character)) {
-        vscode.commands.executeCommand('editor.action.triggerSuggest');
+        void vscode.commands.executeCommand('editor.action.triggerSuggest').then(undefined, () => {});
       }
     }, debounceMs);
   });
