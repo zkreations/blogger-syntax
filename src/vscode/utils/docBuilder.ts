@@ -2,9 +2,6 @@ import type { BloggerHoverInfo, BloggerSuggestion } from '../../core/models/type
 import * as vscode from 'vscode';
 import { cleanSnippetBody } from '../../core/utils/snippetFormatter.js';
 
-/**
- * Returns a human-friendly label for a documentation URL based on its host or context.
- */
 export function getDocUrlLabel(url: string, index: number = 0, total: number = 1): string {
   try {
     const parsed = new URL(url);
@@ -29,9 +26,6 @@ export function getDocUrlLabel(url: string, index: number = 0, total: number = 1
   return `Reference ${index + 1}`;
 }
 
-/**
- * Formats one or multiple documentation URLs into a single markdown link line.
- */
 export function formatDocLinks(docUrls?: string | readonly string[]): string | undefined {
   if (!docUrls) {
     return undefined;
@@ -66,9 +60,6 @@ export function formatDocLinks(docUrls?: string | readonly string[]): string | u
   return links.join(' • ');
 }
 
-/**
- * Generates an example code snippet for a suggestion based on its metadata and kind.
- */
 export function getSuggestionExample(suggestion: BloggerSuggestion): string | undefined {
   if (suggestion.example) {
     return suggestion.example;
@@ -89,9 +80,6 @@ export function getSuggestionExample(suggestion: BloggerSuggestion): string | un
   return undefined;
 }
 
-/**
- * Builds a structured, rich vscode.MarkdownString documentation for completion items.
- */
 export function buildCompletionDocumentation(suggestion: BloggerSuggestion): vscode.MarkdownString {
   const markdown = new vscode.MarkdownString('', true);
   markdown.isTrusted = true;
@@ -106,7 +94,7 @@ export function buildCompletionDocumentation(suggestion: BloggerSuggestion): vsc
 
   const exampleCode = getSuggestionExample(suggestion);
   if (exampleCode) {
-    markdown.appendCodeblock(exampleCode, suggestion.exampleLanguage ?? 'xml');
+    markdown.appendCodeblock(exampleCode, 'xml');
   }
 
   if (suggestion.attributes && Object.keys(suggestion.attributes).length > 0) {
@@ -126,14 +114,10 @@ export function buildCompletionDocumentation(suggestion: BloggerSuggestion): vsc
   return markdown;
 }
 
-/**
- * Builds a clean, VS-Code native style hover tooltip MarkdownString.
- */
 export function buildHoverDocumentation(hoverInfo: BloggerHoverInfo): vscode.MarkdownString {
   const markdown = new vscode.MarkdownString('', true);
   markdown.isTrusted = true;
 
-  // Header badge: (tag), (data: String), (attribute), etc.
   let headerBadge = `(${hoverInfo.category})`;
   if (hoverInfo.category === 'data' && hoverInfo.type) {
     const formattedType = hoverInfo.type.charAt(0).toUpperCase() + hoverInfo.type.slice(1);
@@ -147,6 +131,13 @@ export function buildHoverDocumentation(hoverInfo: BloggerHoverInfo): vscode.Mar
 
   if (hoverInfo.description) {
     markdown.appendMarkdown(`${hoverInfo.description}\n\n`);
+  }
+
+  if (hoverInfo.example && hoverInfo.category === 'tag') {
+    const cleaned = cleanSnippetBody(hoverInfo.example, true);
+    if (cleaned) {
+      markdown.appendCodeblock(cleaned, 'xml');
+    }
   }
 
   const linksMarkdown = formatDocLinks(hoverInfo.docUrls);

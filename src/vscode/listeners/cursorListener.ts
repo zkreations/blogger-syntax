@@ -1,14 +1,12 @@
 import * as vscode from 'vscode';
 import { CURSOR_SUGGEST_DEBOUNCE_MS, SUPPORTED_LANGUAGES } from '../constants.js';
 
-/**
- * Determines whether the cursor is positioned directly between empty quotes of a specific attribute
- * (e.g. `description=""`, `type=""`, etc.).
- */
+const DEFAULT_EMPTY_ATTR_REGEX = /\b(?:description|type)\s*=\s*(["'])$/;
+
 export function isCursorInsideEmptyAttribute(
   lineText: string,
   character: number,
-  attributeNames: readonly string[] = ['description', 'type'],
+  attributeNames?: readonly string[],
 ): boolean {
   if (character < 0 || character > lineText.length) {
     return false;
@@ -17,8 +15,10 @@ export function isCursorInsideEmptyAttribute(
   const prefix = lineText.slice(0, character);
   const suffix = lineText.slice(character);
 
-  const attrPattern = attributeNames.join('|');
-  const regex = new RegExp(`\\b(?:${attrPattern})\\s*=\\s*(["'])$`);
+  const regex = attributeNames
+    ? new RegExp(`\\b(?:${attributeNames.join('|')})\\s*=\\s*(["'])$`)
+    : DEFAULT_EMPTY_ATTR_REGEX;
+
   const match = regex.exec(prefix);
   if (!match || !match[1]) {
     return false;

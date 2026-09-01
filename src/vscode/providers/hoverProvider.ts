@@ -11,20 +11,22 @@ export class BloggerHoverProvider implements vscode.HoverProvider {
   ): vscode.ProviderResult<vscode.Hover> {
     const lineText = document.lineAt(position.line).text;
 
-    let precedingContext: string | undefined;
-    if (position.line > 0) {
+    const getPrecedingContext = (): string | undefined => {
+      if (position.line === 0) {
+        return undefined;
+      }
       const startLine = Math.max(0, position.line - 15);
       const lines: string[] = [];
       for (let l = startLine; l < position.line; l++) {
         lines.push(document.lineAt(l).text);
       }
-      precedingContext = lines.join('\n');
-    }
+      return lines.join('\n');
+    };
 
     const result = this.pathResolver.resolveHoverAtPosition(
       lineText,
       position.character,
-      precedingContext,
+      getPrecedingContext,
     );
 
     if (!result) {
