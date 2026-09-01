@@ -4,6 +4,7 @@
   "displayName": "Blogger Syntax",
   "type": "module",
   "version": "2.0.0",
+  "packageManager": "pnpm@11.24.0",
   "description": "Support and autocomplete for Blogger syntax.",
   "license": "MIT",
   "repository": {
