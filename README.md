@@ -1,6 +1,6 @@
 <p align="center">
   <a href="https://marketplace.visualstudio.com/items?itemName=zkreations.blogger-syntax">
-    <img src="https://raw.githubusercontent.com/zkreations/blogger-syntax/refs/heads/main/images/logo.png" height="256" alt="Whale Logo" />
+    <img src="https://raw.githubusercontent.com/zkreations/blogger-syntax/refs/heads/main/images/logo.png" height="128" alt="Blogger Syntax" />
   </a>
   <h1 align="center">Blogger Syntax</h1>
 </p>
