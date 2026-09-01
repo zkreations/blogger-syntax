@@ -1,9 +1,14 @@
-import type { BloggerHoverResult, BloggerProperty, BloggerResolveResult, BloggerSuggestion } from '../models/types.js';
+import type {
+  BloggerDataType,
+  BloggerHoverResult,
+  BloggerProperty,
+  BloggerResolveResult,
+  BloggerSuggestion,
+} from '../models/types.js';
 import { bloggerCommonAttributes, bloggerExprPrefixInfo } from '../data/attributesData.js';
 import { bloggerDescriptions } from '../data/descriptions.js';
 import { bloggerGlobalRoot } from '../data/globalData.js';
 import { bloggerTags } from '../data/tagsData.js';
-import { bloggerWidgetsSchema, singlePostProperties } from '../data/widgetsData.js';
 import {
   bloggerDefaultMarkupTypeDetails,
   bloggerDefaultMarkupTypes,
@@ -11,52 +16,112 @@ import {
   bloggerWidgetTypes,
 } from '../data/widgetTypes.js';
 
+const ATTR_VALUE_REGEX = /\b([\w:-]+)\s*=\s*["']([^"']*)$/;
+const TAG_CONTEXT_REGEX = /<([\w:-]+)(?:\s[^>]*)?$/;
+const DATA_PREFIX_REGEX = /(?:^|[^\w:.])(data:[\w.]*)$/;
+const BLOGGER_TAG_PREFIX_REGEX = /(?:^|[^\w:])(<\/|<)?(b:[\w-]*)$/;
+const HOVER_DATA_REGEX = /(?:^|[^\w:.])(data:[\w.]*)/g;
+const HOVER_TAG_REGEX = /(<\/?)b:([\w-]+)/g;
+const HOVER_EXPR_REGEX = /\b(expr:[\w-]*)/g;
+const HOVER_ATTR_REGEX = /\b([\w-]+)\s*=/g;
+
+const STATIC_DESCRIPTIONS_SUGGESTIONS: readonly BloggerSuggestion[] = Object.freeze(
+  bloggerDescriptions.map(desc => ({
+    name: desc,
+    type: 'string' as BloggerDataType,
+    description: `Blogger Skin Variable / Group description: "${desc}"`,
+    example: `<Variable name="myVar" description="${desc}" type="color" default="#000000" value="#000000"/>`,
+    kind: 'enumMember' as const,
+  })),
+);
+
+const STATIC_WIDGET_TYPES_SUGGESTIONS: readonly BloggerSuggestion[] = Object.freeze(
+  bloggerWidgetTypes.map((widgetType) => {
+    const details = bloggerWidgetTypeDetails[widgetType];
+    return {
+      name: widgetType,
+      type: 'string' as BloggerDataType,
+      kind: 'enumMember' as const,
+      detail: '(Blogger Widget Type)',
+      description: details?.description ?? `Blogger ${widgetType} widget.`,
+      example: `<b:widget id="${widgetType}1" type="${widgetType}" version="2">\n\t<b:includable id="main">\n\t\t\n\t</b:includable>\n</b:widget>`,
+      docUrl: details?.docUrl ?? 'https://bloggercode.orbiona.com/2016/03/tag-b-widget.html',
+    };
+  }),
+);
+
+const STATIC_DEFAULT_MARKUP_SUGGESTIONS: readonly BloggerSuggestion[] = Object.freeze(
+  bloggerDefaultMarkupTypes.map((markupType) => {
+    const details = bloggerDefaultMarkupTypeDetails[markupType] ?? bloggerWidgetTypeDetails[markupType];
+    return {
+      name: markupType,
+      type: 'string' as BloggerDataType,
+      kind: 'enumMember' as const,
+      detail: '(Blogger Default Markup Type)',
+      description: details?.description ?? `Default template markup for ${markupType} widget type.`,
+      example: `<b:defaultmarkup type="${markupType}">\n\t<b:includable id="main">\n\t\t\n\t</b:includable>\n</b:defaultmarkup>`,
+      docUrl: details?.docUrl ?? 'https://bloggercode.orbiona.com/2017/05/tag-b-defaultmarkups.html',
+    };
+  }),
+);
+
+function createTagSuggestions(hasOpenBracket: boolean, isClosingTag: boolean): readonly BloggerSuggestion[] {
+  return Object.freeze(
+    Object.values(bloggerTags).map((tag) => {
+      let insertText: string;
+      let isSnippet = true;
+
+      if (isClosingTag) {
+        insertText = `${tag.name}>`;
+        isSnippet = false;
+      }
+      else if (hasOpenBracket) {
+        insertText = tag.snippetBody;
+      }
+      else {
+        insertText = `<${tag.snippetBody}`;
+      }
+
+      return {
+        name: tag.name,
+        type: 'string' as BloggerDataType,
+        description: tag.description,
+        insertText,
+        isSnippet,
+        kind: 'snippet' as const,
+        example: tag.example,
+        attributes: tag.attributes,
+        docUrl: tag.docUrl,
+      };
+    }),
+  );
+}
+
+const STATIC_TAG_SUGGESTIONS_OPEN = createTagSuggestions(true, false);
+const STATIC_TAG_SUGGESTIONS_BARE = createTagSuggestions(false, false);
+const STATIC_TAG_SUGGESTIONS_CLOSE = createTagSuggestions(false, true);
+
 function normalizeDocUrls(docUrl?: string | readonly string[]): readonly string[] | undefined {
   if (!docUrl) {
     return undefined;
   }
-  if (typeof docUrl === 'string') {
-    return [docUrl];
-  }
-  return docUrl;
+  return typeof docUrl === 'string' ? [docUrl] : docUrl;
 }
-
-function createBloggerRootTree(): Record<string, BloggerProperty> {
-  const tree: Record<string, BloggerProperty> = {
-    ...bloggerGlobalRoot,
-    posts: {
-      name: 'posts',
-      type: 'array',
-      description: 'Collection of posts available in the current widget context.',
-      docUrl: 'https://bloggercode.orbiona.com/1971/08/data-posts.html',
-      children: singlePostProperties,
-    },
-    post: {
-      name: 'post',
-      type: 'object',
-      description: 'Current post object context.',
-      children: singlePostProperties,
-    },
-  };
-
-  const widgetsProperty = tree.widgets;
-  if (widgetsProperty && widgetsProperty.children) {
-    tree.widgets = {
-      ...widgetsProperty,
-      children: {
-        ...widgetsProperty.children,
-        ...bloggerWidgetsSchema,
-      },
-    };
-  }
-
-  return tree;
-}
-
-const STATIC_ROOT_TREE = createBloggerRootTree();
 
 export class BloggerPathResolver {
-  private readonly rootTree: Record<string, BloggerProperty> = STATIC_ROOT_TREE;
+  private readonly rootTree: Record<string, BloggerProperty> = bloggerGlobalRoot;
+
+  private mapPropertyToSuggestion(prop: BloggerProperty, basePath?: string): BloggerSuggestion {
+    return {
+      name: prop.name,
+      type: prop.type,
+      description: prop.description,
+      example: prop.example ?? (basePath ? `data:${basePath}.${prop.name}` : `data:${prop.name}`),
+      deprecated: prop.deprecated,
+      docUrl: prop.docUrl,
+      kind: 'property',
+    };
+  }
 
   private navigatePath(segments: readonly string[]): { target?: BloggerProperty | undefined; children?: Record<string, BloggerProperty> | undefined } | undefined {
     let currentMap: Record<string, BloggerProperty> | undefined = this.rootTree;
@@ -76,31 +141,16 @@ export class BloggerPathResolver {
     return { target: targetProperty, children: currentMap };
   }
 
-  /**
-   * Resolves a property from a sequence of path segments (e.g. ['blog', 'locale', 'country'])
-   */
   public resolvePropertyFromPath(segments: readonly string[]): BloggerProperty | undefined {
     if (segments.length === 0) {
       return undefined;
     }
-
     return this.navigatePath(segments)?.target;
   }
 
-  /**
-   * Resolves suggestions given a dot-separated data path (e.g. ['blog', 'locale'] or [] for root)
-   */
-  public resolveDataPath(segments: readonly string[]): BloggerSuggestion[] {
+  public resolveDataPath(segments: readonly string[]): readonly BloggerSuggestion[] {
     if (segments.length === 0) {
-      return Object.values(this.rootTree).map(prop => ({
-        name: prop.name,
-        type: prop.type,
-        description: prop.description,
-        example: prop.example ?? `data:${prop.name}`,
-        deprecated: prop.deprecated,
-        docUrl: prop.docUrl,
-        kind: 'property',
-      }));
+      return Object.values(this.rootTree).map(prop => this.mapPropertyToSuggestion(prop));
     }
 
     const node = this.navigatePath(segments);
@@ -109,128 +159,49 @@ export class BloggerPathResolver {
     }
 
     const basePath = segments.join('.');
-    return Object.values(node.children).map(prop => ({
-      name: prop.name,
-      type: prop.type,
-      description: prop.description,
-      example: prop.example ?? `data:${basePath}.${prop.name}`,
-      deprecated: prop.deprecated,
-      docUrl: prop.docUrl,
-      kind: 'property',
-    }));
+    return Object.values(node.children).map(prop => this.mapPropertyToSuggestion(prop, basePath));
   }
 
-  /**
-   * Resolves suggestions for Blogger skin / designer descriptions
-   */
-  public resolveDescriptions(): BloggerSuggestion[] {
-    return bloggerDescriptions.map(desc => ({
-      name: desc,
-      type: 'string',
-      description: `Blogger Skin Variable / Group description: "${desc}"`,
-      example: `<Variable name="myVar" description="${desc}" type="color" default="#000000" value="#000000"/>`,
-      kind: 'enumMember',
-    }));
+  public resolveDescriptions(): readonly BloggerSuggestion[] {
+    return STATIC_DESCRIPTIONS_SUGGESTIONS;
   }
 
-  /**
-   * Resolves suggestions for Blogger b:widget type attribute
-   */
-  public resolveWidgetTypes(): BloggerSuggestion[] {
-    return bloggerWidgetTypes.map((widgetType) => {
-      const details = bloggerWidgetTypeDetails[widgetType];
-      const docUrl = details?.docUrl ?? 'https://bloggercode.orbiona.com/2016/03/tag-b-widget.html';
-      const description = details?.description ?? `Blogger ${widgetType} widget.`;
-
-      return {
-        name: widgetType,
-        type: 'string',
-        kind: 'enumMember',
-        detail: '(Blogger Widget Type)',
-        description,
-        example: `<b:widget id="${widgetType}1" type="${widgetType}" version="2">\n\t<b:includable id="main">\n\t\t\n\t</b:includable>\n</b:widget>`,
-        docUrl,
-      };
-    });
+  public resolveWidgetTypes(): readonly BloggerSuggestion[] {
+    return STATIC_WIDGET_TYPES_SUGGESTIONS;
   }
 
-  /**
-   * Resolves suggestions for Blogger b:defaultmarkup type attribute
-   */
-  public resolveDefaultMarkupTypes(): BloggerSuggestion[] {
-    return bloggerDefaultMarkupTypes.map((markupType) => {
-      const details = bloggerDefaultMarkupTypeDetails[markupType] ?? bloggerWidgetTypeDetails[markupType];
-      const docUrl = details?.docUrl ?? 'https://bloggercode.orbiona.com/2017/05/tag-b-defaultmarkups.html';
-      const description = details?.description ?? `Default template markup for ${markupType} widget type.`;
-
-      return {
-        name: markupType,
-        type: 'string',
-        kind: 'enumMember',
-        detail: '(Blogger Default Markup Type)',
-        description,
-        example: `<b:defaultmarkup type="${markupType}">\n\t<b:includable id="main">\n\t\t\n\t</b:includable>\n</b:defaultmarkup>`,
-        docUrl,
-      };
-    });
+  public resolveDefaultMarkupTypes(): readonly BloggerSuggestion[] {
+    return STATIC_DEFAULT_MARKUP_SUGGESTIONS;
   }
 
-  /**
-   * Resolves suggestions for Blogger b:* tags
-   */
-  public resolveBloggerTags(hasOpenBracket: boolean, isClosingTag: boolean = false): BloggerSuggestion[] {
-    return Object.values(bloggerTags).map((tag) => {
-      let insertText: string;
-      let isSnippet = true;
-
-      if (isClosingTag) {
-        insertText = `${tag.name}>`;
-        isSnippet = false;
-      }
-      else if (hasOpenBracket) {
-        insertText = tag.snippetBody;
-      }
-      else {
-        insertText = `<${tag.snippetBody}`;
-      }
-
-      return {
-        name: tag.name,
-        type: 'string',
-        description: tag.description,
-        insertText,
-        isSnippet,
-        kind: 'snippet',
-        example: tag.example,
-        attributes: tag.attributes,
-        docUrl: tag.docUrl,
-      };
-    });
+  public resolveBloggerTags(hasOpenBracket: boolean, isClosingTag: boolean = false): readonly BloggerSuggestion[] {
+    if (isClosingTag) {
+      return STATIC_TAG_SUGGESTIONS_CLOSE;
+    }
+    return hasOpenBracket ? STATIC_TAG_SUGGESTIONS_OPEN : STATIC_TAG_SUGGESTIONS_BARE;
   }
 
-  /**
-   * Analyzes the text preceding the cursor and returns appropriate suggestions and replacement length.
-   */
   public resolveFromLinePrefix(linePrefix: string): BloggerResolveResult | undefined {
-    // 1. Check for attribute value completions (e.g. description="...", b:widget type="...", b:defaultmarkup type="...")
-    const attrMatch = /\b([\w:-]+)\s*=\s*["']([^"']*)$/.exec(linePrefix);
+    const attrMatch = ATTR_VALUE_REGEX.exec(linePrefix);
     if (attrMatch && attrMatch[1] && attrMatch[2] !== undefined) {
       const attrName = attrMatch[1];
       const typedText = attrMatch[2];
       const beforeAttr = linePrefix.slice(0, attrMatch.index);
+      const tagMatch = TAG_CONTEXT_REGEX.exec(beforeAttr)
+        || /(?:^|\s)([\w:-]+)(?:\s[^>]*)?$/.exec(beforeAttr);
+      const tagName = tagMatch?.[1];
 
       if (attrName === 'description') {
-        return {
-          suggestions: this.resolveDescriptions(),
-          replacementLength: typedText.length,
-        };
+        const isSkinTag = tagName === 'Variable' || tagName === 'Group';
+        if (isSkinTag) {
+          return {
+            suggestions: this.resolveDescriptions(),
+            replacementLength: typedText.length,
+          };
+        }
       }
 
       if (attrName === 'type') {
-        const tagMatch = /<([\w:-]+)(?:\s[^>]*)?$/.exec(beforeAttr)
-          || /(?:^|\s)([\w:-]+)(?:\s[^>]*)?$/.exec(beforeAttr);
-        const tagName = tagMatch?.[1];
-
         if (tagName === 'b:widget') {
           return {
             suggestions: this.resolveWidgetTypes(),
@@ -247,11 +218,10 @@ export class BloggerPathResolver {
       }
     }
 
-    // 2. Check for data: expression
-    const dataMatch = /(?:^|[^\w:.])(data:[\w.]*)$/.exec(linePrefix);
+    const dataMatch = DATA_PREFIX_REGEX.exec(linePrefix);
     if (dataMatch && dataMatch[1] !== undefined) {
-      const fullExpression = dataMatch[1]; // e.g. "data:", "data:blog.", "data:blog.loc"
-      const rawPath = fullExpression.slice('data:'.length); // e.g. "", "blog.", "blog.loc"
+      const fullExpression = dataMatch[1];
+      const rawPath = fullExpression.slice('data:'.length);
 
       if (rawPath === '') {
         return {
@@ -276,13 +246,12 @@ export class BloggerPathResolver {
       };
     }
 
-    // 3. Check for Blogger tags: </b: or <b: or b:
-    const tagMatch = /(?:^|[^\w:])(<\/|<)?(b:[\w-]*)$/.exec(linePrefix);
+    const tagMatch = BLOGGER_TAG_PREFIX_REGEX.exec(linePrefix);
     if (tagMatch && tagMatch[2] !== undefined) {
       const bracketPrefix = tagMatch[1];
       const isClosingTag = bracketPrefix === '</';
       const hasOpenBracket = bracketPrefix === '<';
-      const typedTag = tagMatch[2]; // e.g. "b:", "b:i", "b:if"
+      const typedTag = tagMatch[2];
       return {
         suggestions: this.resolveBloggerTags(hasOpenBracket, isClosingTag),
         replacementLength: typedTag.length,
@@ -292,21 +261,16 @@ export class BloggerPathResolver {
     return undefined;
   }
 
-  /**
-   * Resolves hover information at a specific character offset in a line of code.
-   */
   public resolveHoverAtPosition(
     lineText: string,
     character: number,
-    precedingContext?: string,
+    precedingContext?: string | (() => string | undefined),
   ): BloggerHoverResult | undefined {
     if (character < 0 || character > lineText.length) {
       return undefined;
     }
 
-    // 1. Check data: expressions (e.g. data:blog.title, data:posts, data:view.isHomepage)
-    const dataRegex = /(?:^|[^\w:.])(data:[\w.]*)/g;
-    for (const match of lineText.matchAll(dataRegex)) {
+    for (const match of lineText.matchAll(HOVER_DATA_REGEX)) {
       const token = match[1];
       if (!token || token === 'data:' || match.index === undefined) {
         continue;
@@ -334,9 +298,7 @@ export class BloggerPathResolver {
       }
     }
 
-    // 2. Check Blogger tags (e.g. <b:if>, </b:loop>, b:section)
-    const tagRegex = /(<\/?)b:([\w-]+)/g;
-    for (const match of lineText.matchAll(tagRegex)) {
+    for (const match of lineText.matchAll(HOVER_TAG_REGEX)) {
       const tagBase = match[2];
       if (!tagBase || match.index === undefined) {
         continue;
@@ -362,9 +324,7 @@ export class BloggerPathResolver {
       }
     }
 
-    // 3. Check expr: prefix attributes (e.g. expr:class, expr:title, expr:href)
-    const exprRegex = /\b(expr:[\w-]*)/g;
-    for (const match of lineText.matchAll(exprRegex)) {
+    for (const match of lineText.matchAll(HOVER_EXPR_REGEX)) {
       if (match.index === undefined) {
         continue;
       }
@@ -385,10 +345,7 @@ export class BloggerPathResolver {
       }
     }
 
-    // 4. Check known Blogger tag attributes (e.g. cond=, maxwidgets=, locked=, values=)
-    // Only resolve if inside a Blogger tag (e.g. <b:section>, <b:widget>, <Variable>, <Group>)
-    const attrRegex = /\b([\w-]+)\s*=/g;
-    for (const match of lineText.matchAll(attrRegex)) {
+    for (const match of lineText.matchAll(HOVER_ATTR_REGEX)) {
       const attrName = match[1];
       if (!attrName || attrName.startsWith('expr:') || match.index === undefined) {
         continue;
@@ -398,8 +355,9 @@ export class BloggerPathResolver {
 
       if (character >= tokenStart && character <= tokenEnd) {
         const beforeAttr = lineText.slice(0, tokenStart);
-        const fullContext = precedingContext ? `${precedingContext}\n${beforeAttr}` : beforeAttr;
-        const tagMatch = /<([\w:-]+)(?:\s[^>]*)?$/.exec(fullContext);
+        const resolvedContext = typeof precedingContext === 'function' ? precedingContext() : precedingContext;
+        const fullContext = resolvedContext ? `${resolvedContext}\n${beforeAttr}` : beforeAttr;
+        const tagMatch = TAG_CONTEXT_REGEX.exec(fullContext);
         const tagName = tagMatch?.[1];
 
         const isBloggerTag = tagName && (tagName.startsWith('b:') || tagName === 'Variable' || tagName === 'Group');
