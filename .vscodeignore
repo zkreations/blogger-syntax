@@ -14,3 +14,5 @@ vitest.config.ts
 pnpm-lock.yaml
 pnpm-workspace.yaml
 *.vsix
+scripts/
+.codegraph/
