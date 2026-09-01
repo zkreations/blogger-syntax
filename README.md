@@ -1,34 +1,53 @@
-# Blogger Syntax
+<p align="center">
+  <a href="https://marketplace.visualstudio.com/items?itemName=zkreations.blogger-syntax">
+    <img src="https://raw.githubusercontent.com/zkreations/blogger-syntax/refs/heads/main/images/logo.png" height="256" alt="Whale Logo" />
+  </a>
+  <h1 align="center">Blogger Syntax</h1>
+</p>
 
-VS Code extension adding IntelliSense and snippets for the Blogger (Blogspot) XML template syntax.
+<p align="center">VS Code extension adding IntelliSense and snippets for the Blogger (Blogspot) XML template syntax.</p>
 
-![App Preview](./images/Screenshot/preview.gif)
+<p align="center">
+  <a href="https://marketplace.visualstudio.com/items?itemName=zkreations.blogger-syntax"><img src="https://img.shields.io/badge/VS%20Code%20Marketplace-Marketplace-030712?style=for-the-badge&labelColor=030712&color=8b5cf6" alt="Marketplace Visualstudio"></a>
+  <a href="https://github.com/zkreations/blogger-syntax/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-030712?style=for-the-badge&labelColor=030712&color=6366f1" alt="License"></a>
+</p>
+
+<p align="center">
+  <img alt="preview" src="https://raw.githubusercontent.com/zkreations/blogger-syntax/refs/heads/main/images/Screenshot/preview.gif" >
+</p>
 
 ## Features
 
 **Autocomplete**
-- Context-aware completions for all Blogger `data:*` objects (`data:blog`, `data:view`, `data:messages`, `data:skin`, `data:widget`, `data:widgets`, `data:post`, `data:posts`, etc.) and their nested properties (e.g. `data:blog.locale.country`, `data:post.author.authorPhoto.width`, `data:view.archive.year`).
-- Data type badges (`String`, `Boolean`, `URL`, `Image`, `Date`, `Number`, `Message`, `Object`, `Array`) with inline documentation.
+
+Completions for all Blogger `data:*` objects and their nested properties, with data type badges and inline documentation.
+
+![Autocomplete](https://raw.githubusercontent.com/zkreations/blogger-syntax/refs/heads/main/images/Screenshot/autocomplete.png)
 
 **Hover documentation**
-- Tooltips for all Blogger tags (`<b:if>`, `<b:loop>`, `<b:widget>`, `<b:eval>`, `<b:param>`, etc.).
-- `expr:*` attribute prefix hover support.
-- Attribute documentation for Blogger tags (`cond`, `maxwidgets`, `locked`, `values`, `type`, `name`, `id`, `var`, `index`, etc.) with multiline tag context support. No false positives on standard HTML elements.
+
+Tooltips for Blogger tags, `expr:*` attributes, and tag attribute documentation with multiline tag context support.
+
+![Hover documentation](https://raw.githubusercontent.com/zkreations/blogger-syntax/refs/heads/main/images/Screenshot/hover-documentation.png)
 
 **Skin variables and groups**
-- Suggestions for `description="..."` in `<Variable>` and `<Group>` tags with 250+ deduplicated Theme Designer variable descriptions.
+
+Suggestions for `description="..."` in `<Variable>` and `<Group>` tags with 250+ Theme Designer variable descriptions.
+
+![Skin variables and groups](https://raw.githubusercontent.com/zkreations/blogger-syntax/refs/heads/main/images/Screenshot/skin-variables-groups.png)
 
 **Widget and markup type autocomplete**
-- Suggestions for `type="..."` in `<b:widget>` (25 widget types: `AdSense`, `Attribution`, `Blog`, `BlogArchive`, `Header`, `HTML`, `PopularPosts`, `Profile`, etc.) and `<b:defaultmarkup>` (27 types including `All` and `Common`).
+
+Suggestions for `type="..."` in `<b:widget>` (25 types) and `<b:defaultmarkup>` (27 types).
+
+![Widget and markup type autocomplete](https://raw.githubusercontent.com/zkreations/blogger-syntax/refs/heads/main/images/Screenshot/widget-markup-type-autocomplete.png)
 
 **Snippets**
-- 27 snippets with tab stops for all template tags, including `<b:param>`, `<b:switch>`, `<b:with>`, and Theme Designer tags.
 
-**Configuration**
-- Automatic suggestion triggering inside empty attributes can be toggled via VS Code Settings.
+27 snippets with tab stops for all template tags, including `<b:param>`, `<b:switch>`, `<b:with>`, and Theme Designer tags.
 
-**Runtime**
-- Runs on VS Code Desktop, VS Code for Web (`vscode.dev`, `github.dev`), GitHub Codespaces, Remote SSH, and Dev Containers with no runtime dependencies.
+![Snippets](https://raw.githubusercontent.com/zkreations/blogger-syntax/refs/heads/main/images/Screenshot/snippets.png)
+
 
 ## Supported Languages
 
