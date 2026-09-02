@@ -1,5 +1,5 @@
 import type { BloggerProperty } from '../models/types.js';
-import { createArrayProperties } from './arrayData.js';
+import { createArrayProperties } from './typeMembers.js';
 
 export const postAuthorPhotoProperties: Record<string, BloggerProperty> = {
   image: {

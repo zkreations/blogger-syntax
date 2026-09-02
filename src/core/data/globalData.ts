@@ -1,5 +1,5 @@
 import type { BloggerProperty } from '../models/types.js';
-import { createArrayProperties } from './arrayData.js';
+import { createArrayProperties } from './typeMembers.js';
 import { blogWidgetProperties, singlePostProperties } from './widgetsData.js';
 
 export const blogProperties: Record<string, BloggerProperty> = {
@@ -131,36 +131,9 @@ export const blogProperties: Record<string, BloggerProperty> = {
   },
   locale: {
     name: 'locale',
-    type: 'object',
+    type: 'locale',
     description: 'Standard language/locale code of the blog (e.g. \'es\', \'en\').',
     docUrl: 'https://bloggercode.orbiona.com/1978/10/data-blog-locale.html',
-    children: {
-      country: {
-        name: 'country',
-        type: 'string',
-        description: 'Two-letter country code of the blog locale.',
-      },
-      language: {
-        name: 'language',
-        type: 'string',
-        description: 'Two-letter language code of the blog.',
-      },
-      languageAlignment: {
-        name: 'languageAlignment',
-        type: 'string',
-        description: 'Text alignment based on language (left / right).',
-      },
-      languageDirection: {
-        name: 'languageDirection',
-        type: 'string',
-        description: 'Text reading direction (ltr / rtl).',
-      },
-      name: {
-        name: 'name',
-        type: 'string',
-        description: 'Full locale name representation.',
-      },
-    },
   },
   localeUnderscoreDelimited: {
     name: 'localeUnderscoreDelimited',

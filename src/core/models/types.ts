@@ -5,6 +5,7 @@ export type BloggerDataType
     | 'url'
     | 'image'
     | 'date'
+    | 'locale'
     | 'message'
     | 'object'
     | 'array';
