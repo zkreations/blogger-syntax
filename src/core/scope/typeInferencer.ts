@@ -1,5 +1,7 @@
 import type { BloggerDataType, BloggerProperty } from '../models/types.js';
 import { bloggerGlobalRoot } from '../data/globalData.js';
+import { getPropertyMembers } from '../data/typeMembers.js';
+import { navigatePropertyPath } from '../resolver/pathResolver.js';
 
 const PATH_EXTRACTOR_REGEX = /^(?:data:)?([\w.]+)/;
 
@@ -23,38 +25,7 @@ export function resolvePropertyFromScope(
   localVariables?: Record<string, BloggerProperty>,
   rootTree: Record<string, BloggerProperty> = bloggerGlobalRoot,
 ): BloggerProperty | undefined {
-  if (segments.length === 0) {
-    return undefined;
-  }
-
-  const [firstSegment, ...restSegments] = segments;
-  if (!firstSegment) {
-    return undefined;
-  }
-
-  let currentProperty: BloggerProperty | undefined
-    = localVariables?.[firstSegment] ?? rootTree[firstSegment];
-
-  if (!currentProperty) {
-    return undefined;
-  }
-
-  for (const segment of restSegments) {
-    if (!segment) {
-      return undefined;
-    }
-
-    if (!currentProperty.children) {
-      return undefined;
-    }
-
-    currentProperty = currentProperty.children[segment];
-    if (!currentProperty) {
-      return undefined;
-    }
-  }
-
-  return currentProperty;
+  return navigatePropertyPath(segments, localVariables, rootTree)?.target;
 }
 
 /**
@@ -79,7 +50,7 @@ export function inferLoopVariables(
     if (resolvedProp?.type === 'array') {
       const itemProp = resolvedProp.itemChildren
         ? { children: resolvedProp.itemChildren, type: 'object' as BloggerDataType }
-        : resolvedProp.children?.first;
+        : getPropertyMembers(resolvedProp)?.first;
 
       children = itemProp?.children;
       type = itemProp?.type ?? 'object';
@@ -133,6 +104,7 @@ export function inferWithVariables(
         ? `Alias variable for \`${valueExpr}\`: ${resolvedProp.description}`
         : `Alias variable holding the value of \`${valueExpr}\`.`,
       children,
+      itemChildren: resolvedProp?.itemChildren,
       docUrl: resolvedProp?.docUrl,
     };
   }

@@ -39,6 +39,15 @@ describe('typeInferencer', () => {
     expect(vars.author?.children?.name).toBeDefined();
     expect(vars.author?.children?.profileUrl).toBeDefined();
   });
+
+  it('should infer alias properties and itemChildren for b:with with array data:posts', () => {
+    const vars = inferWithVariables('data:posts', 'myPosts');
+    expect(vars.myPosts).toBeDefined();
+    expect(vars.myPosts?.type).toBe('array');
+    expect(vars.myPosts?.itemChildren).toBeDefined();
+    expect(vars.myPosts?.itemChildren?.title).toBeDefined();
+    expect(vars.myPosts?.children?.first?.children?.title).toBeDefined();
+  });
 });
 
 describe('bloggerScopeTracker', () => {
@@ -179,5 +188,48 @@ describe('bloggerScopeTracker', () => {
 
     tracker.clearCache('cachedDoc');
     tracker.clearCache();
+  });
+
+  it('should handle attributes containing > operators inside quotes without breaking scope', () => {
+    const code = [
+      '<b:loop values="data:posts filter (p => p.id > 10)" var="filteredPost">',
+      '  <data:filteredPost.title/>',
+      '</b:loop>',
+    ].join('\n');
+
+    const offset = code.indexOf('<data:filteredPost.title/>');
+    const vars = tracker.getActiveVariables('operatorDoc', 1, code, offset);
+    expect(vars.filteredPost).toBeDefined();
+    expect(vars.filteredPost?.children?.title).toBeDefined();
+  });
+
+  it('should ignore b:loop tags inside XML comments', () => {
+    const code = [
+      '<!--',
+      '<b:loop values="data:posts" var="commentedVar">',
+      '  <span>Hidden</span>',
+      '</b:loop>',
+      '-->',
+      '<div>Content</div>',
+    ].join('\n');
+
+    const offset = code.indexOf('<div>Content</div>');
+    const vars = tracker.getActiveVariables('commentDoc', 1, code, offset);
+    expect(vars.commentedVar).toBeUndefined();
+  });
+
+  it('should ignore b:loop tags inside CDATA blocks', () => {
+    const code = [
+      '<![CDATA[',
+      '<b:loop values="data:posts" var="cdataVar">',
+      '  <span>Literal</span>',
+      '</b:loop>',
+      ']]>',
+      '<div>Content</div>',
+    ].join('\n');
+
+    const offset = code.indexOf('<div>Content</div>');
+    const vars = tracker.getActiveVariables('cdataDoc', 1, code, offset);
+    expect(vars.cdataVar).toBeUndefined();
   });
 });
