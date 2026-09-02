@@ -32,8 +32,13 @@ jobs:
 
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest]
-        node-version: [22.x, 24.x]
+        include:
+          - os: ubuntu-latest
+            node-version: 22.x
+          - os: ubuntu-latest
+            node-version: 24.x
+          - os: windows-latest
+            node-version: 24.x
 
     steps:
       - name: Checkout repository
