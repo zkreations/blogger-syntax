@@ -60,6 +60,46 @@ export class SnippetString {
   constructor(public value: string = '') {}
 }
 
+export class MockTextDocument {
+  public readonly lines: string[];
+  public readonly uri: { toString: () => string };
+  public readonly version: number;
+  public readonly languageId: string;
+
+  constructor(
+    content: string | string[],
+    uriString: string = 'file:///mock.xml',
+    version: number = 1,
+    languageId: string = 'xml',
+  ) {
+    this.lines = Array.isArray(content) ? content : content.split('\n');
+    this.uri = { toString: () => uriString };
+    this.version = version;
+    this.languageId = languageId;
+  }
+
+  get lineCount(): number {
+    return this.lines.length;
+  }
+
+  public lineAt(lineOrPos: number | Position): { text: string } {
+    const lineNum = typeof lineOrPos === 'number' ? lineOrPos : lineOrPos.line;
+    return { text: this.lines[lineNum] ?? '' };
+  }
+
+  public getText(): string {
+    return this.lines.join('\n');
+  }
+
+  public offsetAt(position: Position): number {
+    let offset = 0;
+    for (let l = 0; l < position.line; l++) {
+      offset += (this.lines[l]?.length ?? 0) + 1;
+    }
+    return offset + position.character;
+  }
+}
+
 export class CompletionItem {
   public label: string;
   public kind?: CompletionItemKind | undefined;

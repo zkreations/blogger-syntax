@@ -16,9 +16,7 @@ export function getDocUrlLabel(url: string, index: number = 0, total: number = 1
       return 'zkreations Reference';
     }
   }
-  catch {
-    // Non-standard URL format fallback
-  }
+  catch {}
 
   if (total === 1) {
     return 'Documentation Reference';

@@ -8,9 +8,7 @@ describe('bloggerHoverProvider', () => {
   const provider = new BloggerHoverProvider(pathResolver);
 
   function createMockDocument(lineText: string): vscode.TextDocument {
-    return {
-      lineAt: () => ({ text: lineText }),
-    } as unknown as vscode.TextDocument;
+    return new (vscode as any).MockTextDocument(lineText) as vscode.TextDocument;
   }
 
   it('should provide Hover for data: expression in document', () => {
@@ -57,12 +55,7 @@ describe('bloggerHoverProvider', () => {
       '  id="Blog1"',
       '  type="Blog">',
     ];
-    const multiDoc = {
-      lineAt: (lineOrPos: number | vscode.Position) => {
-        const lineNum = typeof lineOrPos === 'number' ? lineOrPos : lineOrPos.line;
-        return { text: lines[lineNum] ?? '' };
-      },
-    } as unknown as vscode.TextDocument;
+    const multiDoc = new (vscode as any).MockTextDocument(lines) as vscode.TextDocument;
 
     const position = new vscode.Position(2, lines[2]!.indexOf('type'));
     const hover = provider.provideHover(multiDoc, position) as vscode.Hover;

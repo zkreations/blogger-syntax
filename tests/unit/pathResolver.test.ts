@@ -34,7 +34,7 @@ describe('bloggerPathResolver', () => {
       const suggestions = resolver.resolveDataPath(['blog', 'locale']);
       const names = suggestions.map(s => s.name);
 
-      expect(names).toEqual(['country', 'language', 'languageAlignment', 'languageDirection', 'name']);
+      expect(names).toEqual(['name', 'language', 'country', 'variant', 'languageDirection', 'languageAlignment']);
     });
 
     it('should resolve view archive properties for ["view", "archive"]', () => {

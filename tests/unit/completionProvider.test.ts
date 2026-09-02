@@ -8,13 +8,7 @@ describe('bloggerCompletionProvider', () => {
   const provider = new BloggerCompletionProvider(pathResolver);
 
   function createMockDocument(input: string | string[]): vscode.TextDocument {
-    const lines = Array.isArray(input) ? input : [input];
-    return {
-      lineAt: (lineOrPos: number | vscode.Position) => {
-        const lineNum = typeof lineOrPos === 'number' ? lineOrPos : lineOrPos.line;
-        return { text: lines[lineNum] ?? '' };
-      },
-    } as unknown as vscode.TextDocument;
+    return new (vscode as any).MockTextDocument(input) as vscode.TextDocument;
   }
 
   it('should provide completion items for data: expression with replacement range', () => {
