@@ -2,6 +2,34 @@
 
 All notable changes to the "blogger-syntax" extension will be documented in this file.
 
+## [2.1.0] - 2026-09-01
+
+### Added
+- Scoped variable inference (`BloggerScopeTracker`):
+  - Completions for local variables inside `<b:loop>` (`var`, `index`) and `<b:with>` (`var`)
+  - Type inference from collection expressions and nested scopes
+  - Array member chaining and properties (`first`, `last`, `size`, `empty`)
+- `type="..."` autocomplete in `<Variable>` for skin types:
+  - Supported types: `color`, `font`, `length`, `background`, `string`, `url`
+  - Specialized snippet for each type (`Variable (color)`, etc.)
+  - Skin types (`string(skin)`, `url(skin)`) are visually distinct from runtime `data:*` types
+- Expanded type data:
+  - `locale` type and its member definitions
+  - Array helper structures across global properties
+- `CONTRIBUTING.md` with workflow and architecture guidelines
+
+### Fixed
+- Cursor trigger false positives:
+  - Blogger tag context is now validated before triggering suggestions inside empty attributes
+- Removed `<` from completion trigger characters to avoid conflicts with VS Code's native tag completion
+
+### Refactored
+- Lazy variable resolution and document caching in scope parsing
+- Static suggestions precomputed in `BloggerPathResolver`
+- Lazy context evaluation in Hover Provider and cursor listeners
+- Skin tag snippets migrated from declarative files into the completion provider
+
+
 ## [2.0.0] - 2026-08-31
 
 ### Added
