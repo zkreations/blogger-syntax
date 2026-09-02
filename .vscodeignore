@@ -16,3 +16,6 @@ pnpm-workspace.yaml
 *.vsix
 scripts/
 .codegraph/
+images/Screenshot/**
+images/logo.svg
+
