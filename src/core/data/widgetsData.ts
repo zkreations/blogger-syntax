@@ -1,4 +1,5 @@
 import type { BloggerProperty } from '../models/types.js';
+import { createArrayProperties } from './arrayData.js';
 
 export const postAuthorPhotoProperties: Record<string, BloggerProperty> = {
   image: {
@@ -366,24 +367,28 @@ export const singlePostProperties: Record<string, BloggerProperty> = {
     type: 'array',
     description: 'Collection of labels assigned to the post.',
     docUrl: 'https://bloggercode.orbiona.com/1970/09/data-posts-labels.html',
+    children: createArrayProperties(),
   },
   feedLinks: {
     name: 'feedLinks',
     type: 'array',
     description: 'Collection of feed links associated with the post.',
     docUrl: 'https://bloggercode.orbiona.com/2021/10/posts-feedLinks.html',
+    children: createArrayProperties(),
   },
   comments: {
     name: 'comments',
     type: 'array',
     description: 'Collection of comments associated with the post.',
     docUrl: 'https://bloggercode.orbiona.com/1973/03/Blog-data-posts-comments.html',
+    children: createArrayProperties(),
   },
   enclosures: {
     name: 'enclosures',
     type: 'array',
     description: 'Collection of media enclosures associated with the post.',
     docUrl: 'https://bloggercode.orbiona.com/1973/01/Blog-data-posts-enclosures.html',
+    children: createArrayProperties(),
   },
 };
 
@@ -474,12 +479,14 @@ export const blogWidgetProperties: Record<string, BloggerProperty> = {
     name: 'feedLinks',
     type: 'array',
     description: 'Blog feed links array.',
+    children: createArrayProperties(),
   },
   posts: {
     name: 'posts',
-    type: 'object',
+    type: 'array',
     description: 'Collection of posts available in the current widget context.',
     docUrl: 'https://bloggercode.orbiona.com/1971/08/data-posts.html',
-    children: singlePostProperties,
+    itemChildren: singlePostProperties,
+    children: createArrayProperties(singlePostProperties),
   },
 };

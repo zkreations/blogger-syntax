@@ -150,17 +150,6 @@ export class BloggerPathResolver {
         return undefined;
       }
 
-      if ((segment === 'first' || segment === 'last') && targetProperty?.type === 'array') {
-        targetProperty = {
-          name: segment,
-          type: 'object',
-          description: `Element from ${targetProperty.name}`,
-          children: targetProperty.children,
-        };
-        currentMap = targetProperty.children;
-        continue;
-      }
-
       if (!currentMap) {
         return undefined;
       }

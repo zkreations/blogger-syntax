@@ -17,6 +17,7 @@ export interface BloggerProperty {
   readonly example?: string | undefined;
   readonly docUrl?: string | readonly string[] | undefined;
   readonly children?: Record<string, BloggerProperty> | undefined;
+  readonly itemChildren?: Record<string, BloggerProperty> | undefined;
 }
 
 export type BloggerSuggestionKind = 'property' | 'enumMember' | 'snippet';

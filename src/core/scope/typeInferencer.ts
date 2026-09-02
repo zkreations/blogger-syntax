@@ -3,6 +3,9 @@ import { bloggerGlobalRoot } from '../data/globalData.js';
 
 const PATH_EXTRACTOR_REGEX = /^(?:data:)?([\w.]+)/;
 
+/**
+ * Extracts normalized path segments from a data expression like 'data:posts', 'data:posts.first', or 'data:post.comments'.
+ */
 export function extractDataPathSegments(expression: string): string[] {
   const trimmed = expression.trim();
   const match = PATH_EXTRACTOR_REGEX.exec(trimmed);
@@ -12,6 +15,9 @@ export function extractDataPathSegments(expression: string): string[] {
   return match[1].split('.').filter(Boolean);
 }
 
+/**
+ * Navigates a path across active local variables and the global root.
+ */
 export function resolvePropertyFromScope(
   segments: readonly string[],
   localVariables?: Record<string, BloggerProperty>,
@@ -38,16 +44,6 @@ export function resolvePropertyFromScope(
       return undefined;
     }
 
-    if ((segment === 'first' || segment === 'last') && currentProperty.type === 'array') {
-      currentProperty = {
-        name: segment,
-        type: 'object',
-        description: `Element from ${currentProperty.name}`,
-        children: currentProperty.children,
-      };
-      continue;
-    }
-
     if (!currentProperty.children) {
       return undefined;
     }
@@ -61,6 +57,9 @@ export function resolvePropertyFromScope(
   return currentProperty;
 }
 
+/**
+ * Infers variable properties defined in a `<b:loop>` tag.
+ */
 export function inferLoopVariables(
   valuesExpr: string,
   varName?: string,
@@ -74,8 +73,17 @@ export function inferLoopVariables(
     const segments = extractDataPathSegments(valuesExpr);
     const resolvedProp = resolvePropertyFromScope(segments, localVariables);
 
-    const children = resolvedProp?.children;
-    const type: BloggerDataType = resolvedProp?.type === 'array' ? 'object' : (resolvedProp?.type ?? 'object');
+    let children = resolvedProp?.children;
+    let type: BloggerDataType = resolvedProp?.type ?? 'object';
+
+    if (resolvedProp?.type === 'array') {
+      const itemProp = resolvedProp.itemChildren
+        ? { children: resolvedProp.itemChildren, type: 'object' as BloggerDataType }
+        : resolvedProp.children?.first;
+
+      children = itemProp?.children;
+      type = itemProp?.type ?? 'object';
+    }
 
     result[cleanVarName] = {
       name: cleanVarName,
@@ -100,6 +108,9 @@ export function inferLoopVariables(
   return result;
 }
 
+/**
+ * Infers variable properties defined in a `<b:with>` tag.
+ */
 export function inferWithVariables(
   valueExpr: string,
   varName?: string,
