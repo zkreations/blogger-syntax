@@ -24,27 +24,31 @@ Completions for all Blogger `data:*` objects and their nested properties, with d
 
 ![Autocomplete](https://raw.githubusercontent.com/zkreations/blogger-syntax/refs/heads/main/images/Screenshot/autocomplete.png)
 
+**Scoped loop & with variable inference**
+
+Context-aware suggestions for local variables defined in `<b:loop>` (`var`, `index`) and `<b:with>` (`var`) blocks with automatic type inference from parent expressions and nested scopes.
+
 **Hover documentation**
 
-Tooltips for Blogger tags, `expr:*` attributes, and tag attribute documentation with multiline tag context support.
+Tooltips for Blogger tags, `expr:*` attributes, tag attributes with multiline context support, and `data:*` properties with direct documentation links.
 
 ![Hover documentation](https://raw.githubusercontent.com/zkreations/blogger-syntax/refs/heads/main/images/Screenshot/hover-documentation.png)
 
-**Skin variables and groups**
+**Skin variables, groups, and types**
 
-Suggestions for `description="..."` in `<Variable>` and `<Group>` tags with 250+ Theme Designer variable descriptions.
+Suggestions for `description="..."` in `<Variable>` and `<Group>` tags with 250+ Theme Designer descriptions, plus `type="..."` suggestions for skin variable types (`color`, `font`, `length`, `background`, `string`, `url`).
 
 ![Skin variables and groups](https://raw.githubusercontent.com/zkreations/blogger-syntax/refs/heads/main/images/Screenshot/skin-variables-groups.png)
 
 **Widget and markup type autocomplete**
 
-Suggestions for `type="..."` in `<b:widget>` (25 types) and `<b:defaultmarkup>` (27 types).
+Suggestions for `type="..."` in `<b:widget>` (25 widget types) and `<b:defaultmarkup>` (27 markup types) with comprehensive descriptions and documentation links.
 
 ![Widget and markup type autocomplete](https://raw.githubusercontent.com/zkreations/blogger-syntax/refs/heads/main/images/Screenshot/widget-markup-type-autocomplete.png)
 
-**Snippets**
+**Snippets & Tag completion**
 
-27 snippets with tab stops for all template tags, including `<b:param>`, `<b:switch>`, `<b:with>`, and Theme Designer tags.
+32+ snippets and tag completions with tab stops for all template tags, including specialized `<Variable>` type snippets, `<b:param>`, `<b:switch>`, `<b:with>`, and Theme Designer tags.
 
 ![Snippets](https://raw.githubusercontent.com/zkreations/blogger-syntax/refs/heads/main/images/Screenshot/snippets.png)
 
@@ -84,6 +88,12 @@ Active automatically for:
 | `b:template-skin` | `<b:template-skin>` | Layout mode CSS styles. |
 | `Group` | `<Group>` | Groups variables in the Template Designer. |
 | `Variable` | `<Variable>` | Customization options for Template Designer. |
+| `Variable (color)` | `<Variable type="color">` | Color variable for Template Designer CSS. |
+| `Variable (font)` | `<Variable type="font">` | Font variable with size and family options. |
+| `Variable (length)` | `<Variable type="length">` | Length / dimension variable with min and max boundaries. |
+| `Variable (background)` | `<Variable type="background">` | Background variable with color and image properties. |
+| `Variable (string)` | `<Variable type="string">` | String variable for custom CSS values. |
+| `Variable (url)` | `<Variable type="url">` | Resource or image URL variable. |
 | `b:switch` | `<b:switch>` | Evaluates an expression and matches branches. |
 | `b:case` | `<b:case>` | Case branch of a switch evaluation. |
 | `b:default` | `<b:default>` | Default case branch of a switch evaluation. |
