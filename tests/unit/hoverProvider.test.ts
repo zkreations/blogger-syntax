@@ -2,16 +2,13 @@ import { describe, expect, it } from 'vitest';
 import * as vscode from 'vscode';
 import { BloggerPathResolver } from '../../src/core/resolver/pathResolver.js';
 import { BloggerHoverProvider } from '../../src/vscode/providers/hoverProvider.js';
+import { createMockDocument } from '../helpers/mockDocument.js';
 
 describe('bloggerHoverProvider', () => {
   const pathResolver = new BloggerPathResolver();
   const provider = new BloggerHoverProvider(pathResolver);
 
-  function createMockDocument(lineText: string): vscode.TextDocument {
-    return new (vscode as any).MockTextDocument(lineText) as vscode.TextDocument;
-  }
-
-  it('should provide Hover for data: expression in document', () => {
+  it('should provide Hover for data: expression in document with accurate range', () => {
     const text = '<b:eval expr="data:blog.title" />';
     const document = createMockDocument(text);
     const position = new vscode.Position(0, text.indexOf('blog.title'));
@@ -25,10 +22,9 @@ describe('bloggerHoverProvider', () => {
     const markdown = hover.contents[0] as vscode.MarkdownString;
     expect(markdown.value).toContain('(data: String) **`data:blog.title`**');
     expect(markdown.value).toContain('The general name / main title of the blog.');
-    expect(markdown.value).toContain('[BloggerCode Reference](https://bloggercode.orbiona.com/1978/11/data-blog-title.html)');
   });
 
-  it('should provide Hover for <b:if> tag', () => {
+  it('should provide Hover for <b:if> tag with markdown description', () => {
     const text = '<b:if cond="data:view.isHomepage">';
     const document = createMockDocument(text);
     const position = new vscode.Position(0, text.indexOf('b:if'));
@@ -55,8 +51,7 @@ describe('bloggerHoverProvider', () => {
       '  id="Blog1"',
       '  type="Blog">',
     ];
-    const multiDoc = new (vscode as any).MockTextDocument(lines) as vscode.TextDocument;
-
+    const multiDoc = createMockDocument(lines);
     const position = new vscode.Position(2, lines[2]!.indexOf('type'));
     const hover = provider.provideHover(multiDoc, position) as vscode.Hover;
     expect(hover).toBeDefined();

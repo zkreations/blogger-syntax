@@ -5,115 +5,106 @@ import {
   isCursorInsideEmptyAttribute,
   registerCursorSuggestListener,
 } from '../../src/vscode/listeners/cursorListener.js';
+import { createMockDocument } from '../helpers/mockDocument.js';
 
 describe('cursorListener', () => {
   describe('isCursorInsideEmptyAttribute', () => {
-    it('should return true when cursor is between empty double quotes description=""', () => {
-      const line = '<Variable name="test" description="" type="color"/>';
-      const cursorChar = line.indexOf('description=""') + 'description="'.length;
-      expect(isCursorInsideEmptyAttribute(line, cursorChar, ['description'])).toBe(true);
-      expect(isCursorInsideEmptyAttribute(line, cursorChar)).toBe(true);
-    });
-
-    it('should return true when cursor is between empty single quotes description=\'\'', () => {
-      const line = '<Group description=\'\' selector=".main">';
-      const cursorChar = line.indexOf('description=\'\'') + 'description=\''.length;
-      expect(isCursorInsideEmptyAttribute(line, cursorChar, ['description'])).toBe(true);
-    });
-
-    it('should return true when spaces exist around equals sign in description = ""', () => {
-      const line = '<Variable description = "" />';
-      const cursorChar = line.indexOf('""') + 1;
-      expect(isCursorInsideEmptyAttribute(line, cursorChar, ['description'])).toBe(true);
-    });
-
-    it('should return false when description has text inside quotes', () => {
-      const line = '<Variable description="Accents" />';
-      const cursorChar = line.indexOf('Accents');
-      expect(isCursorInsideEmptyAttribute(line, cursorChar, ['description'])).toBe(false);
-    });
-
-    it('should return false when cursor is in other empty attributes when filtering for specific attributes', () => {
-      const line = '<Variable name="" description="foo" />';
-      const cursorChar = line.indexOf('name=""') + 'name="'.length;
-      expect(isCursorInsideEmptyAttribute(line, cursorChar, ['description'])).toBe(false);
-    });
-
-    it('should return false when character position is out of bounds', () => {
-      const line = '<Variable description="" />';
-      expect(isCursorInsideEmptyAttribute(line, -1)).toBe(false);
-      expect(isCursorInsideEmptyAttribute(line, line.length + 10)).toBe(false);
-    });
-
-    it('should return false for plain lines without matching attributes', () => {
-      const line = '<b:include name="main" />';
-      expect(isCursorInsideEmptyAttribute(line, 5)).toBe(false);
-    });
-
-    it('should return true when cursor is inside empty type="" in b:widget', () => {
-      const line = '<b:widget id="main" type="" />';
-      const cursorChar = line.indexOf('type=""') + 'type="'.length;
-      expect(isCursorInsideEmptyAttribute(line, cursorChar)).toBe(true);
-    });
-
-    it('should return true when cursor is inside empty type=\'\' in b:defaultmarkup', () => {
-      const line = '<b:defaultmarkup type=\'\' />';
-      const cursorChar = line.indexOf('type=\'\'') + 'type=\''.length;
-      expect(isCursorInsideEmptyAttribute(line, cursorChar)).toBe(true);
-    });
-
-    it('should return false when attribute has content', () => {
-      const line = '<b:widget type="Blog" />';
-      const cursorChar = line.indexOf('Blog');
-      expect(isCursorInsideEmptyAttribute(line, cursorChar)).toBe(false);
+    it.each([
+      {
+        desc: 'empty double quotes description=""',
+        line: '<Variable name="test" description="" type="color"/>',
+        calcChar: (l: string) => l.indexOf('description=""') + 'description="'.length,
+        filter: ['description'],
+        expected: true,
+      },
+      {
+        desc: 'empty single quotes description=\'\'',
+        line: '<Group description=\'\' selector=".main">',
+        calcChar: (l: string) => l.indexOf('description=\'\'') + 'description=\''.length,
+        filter: ['description'],
+        expected: true,
+      },
+      {
+        desc: 'spaces around equals sign in description = ""',
+        line: '<Variable description = "" />',
+        calcChar: (l: string) => l.indexOf('""') + 1,
+        filter: ['description'],
+        expected: true,
+      },
+      {
+        desc: 'empty type="" in b:widget',
+        line: '<b:widget id="main" type="" />',
+        calcChar: (l: string) => l.indexOf('type=""') + 'type="'.length,
+        filter: undefined,
+        expected: true,
+      },
+      {
+        desc: 'empty type=\'\' in b:defaultmarkup',
+        line: '<b:defaultmarkup type=\'\' />',
+        calcChar: (l: string) => l.indexOf('type=\'\'') + 'type=\''.length,
+        filter: undefined,
+        expected: true,
+      },
+      {
+        desc: 'description with existing text inside quotes',
+        line: '<Variable description="Accents" />',
+        calcChar: (l: string) => l.indexOf('Accents'),
+        filter: ['description'],
+        expected: false,
+      },
+      {
+        desc: 'type with existing text in b:widget',
+        line: '<b:widget type="Blog" />',
+        calcChar: (l: string) => l.indexOf('Blog'),
+        filter: undefined,
+        expected: false,
+      },
+      {
+        desc: 'cursor in other empty attribute when filtering for specific attributes',
+        line: '<Variable name="" description="foo" />',
+        calcChar: (l: string) => l.indexOf('name=""') + 'name="'.length,
+        filter: ['description'],
+        expected: false,
+      },
+      {
+        desc: 'out of bounds negative character',
+        line: '<Variable description="" />',
+        calcChar: () => -1,
+        filter: undefined,
+        expected: false,
+      },
+      {
+        desc: 'out of bounds past line length',
+        line: '<Variable description="" />',
+        calcChar: (l: string) => l.length + 10,
+        filter: undefined,
+        expected: false,
+      },
+      {
+        desc: 'plain lines without matching attributes',
+        line: '<b:include name="main" />',
+        calcChar: () => 5,
+        filter: undefined,
+        expected: false,
+      },
+    ])('should return $expected for $desc', ({ line, calcChar, filter, expected }) => {
+      const char = calcChar(line);
+      expect(isCursorInsideEmptyAttribute(line, char, filter)).toBe(expected);
     });
   });
 
   describe('isBloggerAttributeContext', () => {
-    function createDoc(lines: string | string[]): vscode.TextDocument {
-      return new (vscode as any).MockTextDocument(lines) as vscode.TextDocument;
-    }
-
-    it('should return true for <Variable description="">', () => {
-      const line = '<Variable description="" />';
-      const doc = createDoc(line);
+    it.each([
+      { desc: '<Variable description="">', line: '<Variable description="" />', expected: true },
+      { desc: '<Group description="">', line: '<Group description="" />', expected: true },
+      { desc: '<b:widget type="">', line: '<b:widget id="main" type="" />', expected: true },
+      { desc: '<b:defaultmarkup type="">', line: '<b:defaultmarkup type="" />', expected: true },
+      { desc: 'standard HTML <input type="">', line: '<input type="" />', expected: false },
+      { desc: 'standard HTML <meta description="">', line: '<meta description="" />', expected: false },
+    ])('should return $expected for $desc', ({ line, expected }) => {
+      const doc = createMockDocument(line);
       const pos = new vscode.Position(0, line.indexOf('""') + 1);
-      expect(isBloggerAttributeContext(doc, pos)).toBe(true);
-    });
-
-    it('should return true for <Group description="">', () => {
-      const line = '<Group description="" />';
-      const doc = createDoc(line);
-      const pos = new vscode.Position(0, line.indexOf('""') + 1);
-      expect(isBloggerAttributeContext(doc, pos)).toBe(true);
-    });
-
-    it('should return true for <b:widget type="">', () => {
-      const line = '<b:widget id="main" type="" />';
-      const doc = createDoc(line);
-      const pos = new vscode.Position(0, line.indexOf('""') + 1);
-      expect(isBloggerAttributeContext(doc, pos)).toBe(true);
-    });
-
-    it('should return true for <b:defaultmarkup type="">', () => {
-      const line = '<b:defaultmarkup type="" />';
-      const doc = createDoc(line);
-      const pos = new vscode.Position(0, line.indexOf('""') + 1);
-      expect(isBloggerAttributeContext(doc, pos)).toBe(true);
-    });
-
-    it('should return false for standard HTML <input type="">', () => {
-      const line = '<input type="" />';
-      const doc = createDoc(line);
-      const pos = new vscode.Position(0, line.indexOf('""') + 1);
-      expect(isBloggerAttributeContext(doc, pos)).toBe(false);
-    });
-
-    it('should return false for standard HTML <meta description="">', () => {
-      const line = '<meta description="" />';
-      const doc = createDoc(line);
-      const pos = new vscode.Position(0, line.indexOf('""') + 1);
-      expect(isBloggerAttributeContext(doc, pos)).toBe(false);
+      expect(isBloggerAttributeContext(doc, pos)).toBe(expected);
     });
 
     it('should support multi-line <b:widget> tags', () => {
@@ -122,7 +113,7 @@ describe('cursorListener', () => {
         '  id="Blog1"',
         '  type="" />',
       ];
-      const doc = createDoc(lines);
+      const doc = createMockDocument(lines);
       const pos = new vscode.Position(2, lines[2]!.indexOf('""') + 1);
       expect(isBloggerAttributeContext(doc, pos)).toBe(true);
     });

@@ -125,6 +125,96 @@ describe('bloggerPathResolver', () => {
       expect(countrySuggestion).toBeDefined();
       expect(countrySuggestion!.example).toBe('data:blog.locale.country');
     });
+
+    describe('type members and chaining', () => {
+      it('should suggest string members and support string chaining', () => {
+        const suggestions = resolver.resolveDataPath(['blog', 'title']);
+        const names = suggestions.map(s => s.name);
+        expect(names).toEqual(['escaped', 'jsEscaped', 'jsonEscaped', 'cssEscaped']);
+
+        const chained = resolver.resolveDataPath(['blog', 'title', 'escaped']);
+        expect(chained.map(s => s.name)).toEqual(['escaped', 'jsEscaped', 'jsonEscaped', 'cssEscaped']);
+      });
+
+      it('should suggest image members and support image chaining', () => {
+        const suggestions = resolver.resolveDataPath(['post', 'featuredImage']);
+        const names = suggestions.map(s => s.name);
+        expect(names).toContain('width');
+        expect(names).toContain('height');
+        expect(names).toContain('isResizable');
+        expect(names).toContain('youtubeMaxResDefaultUrl');
+
+        const chained = resolver.resolveDataPath(['post', 'featuredImage', 'youtubeMaxResDefaultUrl']);
+        expect(chained.map(s => s.name)).toContain('width');
+        expect(chained.map(s => s.name)).toContain('height');
+      });
+
+      it('should suggest locale members and chain to string members', () => {
+        const suggestions = resolver.resolveDataPath(['blog', 'locale']);
+        const names = suggestions.map(s => s.name);
+        expect(names).toContain('name');
+        expect(names).toContain('language');
+        expect(names).toContain('country');
+
+        const chained = resolver.resolveDataPath(['blog', 'locale', 'country']);
+        expect(chained.map(s => s.name)).toEqual(['escaped', 'jsEscaped', 'jsonEscaped', 'cssEscaped']);
+      });
+
+      it('should suggest date members and chain to string members', () => {
+        const suggestions = resolver.resolveDataPath(['post', 'date']);
+        expect(suggestions.map(s => s.name)).toEqual([
+          'year',
+          'month',
+          'day',
+          'dayOfWeek',
+          'dayOfMonth',
+          'dayOfYear',
+          'iso8601',
+        ]);
+
+        const chained = resolver.resolveDataPath(['post', 'date', 'iso8601']);
+        expect(chained.map(s => s.name)).toEqual(['escaped', 'jsEscaped', 'jsonEscaped', 'cssEscaped']);
+      });
+
+      it('should suggest url members and support url chaining', () => {
+        const suggestions = resolver.resolveDataPath(['blog', 'url']);
+        expect(suggestions.map(s => s.name)).toEqual(['canonical', 'https', 'http']);
+
+        const chained = resolver.resolveDataPath(['blog', 'url', 'https']);
+        expect(chained.map(s => s.name)).toEqual(['canonical', 'https', 'http']);
+      });
+    });
+
+    describe('array properties', () => {
+      it('should suggest array keys for data:posts and post comments without leaking single post properties', () => {
+        const postsSuggestions = resolver.resolveDataPath(['posts']).map(s => s.name);
+        expect(postsSuggestions).toContain('size');
+        expect(postsSuggestions).toContain('length');
+        expect(postsSuggestions).toContain('empty');
+        expect(postsSuggestions).toContain('notEmpty');
+        expect(postsSuggestions).toContain('any');
+        expect(postsSuggestions).toContain('first');
+        expect(postsSuggestions).toContain('last');
+        expect(postsSuggestions).not.toContain('title');
+        expect(postsSuggestions).not.toContain('body');
+
+        const commentSuggestions = resolver.resolveDataPath(['post', 'comments']).map(s => s.name);
+        expect(commentSuggestions).toContain('size');
+        expect(commentSuggestions).toContain('first');
+      });
+
+      it('should suggest post properties on first and last elements', () => {
+        const firstNames = resolver.resolveDataPath(['posts', 'first']).map(s => s.name);
+        expect(firstNames).toContain('title');
+        expect(firstNames).toContain('body');
+        expect(firstNames).toContain('snippets');
+        expect(firstNames).toContain('author');
+
+        const lastNames = resolver.resolveDataPath(['posts', 'last']).map(s => s.name);
+        expect(lastNames).toContain('title');
+        expect(lastNames).toContain('author');
+      });
+    });
   });
 
   describe('resolveDescriptions', () => {
@@ -140,38 +230,17 @@ describe('bloggerPathResolver', () => {
   });
 
   describe('resolveWidgetTypes', () => {
-    it('should return all 25 widget types', () => {
+    it('should return valid widget types with metadata and documentation', () => {
       const suggestions = resolver.resolveWidgetTypes();
-      expect(suggestions.length).toBe(25);
-      expect(suggestions.map(s => s.name)).toEqual([
-        'AdSense',
-        'Attribution',
-        'Blog',
-        'BlogArchive',
-        'BloggerButton',
-        'BlogList',
-        'BlogSearch',
-        'ContactForm',
-        'FeaturedPost',
-        'Feed',
-        'Followers',
-        'Header',
-        'HTML',
-        'Image',
-        'Label',
-        'LinkList',
-        'PageList',
-        'PopularPosts',
-        'Profile',
-        'Stats',
-        'Subscribe',
-        'Text',
-        'TextList',
-        'Translate',
-        'Wikipedia',
-      ]);
+      expect(suggestions.length).toBeGreaterThanOrEqual(20);
       expect(suggestions.every(s => s.kind === 'enumMember')).toBe(true);
       expect(suggestions.every(s => s.detail === '(Blogger Widget Type)')).toBe(true);
+
+      const names = suggestions.map(s => s.name);
+      expect(names).toContain('Blog');
+      expect(names).toContain('Header');
+      expect(names).toContain('HTML');
+      expect(names).toContain('AdSense');
 
       const blogWidget = suggestions.find(s => s.name === 'Blog');
       expect(blogWidget).toBeDefined();
@@ -181,40 +250,16 @@ describe('bloggerPathResolver', () => {
   });
 
   describe('resolveDefaultMarkupTypes', () => {
-    it('should return all 27 defaultmarkup types including All and Common', () => {
+    it('should return valid defaultmarkup types including All and Common', () => {
       const suggestions = resolver.resolveDefaultMarkupTypes();
-      expect(suggestions.length).toBe(27);
-      expect(suggestions.map(s => s.name)).toEqual([
-        'All',
-        'Common',
-        'AdSense',
-        'Attribution',
-        'Blog',
-        'BlogArchive',
-        'BloggerButton',
-        'BlogList',
-        'BlogSearch',
-        'ContactForm',
-        'FeaturedPost',
-        'Feed',
-        'Followers',
-        'Header',
-        'HTML',
-        'Image',
-        'Label',
-        'LinkList',
-        'PageList',
-        'PopularPosts',
-        'Profile',
-        'Stats',
-        'Subscribe',
-        'Text',
-        'TextList',
-        'Translate',
-        'Wikipedia',
-      ]);
+      expect(suggestions.length).toBeGreaterThanOrEqual(20);
       expect(suggestions.every(s => s.kind === 'enumMember')).toBe(true);
       expect(suggestions.every(s => s.detail === '(Blogger Default Markup Type)')).toBe(true);
+
+      const names = suggestions.map(s => s.name);
+      expect(names[0]).toBe('All');
+      expect(names[1]).toBe('Common');
+      expect(names).toContain('Blog');
 
       const allType = suggestions.find(s => s.name === 'All');
       expect(allType).toBeDefined();

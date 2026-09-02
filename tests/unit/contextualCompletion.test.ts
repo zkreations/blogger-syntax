@@ -4,33 +4,13 @@ import { BloggerPathResolver } from '../../src/core/resolver/pathResolver.js';
 import { BloggerScopeTracker } from '../../src/core/scope/scopeTracker.js';
 import { BloggerCompletionProvider } from '../../src/vscode/providers/completionProvider.js';
 import { BloggerHoverProvider } from '../../src/vscode/providers/hoverProvider.js';
+import { createMockDocument } from '../helpers/mockDocument.js';
 
 describe('contextualCompletion and Hover', () => {
   const pathResolver = new BloggerPathResolver();
   const scopeTracker = new BloggerScopeTracker();
   const completionProvider = new BloggerCompletionProvider(pathResolver, scopeTracker);
   const hoverProvider = new BloggerHoverProvider(pathResolver, scopeTracker);
-
-  function createMockDocument(lines: string[], uri: string = 'file:///test.xml', version: number = 1): vscode.TextDocument {
-    const fullText = lines.join('\n');
-    return {
-      uri: { toString: () => uri } as vscode.Uri,
-      version,
-      lineCount: lines.length,
-      lineAt: (lineOrPos: number | vscode.Position) => {
-        const lineNum = typeof lineOrPos === 'number' ? lineOrPos : lineOrPos.line;
-        return { text: lines[lineNum] ?? '' };
-      },
-      getText: () => fullText,
-      offsetAt: (position: vscode.Position) => {
-        let offset = 0;
-        for (let l = 0; l < position.line; l++) {
-          offset += (lines[l]?.length ?? 0) + 1;
-        }
-        return offset + position.character;
-      },
-    } as unknown as vscode.TextDocument;
-  }
 
   describe('b:loop with custom variable name (item)', () => {
     const lines = [
