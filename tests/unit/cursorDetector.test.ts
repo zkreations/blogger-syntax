@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import * as vscode from 'vscode';
 import {
+  isBloggerAttributeContext,
   isCursorInsideEmptyAttribute,
   registerCursorSuggestListener,
 } from '../../src/vscode/listeners/cursorListener.js';
@@ -64,6 +66,65 @@ describe('cursorListener', () => {
       const line = '<b:widget type="Blog" />';
       const cursorChar = line.indexOf('Blog');
       expect(isCursorInsideEmptyAttribute(line, cursorChar)).toBe(false);
+    });
+  });
+
+  describe('isBloggerAttributeContext', () => {
+    function createDoc(lines: string | string[]): vscode.TextDocument {
+      return new (vscode as any).MockTextDocument(lines) as vscode.TextDocument;
+    }
+
+    it('should return true for <Variable description="">', () => {
+      const line = '<Variable description="" />';
+      const doc = createDoc(line);
+      const pos = new vscode.Position(0, line.indexOf('""') + 1);
+      expect(isBloggerAttributeContext(doc, pos)).toBe(true);
+    });
+
+    it('should return true for <Group description="">', () => {
+      const line = '<Group description="" />';
+      const doc = createDoc(line);
+      const pos = new vscode.Position(0, line.indexOf('""') + 1);
+      expect(isBloggerAttributeContext(doc, pos)).toBe(true);
+    });
+
+    it('should return true for <b:widget type="">', () => {
+      const line = '<b:widget id="main" type="" />';
+      const doc = createDoc(line);
+      const pos = new vscode.Position(0, line.indexOf('""') + 1);
+      expect(isBloggerAttributeContext(doc, pos)).toBe(true);
+    });
+
+    it('should return true for <b:defaultmarkup type="">', () => {
+      const line = '<b:defaultmarkup type="" />';
+      const doc = createDoc(line);
+      const pos = new vscode.Position(0, line.indexOf('""') + 1);
+      expect(isBloggerAttributeContext(doc, pos)).toBe(true);
+    });
+
+    it('should return false for standard HTML <input type="">', () => {
+      const line = '<input type="" />';
+      const doc = createDoc(line);
+      const pos = new vscode.Position(0, line.indexOf('""') + 1);
+      expect(isBloggerAttributeContext(doc, pos)).toBe(false);
+    });
+
+    it('should return false for standard HTML <meta description="">', () => {
+      const line = '<meta description="" />';
+      const doc = createDoc(line);
+      const pos = new vscode.Position(0, line.indexOf('""') + 1);
+      expect(isBloggerAttributeContext(doc, pos)).toBe(false);
+    });
+
+    it('should support multi-line <b:widget> tags', () => {
+      const lines = [
+        '<b:widget',
+        '  id="Blog1"',
+        '  type="" />',
+      ];
+      const doc = createDoc(lines);
+      const pos = new vscode.Position(2, lines[2]!.indexOf('""') + 1);
+      expect(isBloggerAttributeContext(doc, pos)).toBe(true);
     });
   });
 
