@@ -99,6 +99,7 @@ describe('cursorListener', () => {
       { desc: '<Group description="">', line: '<Group description="" />', expected: true },
       { desc: '<b:widget type="">', line: '<b:widget id="main" type="" />', expected: true },
       { desc: '<b:defaultmarkup type="">', line: '<b:defaultmarkup type="" />', expected: true },
+      { desc: '<Variable type="">', line: '<Variable name="test" type="" />', expected: true },
       { desc: 'standard HTML <input type="">', line: '<input type="" />', expected: false },
       { desc: 'standard HTML <meta description="">', line: '<meta description="" />', expected: false },
     ])('should return $expected for $desc', ({ line, expected }) => {

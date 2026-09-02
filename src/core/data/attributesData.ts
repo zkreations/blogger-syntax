@@ -82,6 +82,56 @@ export const bloggerCommonAttributes: Record<string, BloggerTagAttribute> = {
     type: 'string',
     description: 'CSS class names for the section or tag wrapper.',
   },
+  default: {
+    name: 'default',
+    type: 'string',
+    description: 'Default CSS value for the skin variable.',
+  },
+  description: {
+    name: 'description',
+    type: 'string',
+    description: 'User-friendly label shown in the Blogger Template Designer.',
+  },
+  selector: {
+    name: 'selector',
+    type: 'string',
+    description: 'CSS selector targeted by the variable group.',
+  },
+  family: {
+    name: 'family',
+    type: 'string',
+    description: 'Specifies the font family for font(skin) variable.',
+    docUrl: 'https://bloggercode.orbiona.com/2016/09/skin-type-font.html',
+  },
+  size: {
+    name: 'size',
+    type: 'string',
+    description: 'Specifies the font size for font(skin) variable.',
+    docUrl: 'https://bloggercode.orbiona.com/2016/09/skin-type-font.html',
+  },
+  min: {
+    name: 'min',
+    type: 'string',
+    description: 'Minimum value accepted by a length(skin) variable.',
+    docUrl: 'https://bloggercode.orbiona.com/2016/09/skin-type-length.html',
+  },
+  max: {
+    name: 'max',
+    type: 'string',
+    description: 'Maximum value accepted by a length(skin) variable.',
+    docUrl: 'https://bloggercode.orbiona.com/2016/09/skin-type-length.html',
+  },
+  color: {
+    name: 'color',
+    type: 'string',
+    description: 'Color code or $color reference for background(skin) variable.',
+    docUrl: 'https://bloggercode.orbiona.com/2016/09/skin-type-background.html',
+  },
+  hideEditor: {
+    name: 'hideEditor',
+    type: 'string',
+    description: 'Hides or forces display of variable control in Template Designer (true or false).',
+  },
   expr: {
     name: 'expr',
     type: 'string',

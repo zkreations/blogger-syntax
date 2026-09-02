@@ -8,6 +8,11 @@ import type {
 import { bloggerCommonAttributes, bloggerExprPrefixInfo } from '../data/attributesData.js';
 import { bloggerDescriptions } from '../data/descriptions.js';
 import { bloggerGlobalRoot } from '../data/globalData.js';
+import {
+  bloggerSkinVariableTags,
+  bloggerSkinVariableTypeDetails,
+  bloggerSkinVariableTypes,
+} from '../data/skinVariablesData.js';
 import { bloggerTags } from '../data/tagsData.js';
 import { getPropertyMembers } from '../data/typeMembers.js';
 import {
@@ -66,9 +71,29 @@ const STATIC_DEFAULT_MARKUP_SUGGESTIONS: readonly BloggerSuggestion[] = Object.f
   }),
 );
 
+const STATIC_SKIN_VARIABLE_TYPES_SUGGESTIONS: readonly BloggerSuggestion[] = Object.freeze(
+  bloggerSkinVariableTypes.map((skinType) => {
+    const details = bloggerSkinVariableTypeDetails[skinType];
+    return {
+      name: skinType,
+      type: 'string' as BloggerDataType,
+      kind: 'enumMember' as const,
+      detail: details.skinTypeLabel,
+      description: details.description,
+      example: details.example,
+      docUrl: details.docUrl,
+    };
+  }),
+);
+
 function createTagSuggestions(hasOpenBracket: boolean, isClosingTag: boolean): readonly BloggerSuggestion[] {
+  const baseTags = Object.values(bloggerTags);
+  const tagsToMap = isClosingTag
+    ? baseTags
+    : [...baseTags, ...bloggerSkinVariableTags];
+
   return Object.freeze(
-    Object.values(bloggerTags).map((tag) => {
+    tagsToMap.map((tag) => {
       let insertText: string;
       let isSnippet = true;
 
@@ -87,6 +112,7 @@ function createTagSuggestions(hasOpenBracket: boolean, isClosingTag: boolean): r
         name: tag.name,
         type: 'string' as BloggerDataType,
         description: tag.description,
+        detail: tag.detail,
         insertText,
         isSnippet,
         kind: 'snippet' as const,
@@ -220,6 +246,10 @@ export class BloggerPathResolver {
     return STATIC_DEFAULT_MARKUP_SUGGESTIONS;
   }
 
+  public resolveSkinVariableTypes(): readonly BloggerSuggestion[] {
+    return STATIC_SKIN_VARIABLE_TYPES_SUGGESTIONS;
+  }
+
   public resolveBloggerTags(hasOpenBracket: boolean, isClosingTag: boolean = false): readonly BloggerSuggestion[] {
     if (isClosingTag) {
       return STATIC_TAG_SUGGESTIONS_CLOSE;
@@ -251,6 +281,13 @@ export class BloggerPathResolver {
       }
 
       if (attrName === 'type') {
+        if (tagName === 'Variable') {
+          return {
+            suggestions: this.resolveSkinVariableTypes(),
+            replacementLength: typedText.length,
+          };
+        }
+
         if (tagName === 'b:widget') {
           return {
             suggestions: this.resolveWidgetTypes(),

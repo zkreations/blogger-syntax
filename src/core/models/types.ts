@@ -55,6 +55,7 @@ export interface BloggerTagDefinition {
   readonly name: string;
   readonly description: string;
   readonly snippetBody: string;
+  readonly detail?: string | undefined;
   readonly attributes?: Record<string, BloggerTagAttribute> | undefined;
   readonly example?: string | undefined;
   readonly docUrl?: string | readonly string[] | undefined;

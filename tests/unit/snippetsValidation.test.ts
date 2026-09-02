@@ -38,6 +38,22 @@ describe('tags and snippets validation', () => {
     }
   });
 
+  it('should include all 6 Variable specialized skin tags', () => {
+    const names = allTagSuggestions.map(s => s.name);
+    const variableTags = [
+      'Variable (color)',
+      'Variable (font)',
+      'Variable (length)',
+      'Variable (background)',
+      'Variable (string)',
+      'Variable (url)',
+    ];
+
+    for (const tag of variableTags) {
+      expect(names, `Missing specialized tag: ${tag}`).toContain(tag);
+    }
+  });
+
   it('should format snippetBody correctly with and without open bracket', () => {
     const suggestionsBare = resolver.resolveBloggerTags(false, false);
     const suggestionsOpen = resolver.resolveBloggerTags(true, false);

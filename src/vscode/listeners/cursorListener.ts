@@ -61,7 +61,7 @@ export function isBloggerAttributeContext(
     return tagName === 'Variable' || tagName === 'Group';
   }
   if (attrName === 'type') {
-    return tagName === 'b:widget' || tagName === 'b:defaultmarkup';
+    return tagName === 'b:widget' || tagName === 'b:defaultmarkup' || tagName === 'Variable';
   }
 
   return false;

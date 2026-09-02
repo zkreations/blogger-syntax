@@ -438,5 +438,56 @@ describe('bloggerPathResolver', () => {
       expect(groupTag).toBeDefined();
       expect(groupTag!.insertText).toMatch(/^<Group\s/);
     });
+
+    it('should resolve skin variable types for <Variable type="', () => {
+      const result = resolver.resolveFromLinePrefix('<Variable name="test" type="');
+      expect(result).toBeDefined();
+      expect(result!.replacementLength).toBe(0);
+      expect(result!.suggestions.length).toBe(6);
+
+      const names = result!.suggestions.map(s => s.name);
+      expect(names).toEqual(['color', 'font', 'length', 'background', 'string', 'url']);
+
+      const stringSug = result!.suggestions.find(s => s.name === 'string');
+      expect(stringSug).toBeDefined();
+      expect(stringSug!.detail).toBe('string(skin)');
+      expect(stringSug!.docUrl).toBe('https://bloggercode.orbiona.com/2016/09/skin-type-string.html');
+
+      const urlSug = result!.suggestions.find(s => s.name === 'url');
+      expect(urlSug).toBeDefined();
+      expect(urlSug!.detail).toBe('url(skin)');
+      expect(urlSug!.docUrl).toBe('https://bloggercode.orbiona.com/2016/09/skin-type-url.html');
+    });
+
+    it('should resolve skin variable types with correct replacement length when typing mid-word', () => {
+      const result = resolver.resolveFromLinePrefix('<Variable type="str');
+      expect(result).toBeDefined();
+      expect(result!.replacementLength).toBe(3);
+      expect(result!.suggestions.length).toBe(6);
+    });
+
+    it('should include all 6 Variable specialized tags in resolveBloggerTags', () => {
+      const openTags = resolver.resolveBloggerTags(true, false);
+      const skinTagNames = [
+        'Variable (color)',
+        'Variable (font)',
+        'Variable (length)',
+        'Variable (background)',
+        'Variable (string)',
+        'Variable (url)',
+      ];
+
+      for (const name of skinTagNames) {
+        const tag = openTags.find(s => s.name === name);
+        expect(tag, `Missing skin tag ${name}`).toBeDefined();
+        expect(tag!.insertText).toMatch(/^Variable\s/);
+        expect(tag!.detail).toMatch(/^\w+\(skin\)$/);
+      }
+
+      // Closing tag should NOT have Variable (color)>
+      const closeTags = resolver.resolveBloggerTags(false, true);
+      expect(closeTags.find(s => s.name === 'Variable (color)')).toBeUndefined();
+      expect(closeTags.find(s => s.name === 'Variable')).toBeDefined();
+    });
   });
 });

@@ -279,12 +279,12 @@ export const bloggerTags: Record<string, BloggerTagDefinition> = {
   'Variable': {
     name: 'Variable',
     description: 'Creates customization options for the Blogger Template Designer.',
-    snippetBody: `Variable name="\${1:name}" description="\${2|${descriptionsChoices}|}" type="\${3|color,font,length,string,background|}" default="\${4:default}" value="\${5:value}"/>$0`,
+    snippetBody: `Variable name="\${1:name}" description="\${2|${descriptionsChoices}|}" type="\${3|color,font,length,background,string,url|}" default="\${4:default}" value="\${5:value}"/>$0`,
     docUrl: 'https://bloggercode-blogconnexion.blogspot.com/2014/06/tag-b-skin-b-template-skin.html',
     attributes: {
       name: { name: 'name', type: 'string', required: true, description: 'Unique variable identifier name.' },
       description: { name: 'description', type: 'string', required: true, description: 'Variable label shown in Template Designer.' },
-      type: { name: 'type', type: 'string', required: true, description: 'Variable type (color, font, length, string, background).' },
+      type: { name: 'type', type: 'string', required: true, description: 'Variable type (color, font, length, background, string, url).' },
       default: { name: 'default', type: 'string', required: true, description: 'Default CSS value.' },
       value: { name: 'value', type: 'string', required: true, description: 'Current CSS value.' },
     },
