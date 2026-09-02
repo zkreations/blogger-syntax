@@ -1,3 +1,4 @@
+import type { BloggerProperty } from '../../core/models/types.js';
 import type { BloggerPathResolver } from '../../core/resolver/pathResolver.js';
 import * as vscode from 'vscode';
 import { BloggerScopeTracker } from '../../core/scope/scopeTracker.js';
@@ -16,11 +17,13 @@ export class BloggerHoverProvider implements vscode.HoverProvider {
   ): vscode.ProviderResult<vscode.Hover> {
     const lineText = document.lineAt(position.line).text;
 
-    const docKey = document.uri ? document.uri.toString() : 'untitled';
-    const version = document.version ?? 0;
-    const fullText = getDocumentText(document);
-    const offset = getDocumentOffset(document, position);
-    const localVariables = this.scopeTracker.getActiveVariables(docKey, version, fullText, offset);
+    const getLocalVariables = (): Record<string, BloggerProperty> => {
+      const docKey = document.uri ? document.uri.toString() : 'untitled';
+      const version = document.version ?? 0;
+      const fullText = getDocumentText(document);
+      const offset = getDocumentOffset(document, position);
+      return this.scopeTracker.getActiveVariables(docKey, version, fullText, offset);
+    };
 
     const getPrecedingContext = (): string | undefined => {
       if (position.line === 0) {
@@ -38,7 +41,7 @@ export class BloggerHoverProvider implements vscode.HoverProvider {
       lineText,
       position.character,
       getPrecedingContext,
-      { localVariables },
+      { localVariables: getLocalVariables },
     );
 
     if (!result) {

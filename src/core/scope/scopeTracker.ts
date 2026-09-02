@@ -11,12 +11,31 @@ export interface BloggerScopeBlock {
   readonly parent?: BloggerScopeBlock | undefined;
 }
 
-const TAG_REGEX = /<(\/)?b:(loop|with)\b([^>]*?)(\/?)>/gi;
+const TAG_REGEX = /<(\/)?b:(loop|with)\b((?:"[^"]*"|'[^']*'|[^"'/>])*)(\/?)>/gi;
 
-function extractAttribute(attrString: string, attrName: string): string | undefined {
-  const regex = new RegExp(`\\b${attrName}\\s*=\\s*(?:"([^"]*)"|'([^']*)')`, 'i');
+const ATTR_REGEX_MAP: Record<string, RegExp> = {
+  values: /\bvalues\s*=\s*(?:"([^"]*)"|'([^']*)')/i,
+  var: /\bvar\s*=\s*(?:"([^"]*)"|'([^']*)')/i,
+  index: /\bindex\s*=\s*(?:"([^"]*)"|'([^']*)')/i,
+  value: /\bvalue\s*=\s*(?:"([^"]*)"|'([^']*)')/i,
+};
+
+function extractAttribute(attrString: string, attrName: 'values' | 'var' | 'index' | 'value'): string | undefined {
+  const regex = ATTR_REGEX_MAP[attrName];
+  if (!regex) {
+    return undefined;
+  }
   const match = regex.exec(attrString);
   return match ? (match[1] ?? match[2]) : undefined;
+}
+
+function maskCommentsAndCdata(text: string): string {
+  if (!text.includes('<!--') && !text.includes('<![CDATA[')) {
+    return text;
+  }
+  return text.replace(/<!--[\s\S]*?-->|<!\[CDATA\[[\s\S]*?\]\]>/g, (match) => {
+    return match.replace(/[^\r\n]/g, ' ');
+  });
 }
 
 function mergeStackVariables(stack: readonly BloggerScopeBlock[]): Record<string, BloggerProperty> {
@@ -35,10 +54,11 @@ export class BloggerScopeTracker {
     const stack: BloggerScopeBlock[] = [];
     let blockCounter = 0;
 
+    const sanitizedText = maskCommentsAndCdata(text);
     TAG_REGEX.lastIndex = 0;
 
     while (true) {
-      const match = TAG_REGEX.exec(text);
+      const match = TAG_REGEX.exec(sanitizedText);
       if (match === null) {
         break;
       }
@@ -116,6 +136,21 @@ export class BloggerScopeTracker {
     return rootBlocks;
   }
 
+  private collectVariablesAtOffset(
+    blocks: readonly BloggerScopeBlock[],
+    offset: number,
+    target: Record<string, BloggerProperty>,
+  ): void {
+    for (const block of blocks) {
+      if (offset >= block.startOffset && offset <= block.endOffset) {
+        Object.assign(target, block.variables);
+        if (block.children.length > 0) {
+          this.collectVariablesAtOffset(block.children, offset, target);
+        }
+      }
+    }
+  }
+
   public getActiveVariables(
     documentKey: string,
     version: number,
@@ -124,19 +159,7 @@ export class BloggerScopeTracker {
   ): Record<string, BloggerProperty> {
     const rootBlocks = this.getScopeBlocks(documentKey, version, text);
     const activeVariables: Record<string, BloggerProperty> = {};
-
-    function collectFromBlocks(blocks: readonly BloggerScopeBlock[]): void {
-      for (const block of blocks) {
-        if (offset >= block.startOffset && offset <= block.endOffset) {
-          Object.assign(activeVariables, block.variables);
-          if (block.children.length > 0) {
-            collectFromBlocks(block.children);
-          }
-        }
-      }
-    }
-
-    collectFromBlocks(rootBlocks);
+    this.collectVariablesAtOffset(rootBlocks, offset, activeVariables);
     return activeVariables;
   }
 

@@ -1,3 +1,4 @@
+import type { BloggerProperty } from '../../core/models/types.js';
 import type { BloggerPathResolver } from '../../core/resolver/pathResolver.js';
 import * as vscode from 'vscode';
 import { BloggerScopeTracker } from '../../core/scope/scopeTracker.js';
@@ -17,13 +18,15 @@ export class BloggerCompletionProvider implements vscode.CompletionItemProvider 
     const lineText = document.lineAt(position.line).text;
     const linePrefix = lineText.slice(0, position.character);
 
-    const docKey = document.uri ? document.uri.toString() : 'untitled';
-    const version = document.version ?? 0;
-    const fullText = getDocumentText(document);
-    const offset = getDocumentOffset(document, position);
-    const localVariables = this.scopeTracker.getActiveVariables(docKey, version, fullText, offset);
+    const getLocalVariables = (): Record<string, BloggerProperty> => {
+      const docKey = document.uri ? document.uri.toString() : 'untitled';
+      const version = document.version ?? 0;
+      const fullText = getDocumentText(document);
+      const offset = getDocumentOffset(document, position);
+      return this.scopeTracker.getActiveVariables(docKey, version, fullText, offset);
+    };
 
-    let result = this.pathResolver.resolveFromLinePrefix(linePrefix, { localVariables });
+    let result = this.pathResolver.resolveFromLinePrefix(linePrefix, { localVariables: getLocalVariables });
 
     if (!result && position.line > 0 && /\b[\w:-]+\s*=\s*["'][^"']*$/.test(linePrefix)) {
       const startLine = Math.max(0, position.line - 15);
@@ -33,7 +36,7 @@ export class BloggerCompletionProvider implements vscode.CompletionItemProvider 
       }
       precedingLines.push(linePrefix);
       const multiLineText = precedingLines.join('\n');
-      result = this.pathResolver.resolveFromLinePrefix(multiLineText, { localVariables });
+      result = this.pathResolver.resolveFromLinePrefix(multiLineText, { localVariables: getLocalVariables });
     }
 
     if (!result || result.suggestions.length === 0) {
