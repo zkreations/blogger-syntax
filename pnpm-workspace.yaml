@@ -1,13 +1,14 @@
-minimumReleaseAge: 10080
-shellEmulator: true
-
-trustPolicy: no-downgrade
 blockExoticSubdeps: true
-allowBuilds:
-  '@vscode/vsce-sign': true
-  esbuild: true
-  keytar: true
+minimumReleaseAge: 10080
+minimumReleaseAgeExcludePrune: true
+trustPolicy: no-downgrade
+shellEmulator: true
 
 overrides:
   '@types/vscode': ~1.95.0
   semver: ^7.8.5
+
+allowBuilds:
+  '@vscode/vsce-sign': true
+  esbuild: true
+  keytar: true
