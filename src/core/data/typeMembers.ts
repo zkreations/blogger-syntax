@@ -71,7 +71,7 @@ export const IMAGE_MEMBERS: Record<string, BloggerProperty> = Object.freeze({
   isYouTube: {
     name: 'isYouTube',
     type: 'boolean',
-    description: 'Indicates whether the image is a YouTube video thumbnail (compatibility alias).',
+    description: 'Indicates whether the image is a YouTube video thumbnail.',
     docUrl: 'https://bloggercode.orbiona.com/2018/02/data-parameters-isYouTube-youtubeMaxResDefaultUrl.html',
   },
   youtubeMaxResDefaultUrl: {
