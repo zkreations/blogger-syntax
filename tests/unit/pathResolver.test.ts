@@ -16,7 +16,8 @@ describe('bloggerPathResolver', () => {
       expect(names).toContain('view');
       expect(names).toContain('widget');
       expect(names).toContain('widgets');
-      expect(names).toContain('post');
+      expect(names).toContain('template');
+      expect(names).not.toContain('post');
     });
 
     it('should resolve blog properties for ["blog"]', () => {
@@ -28,6 +29,17 @@ describe('bloggerPathResolver', () => {
       expect(names).toContain('homepageUrl');
       expect(names).toContain('locale');
       expect(names).toContain('pageType');
+    });
+
+    it('should resolve template properties for ["template"]', () => {
+      const suggestions = resolver.resolveDataPath(['template']);
+      const names = suggestions.map(s => s.name);
+
+      expect(names).toContain('isResponsive');
+      expect(names).toContain('isCustom');
+      expect(names).toContain('isAlternateRendering');
+      expect(names).toContain('name');
+      expect(names).toContain('variant');
     });
 
     it('should resolve nested blog locale properties for ["blog", "locale"]', () => {
@@ -130,10 +142,10 @@ describe('bloggerPathResolver', () => {
       it('should suggest string members and support string chaining', () => {
         const suggestions = resolver.resolveDataPath(['blog', 'title']);
         const names = suggestions.map(s => s.name);
-        expect(names).toEqual(['escaped', 'jsEscaped', 'jsonEscaped', 'cssEscaped']);
+        expect(names).toEqual(['escaped', 'jsEscaped', 'jsonEscaped', 'cssEscaped', 'length', 'size']);
 
         const chained = resolver.resolveDataPath(['blog', 'title', 'escaped']);
-        expect(chained.map(s => s.name)).toEqual(['escaped', 'jsEscaped', 'jsonEscaped', 'cssEscaped']);
+        expect(chained.map(s => s.name)).toEqual(['escaped', 'jsEscaped', 'jsonEscaped', 'cssEscaped', 'length', 'size']);
       });
 
       it('should suggest image members and support image chaining', () => {
@@ -142,6 +154,8 @@ describe('bloggerPathResolver', () => {
         expect(names).toContain('width');
         expect(names).toContain('height');
         expect(names).toContain('isResizable');
+        expect(names).toContain('isYoutube');
+        expect(names).toContain('isYouTube');
         expect(names).toContain('youtubeMaxResDefaultUrl');
 
         const chained = resolver.resolveDataPath(['post', 'featuredImage', 'youtubeMaxResDefaultUrl']);
@@ -157,7 +171,7 @@ describe('bloggerPathResolver', () => {
         expect(names).toContain('country');
 
         const chained = resolver.resolveDataPath(['blog', 'locale', 'country']);
-        expect(chained.map(s => s.name)).toEqual(['escaped', 'jsEscaped', 'jsonEscaped', 'cssEscaped']);
+        expect(chained.map(s => s.name)).toEqual(['escaped', 'jsEscaped', 'jsonEscaped', 'cssEscaped', 'length', 'size']);
       });
 
       it('should suggest date members and chain to string members', () => {
@@ -173,15 +187,35 @@ describe('bloggerPathResolver', () => {
         ]);
 
         const chained = resolver.resolveDataPath(['post', 'date', 'iso8601']);
-        expect(chained.map(s => s.name)).toEqual(['escaped', 'jsEscaped', 'jsonEscaped', 'cssEscaped']);
+        expect(chained.map(s => s.name)).toEqual(['escaped', 'jsEscaped', 'jsonEscaped', 'cssEscaped', 'length', 'size']);
       });
 
       it('should suggest url members and support url chaining', () => {
         const suggestions = resolver.resolveDataPath(['blog', 'url']);
-        expect(suggestions.map(s => s.name)).toEqual(['canonical', 'https', 'http']);
+        expect(suggestions.map(s => s.name)).toEqual([
+          'escaped',
+          'jsEscaped',
+          'jsonEscaped',
+          'cssEscaped',
+          'length',
+          'size',
+          'canonical',
+          'https',
+          'http',
+        ]);
 
         const chained = resolver.resolveDataPath(['blog', 'url', 'https']);
-        expect(chained.map(s => s.name)).toEqual(['canonical', 'https', 'http']);
+        expect(chained.map(s => s.name)).toEqual([
+          'escaped',
+          'jsEscaped',
+          'jsonEscaped',
+          'cssEscaped',
+          'length',
+          'size',
+          'canonical',
+          'https',
+          'http',
+        ]);
       });
     });
 
@@ -285,7 +319,8 @@ describe('bloggerPathResolver', () => {
       expect(result!.replacementLength).toBe(0);
       const names = result!.suggestions.map(s => s.name);
       expect(names).toContain('blog');
-      expect(names).toContain('post');
+      expect(names).toContain('template');
+      expect(names).not.toContain('post');
     });
 
     it('should resolve blog for line ending in "data:blog."', () => {

@@ -232,4 +232,156 @@ describe('bloggerScopeTracker', () => {
     const vars = tracker.getActiveVariables('cdataDoc', 1, code, offset);
     expect(vars.cdataVar).toBeUndefined();
   });
+
+  describe('widget scope and satellite widgets', () => {
+    it('should inject Header widget properties inside b:widget type="Header"', () => {
+      const code = [
+        '<b:widget id="Header1" type="Header">',
+        '  <b:includable id="main">',
+        '    <h1><data:title/></h1>',
+        '  </b:includable>',
+        '</b:widget>',
+      ].join('\n');
+
+      const offset = code.indexOf('<data:title/>');
+      const vars = tracker.getActiveVariables('headerDoc', 1, code, offset);
+      expect(vars.title).toBeDefined();
+      expect(vars.description).toBeDefined();
+      expect(vars.image).toBeDefined();
+      expect(vars.imagePlacement).toBeDefined();
+      // Should not have Blog-specific posts
+      expect(vars.posts).toBeUndefined();
+    });
+
+    it('should inject Label widget properties inside b:widget type="Label"', () => {
+      const code = [
+        '<b:widget id="Label1" type="Label">',
+        '  <b:includable id="main">',
+        '    <b:loop values="data:labels" var="label">',
+        '      <data:label.name/>',
+        '    </b:loop>',
+        '  </b:includable>',
+        '</b:widget>',
+      ].join('\n');
+
+      const offset = code.indexOf('<b:loop');
+      const vars = tracker.getActiveVariables('labelDoc', 1, code, offset);
+      expect(vars.labels).toBeDefined();
+      expect(vars.labels?.type).toBe('array');
+      expect(vars.title).toBeDefined();
+      expect(vars.display).toBeDefined();
+    });
+
+    it('should inject PopularPosts widget properties inside b:widget type="PopularPosts"', () => {
+      const code = [
+        '<b:widget id="PopularPosts1" type="PopularPosts">',
+        '  <b:includable id="main">',
+        '    <data:posts/>',
+        '  </b:includable>',
+        '</b:widget>',
+      ].join('\n');
+
+      const offset = code.indexOf('<data:posts/>');
+      const vars = tracker.getActiveVariables('popularDoc', 1, code, offset);
+      expect(vars.posts).toBeDefined();
+      expect(vars.title).toBeDefined();
+    });
+
+    it('should inject defaultmarkup Common and Blog properties', () => {
+      const commonCode = [
+        '<b:defaultmarkup type="Common">',
+        '  <b:includable id="commonMain">',
+        '    <data:messages/>',
+        '  </b:includable>',
+        '</b:defaultmarkup>',
+      ].join('\n');
+
+      const commonOffset = commonCode.indexOf('<data:messages/>');
+      const commonVars = tracker.getActiveVariables('commonDoc', 1, commonCode, commonOffset);
+      expect(commonVars.messages).toBeDefined();
+      expect(commonVars.posts).toBeUndefined();
+
+      const blogMarkupCode = [
+        '<b:defaultmarkup type="Blog">',
+        '  <b:includable id="blogMain">',
+        '    <data:posts/>',
+        '  </b:includable>',
+        '</b:defaultmarkup>',
+      ].join('\n');
+
+      const blogOffset = blogMarkupCode.indexOf('<data:posts/>');
+      const blogVars = tracker.getActiveVariables('blogMarkupDoc', 1, blogMarkupCode, blogOffset);
+      expect(blogVars.posts).toBeDefined();
+      expect(blogVars.messages).toBeDefined();
+      expect(blogVars.widget).toBeDefined();
+    });
+  });
+
+  describe('b:includable parameter propagation', () => {
+    it('should propagate data expression from b:include call site (e.g. data:post.comments)', () => {
+      const code = [
+        '<b:widget id="Blog1" type="Blog">',
+        '  <b:includable id="main">',
+        '    <b:with value="data:posts.first" var="post">',
+        '      <b:include name="commentItem" data="data:post.comments"/>',
+        '    </b:with>',
+        '  </b:includable>',
+        '  <b:includable id="commentItem" var="c">',
+        '    <div class="comment">',
+        '      <span class="author"><data:c.author/></span>',
+        '      <p><data:c.body/></p>',
+        '    </div>',
+        '  </b:includable>',
+        '</b:widget>',
+      ].join('\n');
+
+      const insideCommentItemOffset = code.indexOf('<data:c.author/>');
+      const vars = tracker.getActiveVariables('commentParamDoc', 1, code, insideCommentItemOffset);
+      expect(vars.c).toBeDefined();
+      expect(vars.c?.children?.author).toBeDefined();
+      expect(vars.c?.children?.body).toBeDefined();
+    });
+
+    it('should propagate literal object properties from b:include data="{ name: \'Daniel\', id: 99 }"', () => {
+      const code = [
+        '<b:widget id="Blog1" type="Blog">',
+        '  <b:includable id="main">',
+        '    <b:include name="test" data=\'{ name: "Daniel", id: 99 }\'/>',
+        '  </b:includable>',
+        '  <b:includable id="test" var="foo">',
+        '    <span class="author"><data:foo.name/></span>',
+        '    <span class="id"><data:foo.id/></span>',
+        '  </b:includable>',
+        '</b:widget>',
+      ].join('\n');
+
+      const insideTestOffset = code.indexOf('<data:foo.name/>');
+      const vars = tracker.getActiveVariables('literalParamDoc', 1, code, insideTestOffset);
+      expect(vars.foo).toBeDefined();
+      expect(vars.foo?.children?.name).toBeDefined();
+      expect(vars.foo?.children?.name?.type).toBe('string');
+      expect(vars.foo?.children?.id).toBeDefined();
+      expect(vars.foo?.children?.id?.type).toBe('number');
+    });
+
+    it('should merge properties when includable is called multiple times with different keys', () => {
+      const code = [
+        '<b:widget id="Blog1" type="Blog">',
+        '  <b:includable id="main">',
+        '    <b:include name="card" data=\'{ title: "Hello" }\'/>',
+        '    <b:include name="card" data=\'{ count: 42 }\'/>',
+        '  </b:includable>',
+        '  <b:includable id="card" var="item">',
+        '    <data:item.title/>',
+        '  </b:includable>',
+        '</b:widget>',
+      ].join('\n');
+
+      const insideCardOffset = code.indexOf('<data:item.title/>');
+      const vars = tracker.getActiveVariables('mergeCallsDoc', 1, code, insideCardOffset);
+      expect(vars.item).toBeDefined();
+      expect(vars.item?.children?.title).toBeDefined();
+      expect(vars.item?.children?.count).toBeDefined();
+    });
+  });
 });

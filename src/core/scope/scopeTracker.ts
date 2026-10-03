@@ -1,9 +1,24 @@
 import type { BloggerProperty } from '../models/types.js';
-import { inferLoopVariables, inferWithVariables } from './typeInferencer.js';
+import { messagesProperties, widgetMetaProperties } from '../data/globalData.js';
+import { WIDGET_DATA_DICTIONARIES } from '../data/widgetsData.js';
+import {
+  inferIncludableVariables,
+  inferLoopVariables,
+  inferWithVariables,
+} from './typeInferencer.js';
+
+export type BloggerScopeTag
+  = | 'b:widget'
+    | 'b:defaultmarkup'
+    | 'b:includable'
+    | 'b:with'
+    | 'b:loop';
 
 export interface BloggerScopeBlock {
   readonly id: string;
-  readonly tag: 'b:loop' | 'b:with';
+  readonly tag: BloggerScopeTag;
+  readonly widgetType?: string | undefined;
+  readonly includableId?: string | undefined;
   readonly startOffset: number;
   endOffset: number;
   readonly variables: Record<string, BloggerProperty>;
@@ -11,16 +26,24 @@ export interface BloggerScopeBlock {
   readonly parent?: BloggerScopeBlock | undefined;
 }
 
-const TAG_REGEX = /<(\/)?b:(loop|with)\b((?:"[^"]*"|'[^']*'|[^"'/>])*)(\/?)>/gi;
+const TAG_REGEX = /<(\/)?b:(widget|defaultmarkup|includable|loop|with)\b((?:"[^"]*"|'[^']*'|[^"'/>])*)(\/?)>/gi;
+const INCLUDE_REGEX = /<b:include\b((?:"[^"]*"|'[^']*'|[^"'/>])*)(\/?)>/gi;
 
 const ATTR_REGEX_MAP: Record<string, RegExp> = {
   values: /\bvalues\s*=\s*(?:"([^"]*)"|'([^']*)')/i,
   var: /\bvar\s*=\s*(?:"([^"]*)"|'([^']*)')/i,
   index: /\bindex\s*=\s*(?:"([^"]*)"|'([^']*)')/i,
   value: /\bvalue\s*=\s*(?:"([^"]*)"|'([^']*)')/i,
+  type: /\btype\s*=\s*(?:"([^"]*)"|'([^']*)')/i,
+  id: /\bid\s*=\s*(?:"([^"]*)"|'([^']*)')/i,
+  name: /\bname\s*=\s*(?:"([^"]*)"|'([^']*)')/i,
+  data: /\bdata\s*=\s*(?:"([^"]*)"|'([^']*)')/i,
 };
 
-function extractAttribute(attrString: string, attrName: 'values' | 'var' | 'index' | 'value'): string | undefined {
+function extractAttribute(
+  attrString: string,
+  attrName: 'values' | 'var' | 'index' | 'value' | 'type' | 'id' | 'name' | 'data',
+): string | undefined {
   const regex = ATTR_REGEX_MAP[attrName];
   if (!regex) {
     return undefined;
@@ -46,6 +69,16 @@ function mergeStackVariables(stack: readonly BloggerScopeBlock[]): Record<string
   return merged;
 }
 
+function findEnclosingWidgetOrMarkup(stack: readonly BloggerScopeBlock[]): BloggerScopeBlock | undefined {
+  for (let i = stack.length - 1; i >= 0; i--) {
+    const b = stack[i];
+    if (b && (b.tag === 'b:widget' || b.tag === 'b:defaultmarkup')) {
+      return b;
+    }
+  }
+  return undefined;
+}
+
 export class BloggerScopeTracker {
   private readonly documentCache = new Map<string, { version: number; rootBlocks: BloggerScopeBlock[] }>();
 
@@ -55,6 +88,25 @@ export class BloggerScopeTracker {
     let blockCounter = 0;
 
     const sanitizedText = maskCommentsAndCdata(text);
+
+    // Pre-pass: Index <b:include name='...' data='...'/> calls across document
+    const includeInvocations = new Map<string, string[]>();
+    INCLUDE_REGEX.lastIndex = 0;
+    while (true) {
+      const incMatch = INCLUDE_REGEX.exec(sanitizedText);
+      if (incMatch === null) {
+        break;
+      }
+      const attrStr = incMatch[1] ?? '';
+      const name = extractAttribute(attrStr, 'name');
+      const data = extractAttribute(attrStr, 'data');
+      if (name && data) {
+        const existing = includeInvocations.get(name) ?? [];
+        existing.push(data);
+        includeInvocations.set(name, existing);
+      }
+    }
+
     TAG_REGEX.lastIndex = 0;
 
     while (true) {
@@ -63,7 +115,8 @@ export class BloggerScopeTracker {
         break;
       }
       const isClosing = match[1] === '/';
-      const tagName = match[2]?.toLowerCase() as 'loop' | 'with';
+      const rawTag = match[2]?.toLowerCase() ?? '';
+      const fullTag = `b:${rawTag}` as BloggerScopeTag;
       const attrString = match[3] ?? '';
       const isSelfClosing = match[4] === '/' || attrString.trimEnd().endsWith('/');
       const tagStartOffset = match.index;
@@ -72,7 +125,7 @@ export class BloggerScopeTracker {
       if (isClosing) {
         for (let i = stack.length - 1; i >= 0; i--) {
           const current = stack[i];
-          if (current && current.tag === `b:${tagName}`) {
+          if (current && current.tag === fullTag) {
             current.endOffset = tagStartOffset;
             stack.splice(i, stack.length - i);
             break;
@@ -82,20 +135,65 @@ export class BloggerScopeTracker {
       }
 
       if (isSelfClosing) {
-        // Self-closing tags do not establish an inner container scope
         continue;
       }
 
       const activeVarsAtOpen = mergeStackVariables(stack);
       let variables: Record<string, BloggerProperty> = {};
+      let widgetType: string | undefined;
+      let includableId: string | undefined;
 
-      if (tagName === 'loop') {
+      if (fullTag === 'b:widget') {
+        widgetType = extractAttribute(attrString, 'type');
+        if (widgetType && WIDGET_DATA_DICTIONARIES[widgetType]) {
+          Object.assign(variables, WIDGET_DATA_DICTIONARIES[widgetType]);
+        }
+        variables.widget = {
+          name: 'widget',
+          type: 'object',
+          description: 'Current enclosing widget properties.',
+          children: widgetMetaProperties,
+        };
+      }
+      else if (fullTag === 'b:defaultmarkup') {
+        const markupType = extractAttribute(attrString, 'type');
+        widgetType = markupType;
+        if (markupType && WIDGET_DATA_DICTIONARIES[markupType]) {
+          Object.assign(variables, WIDGET_DATA_DICTIONARIES[markupType]);
+        }
+        variables.messages = {
+          name: 'messages',
+          type: 'object',
+          description: 'Localized Blogger UI message dictionary.',
+          children: messagesProperties,
+        };
+        variables.widget = {
+          name: 'widget',
+          type: 'object',
+          description: 'Current enclosing widget properties.',
+          children: widgetMetaProperties,
+        };
+      }
+      else if (fullTag === 'b:includable') {
+        includableId = extractAttribute(attrString, 'id');
+        const varName = extractAttribute(attrString, 'var');
+        const enclosingBlock = findEnclosingWidgetOrMarkup(stack);
+        const forwardedData = includableId ? includeInvocations.get(includableId) : undefined;
+        widgetType = enclosingBlock?.widgetType;
+        variables = inferIncludableVariables(
+          varName,
+          forwardedData,
+          activeVarsAtOpen,
+          widgetType,
+        );
+      }
+      else if (fullTag === 'b:loop') {
         const values = extractAttribute(attrString, 'values') ?? '';
         const varName = extractAttribute(attrString, 'var');
         const indexName = extractAttribute(attrString, 'index');
         variables = inferLoopVariables(values, varName, indexName, activeVarsAtOpen);
       }
-      else if (tagName === 'with') {
+      else if (fullTag === 'b:with') {
         const value = extractAttribute(attrString, 'value') ?? '';
         const varName = extractAttribute(attrString, 'var');
         variables = inferWithVariables(value, varName, activeVarsAtOpen);
@@ -103,8 +201,10 @@ export class BloggerScopeTracker {
 
       const parent = stack[stack.length - 1];
       const newBlock: BloggerScopeBlock = {
-        id: `scope_${++blockCounter}_${tagName}`,
-        tag: `b:${tagName}`,
+        id: `scope_${++blockCounter}_${rawTag}`,
+        tag: fullTag,
+        widgetType,
+        includableId,
         startOffset: tagEndOffset,
         endOffset: text.length,
         variables,

@@ -1,6 +1,6 @@
 import type { BloggerProperty } from '../models/types.js';
 import { createArrayProperties } from './typeMembers.js';
-import { blogWidgetProperties, singlePostProperties } from './widgetsData.js';
+import { blogWidgetProperties } from './widgetsData.js';
 
 export const blogProperties: Record<string, BloggerProperty> = {
   adsenseAutoAds: {
@@ -732,6 +732,44 @@ export const widgetsMapProperties: Record<string, BloggerProperty> = {
   },
 };
 
+export const templateProperties: Record<string, BloggerProperty> = {
+  isAlternateRendering: {
+    name: 'isAlternateRendering',
+    type: 'boolean',
+    description: 'Indicates alternate mobile or dynamic rendering mode.',
+  },
+  isCustom: {
+    name: 'isCustom',
+    type: 'boolean',
+    description: 'True if theme XML was modified; false for unedited official themes.',
+  },
+  isResponsive: {
+    name: 'isResponsive',
+    type: 'boolean',
+    description: 'True if the theme declares b:responsive=\'true\' on <html>.',
+  },
+  localizedName: {
+    name: 'localizedName',
+    type: 'string',
+    description: 'Localized theme display name matching blog language.',
+  },
+  name: {
+    name: 'name',
+    type: 'string',
+    description: 'Official Blogger base theme name (e.g. \'Notable\', \'Contempo\', \'Simple\', \'Custom\').',
+  },
+  variant: {
+    name: 'variant',
+    type: 'string',
+    description: 'Theme colorway or style variant label (e.g. \'Light\', \'Dark\').',
+  },
+  variantId: {
+    name: 'variantId',
+    type: 'string',
+    description: 'Programmatic identifier for variant (e.g. \'light\', \'dark\').',
+  },
+};
+
 export const bloggerGlobalRoot: Record<string, BloggerProperty> = {
   blog: {
     name: 'blog',
@@ -747,26 +785,18 @@ export const bloggerGlobalRoot: Record<string, BloggerProperty> = {
     docUrl: 'https://bloggercode.orbiona.com/1979/12/Ressource-data-messages.html',
     children: messagesProperties,
   },
-  post: {
-    name: 'post',
-    type: 'object',
-    description: 'Current post object context.',
-    children: singlePostProperties,
-  },
-  posts: {
-    name: 'posts',
-    type: 'array',
-    description: 'Collection of posts available in the current widget context.',
-    docUrl: 'https://bloggercode.orbiona.com/1971/08/data-posts.html',
-    itemChildren: singlePostProperties,
-    children: createArrayProperties(singlePostProperties),
-  },
   skin: {
     name: 'skin',
     type: 'object',
     description: 'Theme skin CSS variables.',
     docUrl: 'https://bloggercode.orbiona.com/1972/12/data-skin.html',
     children: skinProperties,
+  },
+  template: {
+    name: 'template',
+    type: 'object',
+    description: 'Active theme package manifest and compiler version flags.',
+    children: templateProperties,
   },
   view: {
     name: 'view',

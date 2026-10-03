@@ -25,6 +25,16 @@ export const STRING_MEMBERS: Record<string, BloggerProperty> = Object.freeze({
     description: 'CSS-escaped representation.',
     docUrl: 'https://bloggercode.orbiona.com/2016/04/data-parameters-escaped.html',
   },
+  length: {
+    name: 'length',
+    type: 'number',
+    description: 'The number of characters in the string.',
+  },
+  size: {
+    name: 'size',
+    type: 'number',
+    description: 'The number of characters in the string (alias of length).',
+  },
 });
 
 export const IMAGE_MEMBERS: Record<string, BloggerProperty> = Object.freeze({
@@ -61,7 +71,7 @@ export const IMAGE_MEMBERS: Record<string, BloggerProperty> = Object.freeze({
   isYouTube: {
     name: 'isYouTube',
     type: 'boolean',
-    description: 'Indicates whether the image is a YouTube video thumbnail.',
+    description: 'Indicates whether the image is a YouTube video thumbnail (compatibility alias).',
     docUrl: 'https://bloggercode.orbiona.com/2018/02/data-parameters-isYouTube-youtubeMaxResDefaultUrl.html',
   },
   youtubeMaxResDefaultUrl: {
@@ -238,11 +248,12 @@ export function getPropertyMembers(property: BloggerProperty): Record<string, Bl
   }
 
   if (property.type === 'string') {
-    return STRING_MEMBERS;
+    return property.children ? { ...STRING_MEMBERS, ...property.children } : STRING_MEMBERS;
   }
 
   if (property.type === 'image') {
-    return IMAGE_MEMBERS;
+    const base = { ...STRING_MEMBERS, ...URL_MEMBERS, ...IMAGE_MEMBERS };
+    return property.children ? { ...base, ...property.children } : base;
   }
 
   if (property.type === 'locale') {
@@ -250,11 +261,12 @@ export function getPropertyMembers(property: BloggerProperty): Record<string, Bl
   }
 
   if (property.type === 'date') {
-    return DATE_MEMBERS;
+    return property.children ? { ...DATE_MEMBERS, ...property.children } : DATE_MEMBERS;
   }
 
   if (property.type === 'url') {
-    return URL_MEMBERS;
+    const base = { ...STRING_MEMBERS, ...URL_MEMBERS };
+    return property.children ? { ...base, ...property.children } : base;
   }
 
   return property.children;

@@ -15,6 +15,7 @@ import {
 } from '../data/skinVariablesData.js';
 import { bloggerTags } from '../data/tagsData.js';
 import { getPropertyMembers } from '../data/typeMembers.js';
+import { blogWidgetProperties, singlePostProperties } from '../data/widgetsData.js';
 import {
   bloggerDefaultMarkupTypeDetails,
   bloggerDefaultMarkupTypes,
@@ -156,6 +157,23 @@ export function navigatePropertyPath(
 
   let targetProperty: BloggerProperty | undefined
     = localVariables?.[firstSegment] ?? rootTree[firstSegment];
+
+  if (!targetProperty) {
+    if (firstSegment === 'post') {
+      targetProperty = {
+        name: 'post',
+        type: 'object',
+        description: 'Current post object context.',
+        children: singlePostProperties,
+      };
+    }
+    else if (firstSegment === 'posts') {
+      targetProperty = blogWidgetProperties.posts;
+    }
+    else {
+      return undefined;
+    }
+  }
 
   if (!targetProperty) {
     return undefined;
