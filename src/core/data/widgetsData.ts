@@ -85,36 +85,110 @@ export const postLocationProperties: Record<string, BloggerProperty> = {
   },
 };
 
+export const commentAuthorPhotoProperties: Record<string, BloggerProperty> = {
+  height: {
+    name: 'height',
+    type: 'number',
+    description: 'Pixel height of commenter avatar.',
+  },
+  thumbHeight: {
+    name: 'thumbHeight',
+    type: 'number',
+    description: 'Pixel height of thumbnail avatar.',
+  },
+  thumbUrl: {
+    name: 'thumbUrl',
+    type: 'string',
+    description: 'Thumbnail avatar image URL.',
+  },
+  thumbWidth: {
+    name: 'thumbWidth',
+    type: 'number',
+    description: 'Pixel width of thumbnail avatar.',
+  },
+  url: {
+    name: 'url',
+    type: 'string',
+    description: 'Full-size avatar image URL.',
+  },
+  width: {
+    name: 'width',
+    type: 'number',
+    description: 'Pixel width of commenter avatar.',
+  },
+};
+
 export const commentProperties: Record<string, BloggerProperty> = {
   id: {
     name: 'id',
     type: 'string',
     description: 'Unique comment identifier string.',
   },
+  anchorName: {
+    name: 'anchorName',
+    type: 'string',
+    description: 'DOM anchor identifier string (e.g. \'c123456789\').',
+  },
   author: {
     name: 'author',
     type: 'string',
     description: 'Display name of comment author.',
   },
-  authorUrl: {
-    name: 'authorUrl',
-    type: 'url',
-    description: 'Web address or profile URL of the comment author.',
+  authorAvatarImage: {
+    name: 'authorAvatarImage',
+    type: 'string',
+    description: 'Pre-formatted HTML img markup of commenter avatar.',
   },
   authorAvatarSrc: {
     name: 'authorAvatarSrc',
     type: 'image',
     description: 'Avatar profile image source URL for the comment author.',
   },
+  authorPhoto: {
+    name: 'authorPhoto',
+    type: 'object',
+    description: 'Avatar photo dimension model (url, width, height).',
+    children: commentAuthorPhotoProperties,
+  },
+  authorUrl: {
+    name: 'authorUrl',
+    type: 'url',
+    description: 'Web address or profile URL of the comment author.',
+  },
+  authorUserType: {
+    name: 'authorUserType',
+    type: 'string',
+    description: 'Classification type string (\'BLOGGER\', \'ANONYMOUS\', \'OPENID\').',
+  },
   body: {
     name: 'body',
     type: 'string',
     description: 'HTML content body of the comment.',
   },
+  cmtBodyIdPostfix: {
+    name: 'cmtBodyIdPostfix',
+    type: 'string',
+    description: 'DOM ID postfix integer for comment body container.',
+  },
+  extraIconClass: {
+    name: 'extraIconClass',
+    type: 'string',
+    description: 'CSS icon badge class string for registered author comments.',
+  },
   timestamp: {
     name: 'timestamp',
     type: 'string',
     description: 'Formatted submission timestamp string.',
+  },
+  timestampAbs: {
+    name: 'timestampAbs',
+    type: 'number',
+    description: 'Absolute timestamp integer value.',
+  },
+  timestampValue: {
+    name: 'timestampValue',
+    type: 'number',
+    description: 'Unix epoch timestamp in milliseconds.',
   },
   date: {
     name: 'date',
@@ -140,6 +214,11 @@ export const commentProperties: Record<string, BloggerProperty> = {
     name: 'adminClass',
     type: 'string',
     description: 'CSS class applied to admin author comments.',
+  },
+  url: {
+    name: 'url',
+    type: 'string',
+    description: 'Direct permalink anchor URL to comment.',
   },
 };
 
@@ -199,6 +278,42 @@ export const pageLinkItemProperties: Record<string, BloggerProperty> = {
     name: 'isCurrentPage',
     type: 'boolean',
     description: 'True if the link matches the current view URL request.',
+  },
+};
+
+export const enclosureItemProperties: Record<string, BloggerProperty> = {
+  mimeType: {
+    name: 'mimeType',
+    type: 'string',
+    description: 'MIME type string of enclosure asset.',
+  },
+  url: {
+    name: 'url',
+    type: 'string',
+    description: 'Direct link URL to media enclosure.',
+  },
+};
+
+export const feedLinkItemProperties: Record<string, BloggerProperty> = {
+  feedType: {
+    name: 'feedType',
+    type: 'string',
+    description: 'Feed protocol standard (\'atom\' or \'rss\').',
+  },
+  mimeType: {
+    name: 'mimeType',
+    type: 'string',
+    description: 'MIME type string (\'application/atom+xml\' or \'application/rss+xml\').',
+  },
+  name: {
+    name: 'name',
+    type: 'string',
+    description: 'Localized feed title or descriptor.',
+  },
+  url: {
+    name: 'url',
+    type: 'url',
+    description: 'Public URL for syndicated feed.',
   },
 };
 
@@ -492,7 +607,8 @@ export const singlePostProperties: Record<string, BloggerProperty> = {
     type: 'array',
     description: 'Collection of feed links associated with the post.',
     docUrl: 'https://bloggercode.orbiona.com/2021/10/posts-feedLinks.html',
-    children: createArrayProperties(),
+    itemChildren: feedLinkItemProperties,
+    children: createArrayProperties(feedLinkItemProperties),
   },
   comments: {
     name: 'comments',
@@ -507,7 +623,8 @@ export const singlePostProperties: Record<string, BloggerProperty> = {
     type: 'array',
     description: 'Collection of media enclosures associated with the post.',
     docUrl: 'https://bloggercode.orbiona.com/1973/01/Blog-data-posts-enclosures.html',
-    children: createArrayProperties(),
+    itemChildren: enclosureItemProperties,
+    children: createArrayProperties(enclosureItemProperties),
   },
 };
 
@@ -598,7 +715,8 @@ export const blogWidgetProperties: Record<string, BloggerProperty> = {
     name: 'feedLinks',
     type: 'array',
     description: 'Blog feed links array.',
-    children: createArrayProperties(),
+    itemChildren: feedLinkItemProperties,
+    children: createArrayProperties(feedLinkItemProperties),
   },
   posts: {
     name: 'posts',
@@ -623,6 +741,19 @@ export const adSenseWidgetProperties: Record<string, BloggerProperty> = {
   },
 };
 
+export const imageAuthorProperties: Record<string, BloggerProperty> = {
+  name: {
+    name: 'name',
+    type: 'string',
+    description: 'Name of the theme background image creator/photographer.',
+  },
+  url: {
+    name: 'url',
+    type: 'url',
+    description: 'Portfolio or source link for the background image creator.',
+  },
+};
+
 export const attributionWidgetProperties: Record<string, BloggerProperty> = {
   bloggerUrl: {
     name: 'bloggerUrl',
@@ -638,7 +769,64 @@ export const attributionWidgetProperties: Record<string, BloggerProperty> = {
     name: 'imageAuthor',
     type: 'object',
     description: 'Credit details for template background image designer.',
+    children: imageAuthorProperties,
   },
+};
+
+export const archivePostItemProperties: Record<string, BloggerProperty> = {
+  title: {
+    name: 'title',
+    type: 'string',
+    description: 'Post headline title string.',
+  },
+  url: {
+    name: 'url',
+    type: 'url',
+    description: 'Canonical permalink URL of the post.',
+  },
+};
+
+export const archiveIntervalNodeProperties: Record<string, BloggerProperty> = {
+  'expclass': {
+    name: 'expclass',
+    type: 'string',
+    description: 'Collapsible CSS state class (\'expanded\' or \'collapsed\').',
+  },
+  'name': {
+    name: 'name',
+    type: 'string',
+    description: 'Formatted interval date label.',
+  },
+  'post-count': {
+    name: 'post-count',
+    type: 'number',
+    description: 'Number of posts published within this interval.',
+  },
+  'posts': {
+    name: 'posts',
+    type: 'array',
+    description: 'Child post entry inside leaf interval nodes.',
+    itemChildren: archivePostItemProperties,
+    children: createArrayProperties(archivePostItemProperties),
+  },
+  'toggleId': {
+    name: 'toggleId',
+    type: 'string',
+    description: 'Unique DOM ID for collapsible JS toggle script.',
+  },
+  'url': {
+    name: 'url',
+    type: 'url',
+    description: 'Archive filter URL for this interval.',
+  },
+};
+
+archiveIntervalNodeProperties.data = {
+  name: 'data',
+  type: 'array',
+  description: 'Nested child intervals (empty at leaf level).',
+  itemChildren: archiveIntervalNodeProperties,
+  children: createArrayProperties(archiveIntervalNodeProperties),
 };
 
 export const blogArchiveWidgetProperties: Record<string, BloggerProperty> = {
@@ -646,7 +834,8 @@ export const blogArchiveWidgetProperties: Record<string, BloggerProperty> = {
     name: 'data',
     type: 'array',
     description: 'Recursive collection of archive interval nodes.',
-    children: createArrayProperties(),
+    itemChildren: archiveIntervalNodeProperties,
+    children: createArrayProperties(archiveIntervalNodeProperties),
   },
   'expclass': {
     name: 'expclass',
@@ -690,12 +879,80 @@ export const blogArchiveWidgetProperties: Record<string, BloggerProperty> = {
   },
 };
 
+export const blogListItemThumbnailProperties: Record<string, BloggerProperty> = {
+  height: {
+    name: 'height',
+    type: 'number',
+    description: 'Native height of the thumbnail image in pixels.',
+  },
+  url: {
+    name: 'url',
+    type: 'url',
+    description: 'Direct image source URL of the thumbnail.',
+  },
+  width: {
+    name: 'width',
+    type: 'number',
+    description: 'Native width of the thumbnail image in pixels.',
+  },
+};
+
+export const blogListItemProperties: Record<string, BloggerProperty> = {
+  blogIconUrl: {
+    name: 'blogIconUrl',
+    type: 'string',
+    description: 'URL to the blog\'s favicon or icon image.',
+  },
+  blogTitle: {
+    name: 'blogTitle',
+    type: 'string',
+    description: 'Title of the external blog.',
+  },
+  blogUrl: {
+    name: 'blogUrl',
+    type: 'url',
+    description: 'Homepage URL of the external blog.',
+  },
+  displayStyle: {
+    name: 'displayStyle',
+    type: 'string',
+    description: 'Display style configured in UI (\'list\' or \'icon\').',
+  },
+  itemSnippet: {
+    name: 'itemSnippet',
+    type: 'string',
+    description: 'Short summary excerpt of the latest published post.',
+  },
+  itemThumbnail: {
+    name: 'itemThumbnail',
+    type: 'object',
+    description: 'Thumbnail image dimensions and URL for latest post.',
+    children: blogListItemThumbnailProperties,
+  },
+  itemTitle: {
+    name: 'itemTitle',
+    type: 'string',
+    description: 'Headline/title of the latest published post.',
+  },
+  itemUrl: {
+    name: 'itemUrl',
+    type: 'url',
+    description: 'Direct permalink URL to the latest published post.',
+  },
+  timePeriodSinceLastUpdate: {
+    name: 'timePeriodSinceLastUpdate',
+    type: 'string',
+    description: 'Localized human-readable elapsed duration (e.g. \'2 hours ago\').',
+  },
+};
+
 export const blogListWidgetProperties: Record<string, BloggerProperty> = {
   items: {
     name: 'items',
     type: 'array',
     description: 'Collection of syndicated blog entries in the blogroll.',
-    children: createArrayProperties(),
+    itemChildren: blogListItemProperties,
+    children: createArrayProperties(blogListItemProperties),
   },
   linkColor: {
     name: 'linkColor',
@@ -843,11 +1100,40 @@ export const contactFormWidgetProperties: Record<string, BloggerProperty> = {
   },
 };
 
+export const postDisplayProperties: Record<string, BloggerProperty> = {
+  showAuthor: {
+    name: 'showAuthor',
+    type: 'boolean',
+    description: 'UI toggle indicating whether post author is shown.',
+  },
+  showDate: {
+    name: 'showDate',
+    type: 'boolean',
+    description: 'UI toggle indicating whether publication date is shown.',
+  },
+  showFeaturedImage: {
+    name: 'showFeaturedImage',
+    type: 'boolean',
+    description: 'UI toggle indicating whether hero/featured thumbnail is displayed.',
+  },
+  showSnippet: {
+    name: 'showSnippet',
+    type: 'boolean',
+    description: 'UI toggle indicating whether post excerpt/snippet is shown.',
+  },
+  showTitle: {
+    name: 'showTitle',
+    type: 'boolean',
+    description: 'UI toggle indicating whether post title headline is shown.',
+  },
+};
+
 export const featuredPostWidgetProperties: Record<string, BloggerProperty> = {
   postDisplay: {
     name: 'postDisplay',
     type: 'object',
     description: 'Structured display preferences configured in UI.',
+    children: postDisplayProperties,
   },
   posts: {
     name: 'posts',
@@ -1103,6 +1389,7 @@ export const popularPostsWidgetProperties: Record<string, BloggerProperty> = {
     name: 'postDisplay',
     type: 'object',
     description: 'Structured display preferences configured in UI.',
+    children: postDisplayProperties,
   },
   posts: {
     name: 'posts',
@@ -1118,6 +1405,53 @@ export const popularPostsWidgetProperties: Record<string, BloggerProperty> = {
   },
 };
 
+export const profileAuthorPhotoProperties: Record<string, BloggerProperty> = {
+  alt: {
+    name: 'alt',
+    type: 'string',
+    description: 'Accessible alternate text for author avatar.',
+  },
+  height: {
+    name: 'height',
+    type: 'number',
+    description: 'Pixel height of author avatar image.',
+  },
+  image: {
+    name: 'image',
+    type: 'image',
+    description: 'Native image resource of author avatar; supports `resizeImage()`.',
+  },
+  width: {
+    name: 'width',
+    type: 'number',
+    description: 'Pixel width of author avatar image.',
+  },
+};
+
+export const profileAuthorItemProperties: Record<string, BloggerProperty> = {
+  'authorPhoto': {
+    name: 'authorPhoto',
+    type: 'object',
+    description: 'Structured contributor avatar with native image resource.',
+    children: profileAuthorPhotoProperties,
+  },
+  'display-name': {
+    name: 'display-name',
+    type: 'string',
+    description: 'Display name of team contributor.',
+  },
+  'profileLogo': {
+    name: 'profileLogo',
+    type: 'string',
+    description: 'Platform badge/logo URL for contributor.',
+  },
+  'userUrl': {
+    name: 'userUrl',
+    type: 'url',
+    description: 'URL linking to contributor\'s profile page.',
+  },
+};
+
 export const profileWidgetProperties: Record<string, BloggerProperty> = {
   aboutme: {
     name: 'aboutme',
@@ -1128,12 +1462,14 @@ export const profileWidgetProperties: Record<string, BloggerProperty> = {
     name: 'authorPhoto',
     type: 'object',
     description: 'Structured avatar object with native `image` type.',
+    children: profileAuthorPhotoProperties,
   },
   authors: {
     name: 'authors',
     type: 'array',
     description: 'Collection of contributors populated when `team == true`.',
-    children: createArrayProperties(),
+    itemChildren: profileAuthorItemProperties,
+    children: createArrayProperties(profileAuthorItemProperties),
   },
   displayname: {
     name: 'displayname',
@@ -1215,6 +1551,29 @@ export const statsWidgetProperties: Record<string, BloggerProperty> = {
   },
 };
 
+export const subscribeFeedItemProperties: Record<string, BloggerProperty> = {
+  encodedUrl: {
+    name: 'encodedUrl',
+    type: 'string',
+    description: 'URL-encoded feed endpoint used in reader query parameter strings.',
+  },
+  title: {
+    name: 'title',
+    type: 'string',
+    description: 'Display name of the feed reader service (e.g. \'Google\', \'Yahoo\').',
+  },
+  type: {
+    name: 'type',
+    type: 'string',
+    description: 'Identifier code for the feed reader target (e.g. \'GOOGLE\', \'YAHOO\').',
+  },
+  url: {
+    name: 'url',
+    type: 'url',
+    description: 'Direct one-click subscription endpoint targeting that reader service.',
+  },
+};
+
 export const subscribeWidgetProperties: Record<string, BloggerProperty> = {
   arrowDropdownImg: {
     name: 'arrowDropdownImg',
@@ -1235,7 +1594,8 @@ export const subscribeWidgetProperties: Record<string, BloggerProperty> = {
     name: 'feeds',
     type: 'array',
     description: 'Collection of supported web feed reader targets.',
-    children: createArrayProperties(),
+    itemChildren: subscribeFeedItemProperties,
+    children: createArrayProperties(subscribeFeedItemProperties),
   },
   imagePathBase: {
     name: 'imagePathBase',
