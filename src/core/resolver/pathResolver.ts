@@ -170,6 +170,9 @@ export function navigatePropertyPath(
     else if (firstSegment === 'posts') {
       targetProperty = blogWidgetProperties.posts;
     }
+    else if (firstSegment === 'feedLinks') {
+      targetProperty = blogWidgetProperties.feedLinks;
+    }
     else {
       return undefined;
     }

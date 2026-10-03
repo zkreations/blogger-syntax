@@ -236,15 +236,17 @@ export function createArrayProperties(
       docUrl: 'https://bloggercode.orbiona.com/2018/02/data-parameters-first-last.html',
       children: itemChildren,
     },
+    ...(itemChildren ?? {}),
   };
 }
 
 export function getPropertyMembers(property: BloggerProperty): Record<string, BloggerProperty> | undefined {
   if (property.type === 'array') {
+    const base = createArrayProperties(property.itemChildren, 'object');
     if (property.children && Object.keys(property.children).length > 0) {
-      return property.children;
+      return { ...base, ...property.children, ...(property.itemChildren ?? {}) };
     }
-    return createArrayProperties(property.itemChildren, 'object');
+    return base;
   }
 
   if (property.type === 'string') {

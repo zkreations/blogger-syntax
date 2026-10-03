@@ -219,7 +219,7 @@ describe('bloggerPathResolver', () => {
     });
 
     describe('array properties', () => {
-      it('should suggest array keys for data:posts and post comments without leaking single post properties', () => {
+      it('should suggest array keys and item properties for data:posts and post comments', () => {
         const postsSuggestions = resolver.resolveDataPath(['posts']).map(s => s.name);
         expect(postsSuggestions).toContain('size');
         expect(postsSuggestions).toContain('length');
@@ -228,12 +228,33 @@ describe('bloggerPathResolver', () => {
         expect(postsSuggestions).toContain('any');
         expect(postsSuggestions).toContain('first');
         expect(postsSuggestions).toContain('last');
-        expect(postsSuggestions).not.toContain('title');
-        expect(postsSuggestions).not.toContain('body');
+        expect(postsSuggestions).toContain('title');
+        expect(postsSuggestions).toContain('body');
 
         const commentSuggestions = resolver.resolveDataPath(['post', 'comments']).map(s => s.name);
         expect(commentSuggestions).toContain('size');
         expect(commentSuggestions).toContain('first');
+        expect(commentSuggestions).toContain('body');
+      });
+
+      it('should suggest array keys and feedLink item properties for data:feedLinks', () => {
+        const feedLinkSuggestions = resolver.resolveDataPath(['feedLinks']).map(s => s.name);
+        expect(feedLinkSuggestions).toContain('size');
+        expect(feedLinkSuggestions).toContain('length');
+        expect(feedLinkSuggestions).toContain('empty');
+        expect(feedLinkSuggestions).toContain('notEmpty');
+        expect(feedLinkSuggestions).toContain('any');
+        expect(feedLinkSuggestions).toContain('first');
+        expect(feedLinkSuggestions).toContain('last');
+        expect(feedLinkSuggestions).toContain('feedType');
+        expect(feedLinkSuggestions).toContain('mimeType');
+        expect(feedLinkSuggestions).toContain('name');
+        expect(feedLinkSuggestions).toContain('url');
+
+        const urlSuggestions = resolver.resolveDataPath(['feedLinks', 'url']).map(s => s.name);
+        expect(urlSuggestions).toContain('canonical');
+        expect(urlSuggestions).toContain('https');
+        expect(urlSuggestions).toContain('http');
       });
 
       it('should suggest post properties on first and last elements', () => {

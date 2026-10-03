@@ -218,4 +218,32 @@ describe('contextualCompletion and Hover', () => {
       expect(contentStr).toContain('Display name of the post author.');
     });
   });
+
+  describe('b:widget Blog array item completion', () => {
+    it('should suggest both array modifiers and item properties for data:feedLinks. inside Blog widget', () => {
+      const lines = [
+        '<b:widget id="Blog1" type="Blog">',
+        '  <b:includable id="main">',
+        '    <data:feedLinks.',
+        '  </b:includable>',
+        '</b:widget>',
+      ];
+      const doc = createMockDocument(lines, 'file:///blogFeedLinks.xml');
+      const position = new vscode.Position(2, '    <data:feedLinks.'.length);
+
+      const items = completionProvider.provideCompletionItems(doc, position) as vscode.CompletionItem[];
+      expect(items).toBeDefined();
+      expect(items.length).toBeGreaterThan(0);
+
+      const labels = items.map(item => item.label);
+      expect(labels).toContain('first');
+      expect(labels).toContain('last');
+      expect(labels).toContain('size');
+      expect(labels).toContain('length');
+      expect(labels).toContain('feedType');
+      expect(labels).toContain('mimeType');
+      expect(labels).toContain('name');
+      expect(labels).toContain('url');
+    });
+  });
 });
