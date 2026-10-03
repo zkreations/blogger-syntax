@@ -154,7 +154,6 @@ describe('bloggerPathResolver', () => {
         expect(names).toContain('width');
         expect(names).toContain('height');
         expect(names).toContain('isResizable');
-        expect(names).toContain('isYoutube');
         expect(names).toContain('isYouTube');
         expect(names).toContain('youtubeMaxResDefaultUrl');
 
