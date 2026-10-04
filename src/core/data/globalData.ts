@@ -1,6 +1,9 @@
 import type { BloggerProperty } from '../models/types.js';
 import { createArrayProperties } from './typeMembers.js';
-import { blogWidgetProperties } from './widgetsData.js';
+import {
+  baseWidgetDescriptorProperties,
+  WIDGET_DESCRIPTORS_MAP,
+} from './widgetDescriptors.js';
 
 export const blogProperties: Record<string, BloggerProperty> = {
   adsenseAutoAds: {
@@ -348,14 +351,14 @@ export const messagesProperties: Record<string, BloggerProperty>
 export const skinProperties: Record<string, BloggerProperty> = {
   override: {
     name: 'override',
-    type: 'object',
-    description: 'CSS overrides for Blogger skin.',
+    type: 'string',
+    description: 'Custom CSS injected via Theme Designer ("Add CSS"). Empty if none added.',
     docUrl: 'https://bloggercode.orbiona.com/1972/12/data-skin.html',
   },
   vars: {
     name: 'vars',
-    type: 'string',
-    description: 'Skin variable definitions.',
+    type: 'object',
+    description: 'Theme Designer variables dictionary populated from <Variable> tags in <b:skin>.',
     docUrl: 'https://bloggercode.orbiona.com/1972/12/data-skin.html',
   },
 };
@@ -554,182 +557,49 @@ export const widgetMetaProperties: Record<string, BloggerProperty> = {
   },
 };
 
+function createWidgetCollectionEntry(
+  name: string,
+  description: string,
+  docUrl?: string,
+): BloggerProperty {
+  const itemChildren = WIDGET_DESCRIPTORS_MAP[name] ?? baseWidgetDescriptorProperties;
+  return {
+    name,
+    type: 'array',
+    description,
+    docUrl,
+    itemChildren,
+    children: createArrayProperties(itemChildren),
+  };
+}
+
 export const widgetsMapProperties: Record<string, BloggerProperty> = {
-  AdSense: {
-    name: 'AdSense',
-    type: 'array',
-    description: 'Array of AdSense widgets on the blog.',
-    docUrl: 'https://bloggercode.orbiona.com/1979/08/Ressource-AdSense.html',
-    children: createArrayProperties(),
-  },
-  Attribution: {
-    name: 'Attribution',
-    type: 'array',
-    description: 'Array of Attribution widgets on the blog.',
-    docUrl: 'https://bloggercode.orbiona.com/1979/08/Ressource-Attribution.html',
-    children: createArrayProperties(),
-  },
-  Blog: {
-    name: 'Blog',
-    type: 'object',
-    description: 'Main Blog widget containing posts, comments, and pager.',
-    docUrl: 'https://bloggercode.orbiona.com/1979/07/Ressource-Blog.html',
-    children: blogWidgetProperties,
-  },
-  BlogArchive: {
-    name: 'BlogArchive',
-    type: 'array',
-    description: 'Array of BlogArchive widgets on the blog.',
-    docUrl: 'https://bloggercode.orbiona.com/1979/07/Ressource-BlogArchive.html',
-    children: createArrayProperties(),
-  },
-  BloggerButton: {
-    name: 'BloggerButton',
-    type: 'array',
-    description: 'Array of BloggerButton widgets on the blog.',
-    docUrl: 'https://bloggercode.orbiona.com/1979/07/Ressource-BloggerButton.html',
-    children: createArrayProperties(),
-  },
-  BlogList: {
-    name: 'BlogList',
-    type: 'array',
-    description: 'Array of BlogList widgets on the blog.',
-    docUrl: 'https://bloggercode.orbiona.com/1979/07/Ressource-BlogList.html',
-    children: createArrayProperties(),
-  },
-  BlogSearch: {
-    name: 'BlogSearch',
-    type: 'array',
-    description: 'Array of BlogSearch widgets on the blog.',
-    docUrl: 'https://bloggercode.orbiona.com/1979/07/Ressources-CustomSearch.html',
-    children: createArrayProperties(),
-  },
-  ContactForm: {
-    name: 'ContactForm',
-    type: 'array',
-    description: 'Array of ContactForm widgets on the blog.',
-    docUrl: 'https://bloggercode.orbiona.com/1979/07/Ressource-ContactForm.html',
-    children: createArrayProperties(),
-  },
-  FeaturedPost: {
-    name: 'FeaturedPost',
-    type: 'array',
-    description: 'Array of FeaturedPost widgets on the blog.',
-    docUrl: 'https://bloggercode.orbiona.com/1979/07/Ressource-FeaturedPost.html',
-    children: createArrayProperties(),
-  },
-  Feed: {
-    name: 'Feed',
-    type: 'array',
-    description: 'Array of Feed widgets on the blog.',
-    docUrl: 'https://bloggercode.orbiona.com/1979/07/Ressources-Feed.html',
-    children: createArrayProperties(),
-  },
-  Followers: {
-    name: 'Followers',
-    type: 'array',
-    description: 'Array of Followers widgets on the blog.',
-    docUrl: 'https://bloggercode.orbiona.com/1979/07/Ressource-Followers.html',
-    children: createArrayProperties(),
-  },
-  Header: {
-    name: 'Header',
-    type: 'array',
-    description: 'Array of Header widgets on the blog.',
-    docUrl: 'https://bloggercode.orbiona.com/1979/07/Ressource-Header.html',
-    children: createArrayProperties(),
-  },
-  HTML: {
-    name: 'HTML',
-    type: 'array',
-    description: 'Array of HTML widgets on the blog.',
-    docUrl: 'https://bloggercode.orbiona.com/1979/08/Ressource-HTML-Text.html',
-    children: createArrayProperties(),
-  },
-  Image: {
-    name: 'Image',
-    type: 'array',
-    description: 'Array of Image widgets on the blog.',
-    docUrl: 'https://bloggercode.orbiona.com/1979/07/Ressource-Image.html',
-    children: createArrayProperties(),
-  },
-  Label: {
-    name: 'Label',
-    type: 'array',
-    description: 'Array of Label widgets on the blog.',
-    docUrl: 'https://bloggercode.orbiona.com/1979/07/Ressource-Label.html',
-    children: createArrayProperties(),
-  },
-  LinkList: {
-    name: 'LinkList',
-    type: 'array',
-    description: 'Array of LinkList widgets on the blog.',
-    docUrl: 'https://bloggercode.orbiona.com/1979/07/Ressource-LinkList.html',
-    children: createArrayProperties(),
-  },
-  PageList: {
-    name: 'PageList',
-    type: 'array',
-    description: 'Array of PageList widgets on the blog.',
-    docUrl: 'https://bloggercode.orbiona.com/1979/07/Ressource-PageList.html',
-    children: createArrayProperties(),
-  },
-  PopularPosts: {
-    name: 'PopularPosts',
-    type: 'array',
-    description: 'Array of PopularPosts widgets on the blog.',
-    docUrl: 'https://bloggercode.orbiona.com/1979/07/Ressource-PopularPosts.html',
-    children: createArrayProperties(),
-  },
-  Profile: {
-    name: 'Profile',
-    type: 'array',
-    description: 'Array of Profile widgets on the blog.',
-    docUrl: 'https://bloggercode.orbiona.com/1979/07/Ressource-Profile.html',
-    children: createArrayProperties(),
-  },
-  Stats: {
-    name: 'Stats',
-    type: 'array',
-    description: 'Array of Stats widgets on the blog.',
-    docUrl: 'https://bloggercode.orbiona.com/1979/07/Ressource-Stats.html',
-    children: createArrayProperties(),
-  },
-  Subscribe: {
-    name: 'Subscribe',
-    type: 'array',
-    description: 'Array of Subscribe widgets on the blog.',
-    docUrl: 'https://bloggercode.orbiona.com/1979/07/Ressource-Subscribe.html',
-    children: createArrayProperties(),
-  },
-  Text: {
-    name: 'Text',
-    type: 'array',
-    description: 'Array of Text widgets on the blog.',
-    docUrl: 'https://bloggercode.orbiona.com/1979/08/Ressource-HTML-Text.html',
-    children: createArrayProperties(),
-  },
-  TextList: {
-    name: 'TextList',
-    type: 'array',
-    description: 'Array of TextList widgets on the blog.',
-    docUrl: 'https://bloggercode.orbiona.com/1979/07/Ressource-TextList.html',
-    children: createArrayProperties(),
-  },
-  Translate: {
-    name: 'Translate',
-    type: 'array',
-    description: 'Array of Translate widgets on the blog.',
-    docUrl: 'https://bloggercode.orbiona.com/1979/07/Ressource-Translate.html',
-    children: createArrayProperties(),
-  },
-  Wikipedia: {
-    name: 'Wikipedia',
-    type: 'array',
-    description: 'Array of Wikipedia widgets on the blog.',
-    docUrl: 'https://bloggercode.orbiona.com/1979/07/Ressource-Wikipedia.html',
-    children: createArrayProperties(),
-  },
+  AdSense: createWidgetCollectionEntry('AdSense', 'Collection of visible AdSense gadget descriptors.', 'https://bloggercode.orbiona.com/1979/08/Ressource-AdSense.html'),
+  Attribution: createWidgetCollectionEntry('Attribution', 'Collection of visible Attribution gadget descriptors.', 'https://bloggercode.orbiona.com/1979/08/Ressource-Attribution.html'),
+  Blog: createWidgetCollectionEntry('Blog', 'Collection of visible Blog gadget descriptors.', 'https://bloggercode.orbiona.com/1979/07/Ressource-Blog.html'),
+  BlogArchive: createWidgetCollectionEntry('BlogArchive', 'Collection of visible BlogArchive gadget descriptors.', 'https://bloggercode.orbiona.com/1979/07/Ressource-BlogArchive.html'),
+  BloggerButton: createWidgetCollectionEntry('BloggerButton', 'Collection of visible BloggerButton gadget descriptors.', 'https://bloggercode.orbiona.com/1979/07/Ressource-BloggerButton.html'),
+  BlogList: createWidgetCollectionEntry('BlogList', 'Collection of visible BlogList gadget descriptors.', 'https://bloggercode.orbiona.com/1979/07/Ressource-BlogList.html'),
+  BlogSearch: createWidgetCollectionEntry('BlogSearch', 'Collection of visible BlogSearch gadget descriptors.', 'https://bloggercode.orbiona.com/1979/07/Ressources-CustomSearch.html'),
+  ContactForm: createWidgetCollectionEntry('ContactForm', 'Collection of visible ContactForm gadget descriptors.', 'https://bloggercode.orbiona.com/1979/07/Ressource-ContactForm.html'),
+  FeaturedPost: createWidgetCollectionEntry('FeaturedPost', 'Collection of visible FeaturedPost gadget descriptors.', 'https://bloggercode.orbiona.com/1979/07/Ressource-FeaturedPost.html'),
+  Feed: createWidgetCollectionEntry('Feed', 'Collection of visible Feed gadget descriptors.', 'https://bloggercode.orbiona.com/1979/07/Ressources-Feed.html'),
+  Followers: createWidgetCollectionEntry('Followers', 'Collection of visible Followers gadget descriptors.', 'https://bloggercode.orbiona.com/1979/07/Ressource-Followers.html'),
+  Header: createWidgetCollectionEntry('Header', 'Collection of visible Header gadget descriptors.', 'https://bloggercode.orbiona.com/1979/07/Ressource-Header.html'),
+  HTML: createWidgetCollectionEntry('HTML', 'Collection of visible HTML gadget descriptors.', 'https://bloggercode.orbiona.com/1979/08/Ressource-HTML-Text.html'),
+  Image: createWidgetCollectionEntry('Image', 'Collection of visible Image gadget descriptors.', 'https://bloggercode.orbiona.com/1979/07/Ressource-Image.html'),
+  Label: createWidgetCollectionEntry('Label', 'Collection of visible Label gadget descriptors.', 'https://bloggercode.orbiona.com/1979/07/Ressource-Label.html'),
+  LinkList: createWidgetCollectionEntry('LinkList', 'Collection of visible LinkList gadget descriptors.', 'https://bloggercode.orbiona.com/1979/07/Ressource-LinkList.html'),
+  PageList: createWidgetCollectionEntry('PageList', 'Collection of visible PageList gadget descriptors.', 'https://bloggercode.orbiona.com/1979/07/Ressource-PageList.html'),
+  PopularPosts: createWidgetCollectionEntry('PopularPosts', 'Collection of visible PopularPosts gadget descriptors.', 'https://bloggercode.orbiona.com/1979/07/Ressource-PopularPosts.html'),
+  Profile: createWidgetCollectionEntry('Profile', 'Collection of visible Profile gadget descriptors.', 'https://bloggercode.orbiona.com/1979/07/Ressource-Profile.html'),
+  ReportAbuse: createWidgetCollectionEntry('ReportAbuse', 'Collection of visible ReportAbuse gadget descriptors.', 'https://bloggercode.orbiona.com/1979/07/Ressource-ReportAbuse.html'),
+  Stats: createWidgetCollectionEntry('Stats', 'Collection of visible Stats gadget descriptors.', 'https://bloggercode.orbiona.com/1979/07/Ressource-Stats.html'),
+  Subscribe: createWidgetCollectionEntry('Subscribe', 'Collection of visible Subscribe gadget descriptors.', 'https://bloggercode.orbiona.com/1979/07/Ressource-Subscribe.html'),
+  Text: createWidgetCollectionEntry('Text', 'Collection of visible Text gadget descriptors.', 'https://bloggercode.orbiona.com/1979/08/Ressource-HTML-Text.html'),
+  TextList: createWidgetCollectionEntry('TextList', 'Collection of visible TextList gadget descriptors.', 'https://bloggercode.orbiona.com/1979/07/Ressource-TextList.html'),
+  Translate: createWidgetCollectionEntry('Translate', 'Collection of visible Translate gadget descriptors.', 'https://bloggercode.orbiona.com/1979/07/Ressource-Translate.html'),
+  Wikipedia: createWidgetCollectionEntry('Wikipedia', 'Collection of visible Wikipedia gadget descriptors.', 'https://bloggercode.orbiona.com/1979/07/Ressource-Wikipedia.html'),
 };
 
 export const templateProperties: Record<string, BloggerProperty> = {
@@ -814,9 +684,13 @@ export const bloggerGlobalRoot: Record<string, BloggerProperty> = {
   },
   widgets: {
     name: 'widgets',
-    type: 'object',
-    description: 'Collection of widgets on the blog.',
+    type: 'array',
+    description: 'Global cross-widget layout registry in Layouts v3. Exposes descriptor objects ({ id, sectionId, title, type }) for visible widgets; does NOT provide access to the full private widget data dictionaries.',
     docUrl: 'https://bloggercode.orbiona.com/1979/12/Ressource-data-widgets.html',
-    children: widgetsMapProperties,
+    itemChildren: baseWidgetDescriptorProperties,
+    children: {
+      ...createArrayProperties(baseWidgetDescriptorProperties),
+      ...widgetsMapProperties,
+    },
   },
 };
