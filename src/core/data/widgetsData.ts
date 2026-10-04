@@ -222,6 +222,21 @@ export const commentProperties: Record<string, BloggerProperty> = {
   },
 };
 
+export const postLabelItemProperties: Record<string, BloggerProperty> = {
+  name: {
+    name: 'name',
+    type: 'string',
+    description: 'Tag label name text.',
+    docUrl: 'https://bloggercode.orbiona.com/1970/09/data-posts-labels.html',
+  },
+  url: {
+    name: 'url',
+    type: 'url',
+    description: 'Category archive URL for this label.',
+    docUrl: 'https://bloggercode.orbiona.com/1970/09/data-posts-labels.html',
+  },
+};
+
 export const labelItemProperties: Record<string, BloggerProperty> = {
   name: {
     name: 'name',
@@ -599,8 +614,8 @@ export const singlePostProperties: Record<string, BloggerProperty> = {
     type: 'array',
     description: 'Collection of labels assigned to the post.',
     docUrl: 'https://bloggercode.orbiona.com/1970/09/data-posts-labels.html',
-    itemChildren: labelItemProperties,
-    children: createArrayProperties(labelItemProperties),
+    itemChildren: postLabelItemProperties,
+    children: createArrayProperties(postLabelItemProperties),
   },
   feedLinks: {
     name: 'feedLinks',

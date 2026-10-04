@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { labelWidgetProperties } from '../../src/core/data/widgetsData.js';
 import { BloggerPathResolver, parseTagAttributeContext } from '../../src/core/resolver/pathResolver.js';
 
 describe('tag attribute completion & canonical data:widgets descriptors', () => {
@@ -276,6 +277,36 @@ describe('tag attribute completion & canonical data:widgets descriptors', () => 
       expect(hover?.hover.category).toBe('attribute');
       expect(hover?.hover.description).toContain('HTML comment');
       expect(hover?.hover.docUrls).toContain('https://bloggercode.orbiona.com/2018/02/tag-b-comments.html');
+    });
+  });
+
+  describe('post labels schema', () => {
+    it('should strictly suggest name and url for post.labels.first. and not count or cssSize', () => {
+      const result = resolver.resolveFromLinePrefix('<data:post.labels.first.');
+      expect(result).toBeDefined();
+      const names = result!.suggestions.map(s => s.name);
+      expect(names).toEqual(['name', 'url']);
+      expect(names).not.toContain('count');
+      expect(names).not.toContain('cssSize');
+    });
+
+    it('should strictly suggest name and url for posts.first.labels[0]. and not count or cssSize', () => {
+      const result = resolver.resolveFromLinePrefix('data:posts.first.labels[0].');
+      expect(result).toBeDefined();
+      const names = result!.suggestions.map(s => s.name);
+      expect(names).toEqual(['name', 'url']);
+      expect(names).not.toContain('count');
+      expect(names).not.toContain('cssSize');
+    });
+
+    it('should maintain count and cssSize for Label widget data:labels.first.', () => {
+      const result = resolver.resolveDataPath(['labels', 'first'], labelWidgetProperties);
+      expect(result).toBeDefined();
+      const names = result.map(s => s.name);
+      expect(names).toContain('name');
+      expect(names).toContain('count');
+      expect(names).toContain('url');
+      expect(names).toContain('cssSize');
     });
   });
 });
