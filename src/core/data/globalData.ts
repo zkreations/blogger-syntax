@@ -1,4 +1,5 @@
 import type { BloggerProperty } from '../models/types.js';
+import { PARAMETERIZED_MESSAGE_KEYS } from './messagesCatalog.js';
 import { createArrayProperties } from './typeMembers.js';
 import {
   baseWidgetDescriptorProperties,
@@ -337,15 +338,20 @@ const messageNames = [
 
 export const messagesProperties: Record<string, BloggerProperty>
   = Object.fromEntries(
-    messageNames.map(name => [
-      name,
-      {
+    messageNames.map((name) => {
+      const isParam = PARAMETERIZED_MESSAGE_KEYS.has(name);
+      return [
         name,
-        type: 'message',
-        description: `Blogger localized UI message: ${name}`,
-        docUrl: 'https://bloggercode.orbiona.com/1979/12/Ressource-data-messages.html',
-      },
-    ]),
+        {
+          name,
+          type: 'message',
+          description: isParam
+            ? `Blogger localized UI message: ${name}. [Requires <b:message> and <b:param>; direct invocation via <data:messages.${name}/> is prohibited.]`
+            : `Blogger localized UI message: ${name}`,
+          docUrl: 'https://bloggercode.orbiona.com/1979/12/Ressource-data-messages.html',
+        },
+      ];
+    }),
   );
 
 export const skinProperties: Record<string, BloggerProperty> = {
