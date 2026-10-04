@@ -13,6 +13,7 @@ export const bloggerTags: Record<string, BloggerTagDefinition> = {
     attributes: {
       name: { name: 'name', type: 'string', required: true, description: 'The name of the attribute to set on parent node.' },
       value: { name: 'value', type: 'string', required: true, description: 'The value to assign to the attribute.' },
+      cond: { name: 'cond', type: 'string', required: false, description: 'Conditional expression governing attribute emission.' },
     },
   },
   'b:class': {
@@ -22,6 +23,7 @@ export const bloggerTags: Record<string, BloggerTagDefinition> = {
     docUrl: 'https://bloggercode.orbiona.com/2018/01/tag-b-class.html',
     attributes: {
       name: { name: 'name', type: 'string', required: true, description: 'CSS class name or list of classes to append.' },
+      cond: { name: 'cond', type: 'string', required: false, description: 'Conditional expression governing class emission.' },
     },
   },
   'b:comment': {
@@ -29,6 +31,9 @@ export const bloggerTags: Record<string, BloggerTagDefinition> = {
     description: 'Creates comments that can be rendered or omitted in the client output.',
     snippetBody: 'b:comment>\n\t$0\n</b:comment>',
     docUrl: 'https://bloggercode.orbiona.com/2018/02/tag-b-comments.html',
+    attributes: {
+      render: { name: 'render', type: 'string', required: false, description: 'When true, renders content as an HTML comment in output instead of omitting it.', values: ['true', 'false'], docUrl: 'https://bloggercode.orbiona.com/2018/02/tag-b-comments.html' },
+    },
   },
   'b:defaultmarkups': {
     name: 'b:defaultmarkups',
@@ -114,6 +119,7 @@ export const bloggerTags: Record<string, BloggerTagDefinition> = {
     attributes: {
       name: { name: 'name', type: 'string', required: true, description: 'ID of the b:includable section to call.' },
       data: { name: 'data', type: 'string', required: false, description: 'Data expression to pass into the includable var parameter.', docUrl: 'https://bloggercode.orbiona.com/2018/02/attribute-data.html' },
+      cond: { name: 'cond', type: 'string', required: false, description: 'Conditional expression governing subroutine execution.' },
     },
   },
   'b:loop': {
@@ -128,6 +134,7 @@ export const bloggerTags: Record<string, BloggerTagDefinition> = {
       values: { name: 'values', type: 'string', required: true, description: 'Array data expression to iterate over.' },
       var: { name: 'var', type: 'string', required: true, description: 'Variable name representing the current item in the loop.' },
       index: { name: 'index', type: 'string', required: false, description: 'Variable name for the zero-based iteration index.', docUrl: 'https://bloggercode.orbiona.com/2021/10/attribute-index.html' },
+      reverse: { name: 'reverse', type: 'string', required: false, description: 'Whether to iterate the collection in reverse order (true / false).', values: ['true', 'false'], docUrl: 'https://bloggercode.orbiona.com/2016/03/tag-b-loop.html' },
     },
   },
   'b:message': {
@@ -152,7 +159,7 @@ export const bloggerTags: Record<string, BloggerTagDefinition> = {
   'b:section': {
     name: 'b:section',
     description: 'Defines a layout section that can contain b:widget tags.',
-    snippetBody: 'b:section id="${1:main}" maxwidgets="${2:1}">\n\t$0\n</b:section>',
+    snippetBody: 'b:section id="${1:main}" tag="${2:main}">\n\t$0\n</b:section>',
     docUrl: [
       'https://support.google.com/blogger/answer/46888',
       'https://bloggercode.orbiona.com/2016/03/tag-b-section.html',
@@ -160,8 +167,10 @@ export const bloggerTags: Record<string, BloggerTagDefinition> = {
     attributes: {
       id: { name: 'id', type: 'string', required: true, description: 'Unique section container ID.' },
       class: { name: 'class', type: 'string', required: false, description: 'CSS class names for the section wrapper.' },
-      maxwidgets: { name: 'maxwidgets', type: 'number', required: false, description: 'Maximum number of widgets allowed in this section.', docUrl: 'https://bloggercode.orbiona.com/2021/11/attribute-maxwidgets.html' },
-      showaddelement: { name: 'showaddelement', type: 'string', required: false, description: 'Whether to show the Add a Gadget button in layout editor (yes / no).' },
+      tag: { name: 'tag', type: 'string', required: false, description: 'Semantic HTML5 container element to generate for the section (e.g. main, aside, header, footer).', values: ['main', 'section', 'article', 'aside', 'header', 'footer', 'nav', 'div'], docUrl: 'https://bloggercode.orbiona.com/2016/03/tag-b-section.html' },
+      name: { name: 'name', type: 'string', required: false, description: 'Display label for the section in Blogger layout editor.' },
+      showaddelement: { name: 'showaddelement', type: 'string', required: false, description: 'Whether to show the Add a Gadget button in layout editor (yes / no).', values: ['yes', 'no'] },
+      cond: { name: 'cond', type: 'string', required: false, description: 'Conditional expression governing section rendering.' },
     },
   },
   'b:skin': {
@@ -178,6 +187,15 @@ export const bloggerTags: Record<string, BloggerTagDefinition> = {
     description: 'Contains layout mode specific CSS styles.',
     snippetBody: 'b:template-skin>\n\t<![CDATA[\n\t\t$0\n\t]]>\n</b:template-skin>',
     docUrl: 'https://bloggercode.orbiona.com/2014/06/tag-b-skin-b-template-skin.html',
+  },
+  'b:template-script': {
+    name: 'b:template-script',
+    description: 'Declares and asynchronously initializes Blogger platform scripts in Layouts v3.',
+    snippetBody: 'b:template-script name="${1:indie}"/>$0',
+    docUrl: 'https://bloggercode.orbiona.com/2016/03/tag-b-template-script.html',
+    attributes: {
+      name: { name: 'name', type: 'string', required: true, description: 'Registered platform script identifier.' },
+    },
   },
   'b:switch': {
     name: 'b:switch',
@@ -233,9 +251,11 @@ export const bloggerTags: Record<string, BloggerTagDefinition> = {
     attributes: {
       id: { name: 'id', type: 'string', required: true, description: 'Unique widget ID (e.g. Blog1, Header1).' },
       type: { name: 'type', type: 'string', required: true, description: 'Widget type (e.g. Blog, Header, HTML).', values: bloggerWidgetTypes },
-      title: { name: 'title', type: 'string', required: false, description: 'Widget display title.' },
-      locked: { name: 'locked', type: 'string', required: false, description: 'Lock widget position in layout editor (true / false).', docUrl: 'https://bloggercode.orbiona.com/2021/10/attribute-locked.html' },
-      version: { name: 'version', type: 'string', required: false, description: 'Widget syntax version (1 or 2).' },
+      title: { name: 'title', type: 'string', required: true, description: 'Widget display title.' },
+      locked: { name: 'locked', type: 'string', required: false, description: 'Lock widget position in layout editor (true / false).', docUrl: 'https://bloggercode.orbiona.com/2021/10/attribute-locked.html', values: ['true', 'false'] },
+      version: { name: 'version', type: 'string', required: false, description: 'Widget syntax version (1 or 2).', values: ['1', '2'] },
+      cond: { name: 'cond', type: 'string', required: false, description: 'Conditional expression governing widget rendering.' },
+      visible: { name: 'visible', type: 'string', required: false, description: 'Widget visibility in layout editor (true / false).', values: ['true', 'false'] },
     },
   },
   'b:widget-settings': {
@@ -287,6 +307,12 @@ export const bloggerTags: Record<string, BloggerTagDefinition> = {
       type: { name: 'type', type: 'string', required: true, description: 'Variable type (color, font, length, background, string, url).' },
       default: { name: 'default', type: 'string', required: true, description: 'Default CSS value.' },
       value: { name: 'value', type: 'string', required: true, description: 'Current CSS value.' },
+      color: { name: 'color', type: 'string', required: false, description: 'Base color code or $color reference for background variable.' },
+      family: { name: 'family', type: 'string', required: false, description: 'Font family list for font variable.' },
+      size: { name: 'size', type: 'string', required: false, description: 'Font size with CSS unit for font variable.' },
+      min: { name: 'min', type: 'string', required: false, description: 'Minimum value boundary for length variable.' },
+      max: { name: 'max', type: 'string', required: false, description: 'Maximum value boundary for length variable.' },
+      hideEditor: { name: 'hideEditor', type: 'string', required: false, description: 'Whether to hide the control in Theme Designer UI (true / false).' },
     },
   },
 };
