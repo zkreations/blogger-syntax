@@ -220,30 +220,39 @@ describe('contextualCompletion and Hover', () => {
   });
 
   describe('b:widget Blog array item completion', () => {
-    it('should suggest both array modifiers and item properties for data:feedLinks. inside Blog widget', () => {
+    it('should suggest array modifiers for data:feedLinks. and item properties for data:feedLinks.first. inside Blog widget', () => {
       const lines = [
         '<b:widget id="Blog1" type="Blog">',
         '  <b:includable id="main">',
         '    <data:feedLinks.',
+        '    <data:feedLinks.first.',
         '  </b:includable>',
         '</b:widget>',
       ];
       const doc = createMockDocument(lines, 'file:///blogFeedLinks.xml');
-      const position = new vscode.Position(2, '    <data:feedLinks.'.length);
+      const arrayPosition = new vscode.Position(2, '    <data:feedLinks.'.length);
 
-      const items = completionProvider.provideCompletionItems(doc, position) as vscode.CompletionItem[];
-      expect(items).toBeDefined();
-      expect(items.length).toBeGreaterThan(0);
+      const arrayItems = completionProvider.provideCompletionItems(doc, arrayPosition) as vscode.CompletionItem[];
+      expect(arrayItems).toBeDefined();
+      expect(arrayItems.length).toBeGreaterThan(0);
 
-      const labels = items.map(item => item.label);
-      expect(labels).toContain('first');
-      expect(labels).toContain('last');
-      expect(labels).toContain('size');
-      expect(labels).toContain('length');
-      expect(labels).toContain('feedType');
-      expect(labels).toContain('mimeType');
-      expect(labels).toContain('name');
-      expect(labels).toContain('url');
+      const arrayLabels = arrayItems.map(item => item.label);
+      expect(arrayLabels).toContain('first');
+      expect(arrayLabels).toContain('last');
+      expect(arrayLabels).toContain('size');
+      expect(arrayLabels).toContain('length');
+      expect(arrayLabels).not.toContain('feedType');
+      expect(arrayLabels).not.toContain('mimeType');
+
+      const itemPosition = new vscode.Position(3, '    <data:feedLinks.first.'.length);
+      const itemResults = completionProvider.provideCompletionItems(doc, itemPosition) as vscode.CompletionItem[];
+      expect(itemResults).toBeDefined();
+
+      const itemLabels = itemResults.map(item => item.label);
+      expect(itemLabels).toContain('feedType');
+      expect(itemLabels).toContain('mimeType');
+      expect(itemLabels).toContain('name');
+      expect(itemLabels).toContain('url');
     });
   });
 });
