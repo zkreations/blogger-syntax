@@ -63,7 +63,7 @@ export interface BloggerTagDefinition {
 
 export interface BloggerHoverInfo {
   readonly title: string;
-  readonly category: 'tag' | 'data' | 'attribute' | 'prefix';
+  readonly category: 'tag' | 'data' | 'attribute' | 'prefix' | 'setting' | 'message' | 'param';
   readonly type?: BloggerDataType | string | undefined;
   readonly description?: string | undefined;
   readonly example?: string | undefined;
