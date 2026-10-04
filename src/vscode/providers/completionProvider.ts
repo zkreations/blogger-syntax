@@ -28,7 +28,7 @@ export class BloggerCompletionProvider implements vscode.CompletionItemProvider 
 
     let result = this.pathResolver.resolveFromLinePrefix(linePrefix, { localVariables: getLocalVariables });
 
-    if (!result && position.line > 0 && /\b[\w:-]+\s*=\s*["'][^"']*$/.test(linePrefix)) {
+    if (!result && position.line > 0) {
       const startLine = Math.max(0, position.line - 15);
       const precedingLines: string[] = [];
       for (let l = startLine; l < position.line; l++) {
