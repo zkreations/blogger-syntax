@@ -15,6 +15,7 @@ import {
 } from '../data/skinVariablesData.js';
 import { bloggerTags } from '../data/tagsData.js';
 import { getPropertyMembers } from '../data/typeMembers.js';
+import { getWidgetDescriptor } from '../data/widgetDescriptors.js';
 import { blogWidgetProperties, singlePostProperties } from '../data/widgetsData.js';
 import {
   bloggerDefaultMarkupTypeDetails,
@@ -25,9 +26,9 @@ import {
 
 const ATTR_VALUE_REGEX = /\b([\w:-]+)\s*=\s*["']([^"']*)$/;
 const TAG_CONTEXT_REGEX = /<([\w:-]+)(?:\s[^>]*)?$/;
-const DATA_PREFIX_REGEX = /(?:^|[^\w:.])(data:[\w.]*)$/;
+const DATA_PREFIX_REGEX = /(?:^|[^\w:.])(data:[[\]\w.]*)$/;
 const TAG_PREFIX_REGEX = /(?:^|[^\w:])(?:(<\/|<)(b:[\w-]*|Var\w*|Gro\w*)?|(b:[\w-]*|Variable\w*|Group\w*))$/i;
-const HOVER_DATA_REGEX = /(?:^|[^\w:.])(data:[\w.]*)/g;
+const HOVER_DATA_REGEX = /(?:^|[^\w:.])(data:[[\]\w.]*)/g;
 const HOVER_TAG_REGEX = /(<\/?)(b:[\w-]+|Variable|Group)/g;
 const HOVER_EXPR_REGEX = /\b(expr:[\w-]*)/g;
 const HOVER_ATTR_REGEX = /\b([\w-]+)\s*=/g;
@@ -141,6 +142,69 @@ export interface PropertyNavigationResult {
   readonly children?: Record<string, BloggerProperty> | undefined;
 }
 
+export function parseTagAttributeContext(text: string): {
+  tagName: string;
+  typedPrefix: string;
+  existingAttrs: Set<string>;
+} | undefined {
+  let inQuote: '"' | '\'' | null = null;
+  let lastOpenIndex = -1;
+
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    if (inQuote) {
+      if (char === inQuote) {
+        inQuote = null;
+      }
+    }
+    else {
+      if (char === '"' || char === '\'') {
+        inQuote = char;
+      }
+      else if (char === '<') {
+        lastOpenIndex = i;
+      }
+      else if (char === '>') {
+        lastOpenIndex = -1;
+      }
+    }
+  }
+
+  if (inQuote !== null || lastOpenIndex === -1) {
+    return undefined;
+  }
+
+  const tagContent = text.slice(lastOpenIndex + 1);
+  if (tagContent.startsWith('/') || tagContent.startsWith('!')) {
+    return undefined;
+  }
+
+  const tagMatch = /^([\w:-]+)(\s[\s\S]*)$/.exec(tagContent);
+  if (!tagMatch || !tagMatch[1] || !tagMatch[2]) {
+    return undefined;
+  }
+
+  const tagName = tagMatch[1];
+  const afterTagName = tagMatch[2];
+
+  const typedMatch = /\s+([\w:-]*)$/.exec(afterTagName);
+  if (!typedMatch) {
+    return undefined;
+  }
+
+  const typedPrefix = typedMatch[1] ?? '';
+
+  const existingAttrs = new Set<string>();
+  const attrRegex = /\b([\w:-]+)\s*=/g;
+  for (const match of afterTagName.matchAll(attrRegex)) {
+    if (match[1]) {
+      existingAttrs.add(match[1]);
+    }
+  }
+
+  return { tagName, typedPrefix, existingAttrs };
+}
+
 export function navigatePropertyPath(
   segments: readonly string[],
   localVariables?: Record<string, BloggerProperty>,
@@ -150,7 +214,15 @@ export function navigatePropertyPath(
     return undefined;
   }
 
-  const [firstSegment, ...restSegments] = segments;
+  const normalizedSegments = segments.flatMap(s =>
+    s.replace(/\[/g, '.').replace(/\]/g, '').split('.').filter(Boolean),
+  );
+
+  if (normalizedSegments.length === 0) {
+    return undefined;
+  }
+
+  const [firstSegment, ...restSegments] = normalizedSegments;
   if (!firstSegment) {
     return undefined;
   }
@@ -189,10 +261,38 @@ export function navigatePropertyPath(
       return undefined;
     }
 
-    targetProperty = currentMap[segment];
-    if (!targetProperty) {
+    let nextProp = currentMap[segment];
+
+    // Handle array indexing (e.g. 0, [0], i)
+    if (!nextProp && targetProperty.type === 'array' && targetProperty.itemChildren) {
+      const isIndex = /^\d+$/.test(segment) || /^\[\d+\]$/.test(segment) || segment === '[i]' || segment === 'i';
+      if (isIndex) {
+        nextProp = {
+          name: `${targetProperty.name}[item]`,
+          type: 'object',
+          description: `Item of ${targetProperty.name} collection.`,
+          children: targetProperty.itemChildren,
+        };
+      }
+    }
+
+    // Handle widget ID lookup on data:widgets (e.g. data:widgets.Blog1 or data:widgets.Header1)
+    if (!nextProp && targetProperty.name === 'widgets') {
+      const cleanSegment = segment.replace(/^\[['"]?/, '').replace(/['"]?\]$/, '');
+      const descriptorProps = getWidgetDescriptor(cleanSegment);
+      nextProp = {
+        name: cleanSegment,
+        type: 'object',
+        description: `Layout descriptor object for widget "${cleanSegment}".`,
+        children: descriptorProps,
+      };
+    }
+
+    if (!nextProp) {
       return undefined;
     }
+
+    targetProperty = nextProp;
     currentMap = getPropertyMembers(targetProperty);
   }
 
@@ -323,6 +423,54 @@ export class BloggerPathResolver {
           };
         }
       }
+
+      // Check if attribute has declared enumerated values (e.g. tag, reverse, render, locked, visible, version, showaddelement)
+      if (tagName && bloggerTags[tagName]?.attributes?.[attrName]?.values) {
+        const values = bloggerTags[tagName].attributes![attrName].values!;
+        return {
+          suggestions: values.map(val => ({
+            name: val,
+            type: 'string',
+            kind: 'enumMember' as const,
+            description: `Value "${val}" for attribute ${attrName}.`,
+          })),
+          replacementLength: typedText.length,
+        };
+      }
+    }
+
+    const tagAttrContext = parseTagAttributeContext(linePrefix);
+    if (tagAttrContext) {
+      const { tagName, typedPrefix, existingAttrs } = tagAttrContext;
+      const tagDef = bloggerTags[tagName];
+      if (tagDef?.attributes) {
+        const suggestions: BloggerSuggestion[] = [];
+        for (const attr of Object.values(tagDef.attributes)) {
+          if ((attr as any).deprecated) {
+            continue;
+          }
+          if (existingAttrs.has(attr.name)) {
+            continue;
+          }
+          suggestions.push({
+            name: attr.name,
+            type: 'string',
+            kind: 'property',
+            detail: '(Blogger Attribute)',
+            description: attr.description,
+            insertText: `${attr.name}="$1"`,
+            isSnippet: true,
+            docUrl: attr.docUrl,
+          });
+        }
+
+        if (suggestions.length > 0) {
+          return {
+            suggestions,
+            replacementLength: typedPrefix.length,
+          };
+        }
+      }
     }
 
     const dataMatch = DATA_PREFIX_REGEX.exec(linePrefix);
@@ -339,14 +487,16 @@ export class BloggerPathResolver {
       }
 
       if (rawPath.endsWith('.')) {
-        const segments = rawPath.slice(0, -1).split('.').filter(Boolean);
+        const normalized = rawPath.slice(0, -1).replace(/\[/g, '.').replace(/\]/g, '');
+        const segments = normalized.split('.').filter(Boolean);
         return {
           suggestions: this.resolveDataPath(segments, localVariables),
           replacementLength: 0,
         };
       }
 
-      const segments = rawPath.split('.').filter(Boolean);
+      const normalized = rawPath.replace(/\[/g, '.').replace(/\]/g, '');
+      const segments = normalized.split('.').filter(Boolean);
       const lastSegment = segments.pop() ?? '';
       return {
         suggestions: this.resolveDataPath(segments, localVariables),
@@ -390,7 +540,7 @@ export class BloggerPathResolver {
       if (character >= tokenStart && character <= tokenEnd) {
         const localVariables = resolveLocalVariables(options?.localVariables);
         const rawPath = token.slice('data:'.length);
-        const segments = rawPath.split('.').filter(Boolean);
+        const segments = rawPath.replace(/\[/g, '.').replace(/\]/g, '').split('.').filter(Boolean);
         const resolved = this.resolvePropertyFromPath(segments, localVariables);
         if (resolved) {
           return {
@@ -474,15 +624,19 @@ export class BloggerPathResolver {
           continue;
         }
 
-        const attrDef = bloggerCommonAttributes[attrName];
+        const tagDef = tagName ? bloggerTags[tagName] : undefined;
+        const tagAttr = tagDef?.attributes?.[attrName];
+        const commonAttr = bloggerCommonAttributes[attrName];
+        const attrDef = tagAttr ?? commonAttr;
         if (attrDef) {
+          const docUrl = tagAttr?.docUrl ?? commonAttr?.docUrl;
           return {
             hover: {
               title: attrName,
               category: 'attribute',
               type: attrDef.type,
               description: attrDef.description,
-              docUrls: normalizeDocUrls(attrDef.docUrl),
+              docUrls: normalizeDocUrls(docUrl),
             },
             range: { start: tokenStart, end: tokenEnd },
           };
