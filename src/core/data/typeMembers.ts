@@ -236,7 +236,6 @@ export function createArrayProperties(
       docUrl: 'https://bloggercode.orbiona.com/2018/02/data-parameters-first-last.html',
       children: itemChildren,
     },
-    ...(itemChildren ?? {}),
   };
 }
 
@@ -244,7 +243,7 @@ export function getPropertyMembers(property: BloggerProperty): Record<string, Bl
   if (property.type === 'array') {
     const base = createArrayProperties(property.itemChildren, 'object');
     if (property.children && Object.keys(property.children).length > 0) {
-      return { ...base, ...property.children, ...(property.itemChildren ?? {}) };
+      return { ...base, ...property.children };
     }
     return base;
   }
