@@ -132,6 +132,24 @@ export const bloggerCommonAttributes: Record<string, BloggerTagAttribute> = {
     type: 'string',
     description: 'Hides or forces display of variable control in Template Designer (true or false).',
   },
+  tag: {
+    name: 'tag',
+    type: 'string',
+    description: 'Semantic HTML5 container element to generate for the section or panel (e.g. main, aside, header, footer).',
+    docUrl: 'https://bloggercode.orbiona.com/2016/03/tag-b-section.html',
+  },
+  reverse: {
+    name: 'reverse',
+    type: 'string',
+    description: 'Whether to iterate the collection in reverse order (true or false).',
+    docUrl: 'https://bloggercode.orbiona.com/2016/03/tag-b-loop.html',
+  },
+  render: {
+    name: 'render',
+    type: 'string',
+    description: 'When true, renders content as an HTML comment in output instead of omitting it.',
+    docUrl: 'https://bloggercode.orbiona.com/2018/02/tag-b-comments.html',
+  },
   expr: {
     name: 'expr',
     type: 'string',
