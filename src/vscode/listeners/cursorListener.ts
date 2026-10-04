@@ -1,7 +1,8 @@
 import * as vscode from 'vscode';
+import { bloggerTags } from '../../core/data/tagsData.js';
 import { CURSOR_SUGGEST_DEBOUNCE_MS, SUPPORTED_LANGUAGES } from '../constants.js';
 
-const DEFAULT_EMPTY_ATTR_REGEX = /\b(?:description|type)\s*=\s*(["'])$/;
+const DEFAULT_EMPTY_ATTR_REGEX = /\b([\w:-]+)\s*=\s*(["'])$/;
 
 export function isCursorInsideEmptyAttribute(
   lineText: string,
@@ -15,16 +16,20 @@ export function isCursorInsideEmptyAttribute(
   const prefix = lineText.slice(0, character);
   const suffix = lineText.slice(character);
 
-  const regex = attributeNames
+  const regex = attributeNames && attributeNames.length > 0
     ? new RegExp(`\\b(?:${attributeNames.join('|')})\\s*=\\s*(["'])$`)
     : DEFAULT_EMPTY_ATTR_REGEX;
 
   const match = regex.exec(prefix);
-  if (!match || !match[1]) {
+  if (!match) {
     return false;
   }
 
-  const quote = match[1];
+  const quote = match[match.length - 1];
+  if (!quote) {
+    return false;
+  }
+
   return suffix.startsWith(quote);
 }
 
@@ -62,6 +67,11 @@ export function isBloggerAttributeContext(
   }
   if (attrName === 'type') {
     return tagName === 'b:widget' || tagName === 'b:defaultmarkup' || tagName === 'Variable';
+  }
+
+  const tagDef = bloggerTags[tagName];
+  if (tagDef?.attributes?.[attrName]?.values && tagDef.attributes[attrName].values.length > 0) {
+    return true;
   }
 
   return false;

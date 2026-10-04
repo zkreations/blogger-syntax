@@ -100,8 +100,16 @@ describe('cursorListener', () => {
       { desc: '<b:widget type="">', line: '<b:widget id="main" type="" />', expected: true },
       { desc: '<b:defaultmarkup type="">', line: '<b:defaultmarkup type="" />', expected: true },
       { desc: '<Variable type="">', line: '<Variable name="test" type="" />', expected: true },
+      { desc: '<b:section tag="">', line: '<b:section id="main" tag="" />', expected: true },
+      { desc: '<b:loop reverse="">', line: '<b:loop values="data:posts" reverse="" />', expected: true },
+      { desc: '<b:comment render="">', line: '<b:comment render="" />', expected: true },
+      { desc: '<b:section showaddelement="">', line: '<b:section id="main" showaddelement="" />', expected: true },
+      { desc: '<b:widget locked="">', line: '<b:widget id="main" locked="" />', expected: true },
+      { desc: '<b:widget visible="">', line: '<b:widget id="main" visible="" />', expected: true },
+      { desc: '<b:widget version="">', line: '<b:widget id="main" version="" />', expected: true },
       { desc: 'standard HTML <input type="">', line: '<input type="" />', expected: false },
       { desc: 'standard HTML <meta description="">', line: '<meta description="" />', expected: false },
+      { desc: 'standard HTML <div tag="">', line: '<div tag="" />', expected: false },
     ])('should return $expected for $desc', ({ line, expected }) => {
       const doc = createMockDocument(line);
       const pos = new vscode.Position(0, line.indexOf('""') + 1);
