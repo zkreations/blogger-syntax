@@ -146,8 +146,44 @@ describe('bloggerPathResolver hover resolution', () => {
       expect(result).toBeDefined();
       expect(result?.hover.category).toBe('attribute');
       expect(result?.hover.title).toBe('cond');
-      expect(result?.hover.description).toBe('Conditional expression.');
+      expect(result?.hover.description).toBe('Blogger boolean condition expression.');
       expect(result?.hover.docUrls).toContain('https://bloggercode.orbiona.com/2018/02/attribute-cond.html');
+    });
+
+    it('should resolve hover on tag attribute in <b:section>', () => {
+      const line = '<b:section id="main" tag="main">';
+      const charIndex = line.indexOf('tag');
+      const result = resolver.resolveHoverAtPosition(line, charIndex);
+
+      expect(result).toBeDefined();
+      expect(result?.hover.category).toBe('attribute');
+      expect(result?.hover.title).toBe('tag');
+      expect(result?.hover.description).toContain('Semantic HTML5 container element');
+      expect(result?.hover.docUrls).toContain('https://bloggercode.orbiona.com/2016/03/tag-b-section.html');
+    });
+
+    it('should resolve hover on reverse attribute in <b:loop>', () => {
+      const line = '<b:loop values="data:posts" reverse="true">';
+      const charIndex = line.indexOf('reverse');
+      const result = resolver.resolveHoverAtPosition(line, charIndex);
+
+      expect(result).toBeDefined();
+      expect(result?.hover.category).toBe('attribute');
+      expect(result?.hover.title).toBe('reverse');
+      expect(result?.hover.description).toContain('reverse order');
+      expect(result?.hover.docUrls).toContain('https://bloggercode.orbiona.com/2016/03/tag-b-loop.html');
+    });
+
+    it('should resolve hover on render attribute in <b:comment>', () => {
+      const line = '<b:comment render="true">';
+      const charIndex = line.indexOf('render');
+      const result = resolver.resolveHoverAtPosition(line, charIndex);
+
+      expect(result).toBeDefined();
+      expect(result?.hover.category).toBe('attribute');
+      expect(result?.hover.title).toBe('render');
+      expect(result?.hover.description).toContain('HTML comment');
+      expect(result?.hover.docUrls).toContain('https://bloggercode.orbiona.com/2018/02/tag-b-comments.html');
     });
 
     it('should resolve hover on maxwidgets attribute in <b:section>', () => {
