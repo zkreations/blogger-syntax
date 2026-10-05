@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { bloggerTags } from '../../core/data/tagsData.js';
+import { hasAttributeValueCompletions } from '../../core/resolver/pathResolver.js';
 import { CURSOR_SUGGEST_DEBOUNCE_MS, SUPPORTED_LANGUAGES } from '../constants.js';
 
 const DEFAULT_EMPTY_ATTR_REGEX = /\b([\w:-]+)\s*=\s*(["'])$/;
@@ -62,19 +62,7 @@ export function isBloggerAttributeContext(
     return false;
   }
 
-  if (attrName === 'description') {
-    return tagName === 'Variable' || tagName === 'Group';
-  }
-  if (attrName === 'type') {
-    return tagName === 'b:widget' || tagName === 'b:defaultmarkup' || tagName === 'Variable';
-  }
-
-  const tagDef = bloggerTags[tagName];
-  if (tagDef?.attributes?.[attrName]?.values && tagDef.attributes[attrName].values.length > 0) {
-    return true;
-  }
-
-  return false;
+  return hasAttributeValueCompletions(tagName, attrName);
 }
 
 export function isCursorInsideDataTag(lineText: string, character: number): boolean {

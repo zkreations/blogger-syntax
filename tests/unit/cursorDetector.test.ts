@@ -127,9 +127,15 @@ describe('cursorListener', () => {
       { desc: '<b:widget locked="">', line: '<b:widget id="main" locked="" />', expected: true },
       { desc: '<b:widget visible="">', line: '<b:widget id="main" visible="" />', expected: true },
       { desc: '<b:widget version="">', line: '<b:widget id="main" version="" />', expected: true },
+      { desc: '<b:include name="">', line: '<b:include name="" />', expected: true },
+      { desc: '<b:tag name="">', line: '<b:tag name="" />', expected: true },
+      { desc: '<b:message name="">', line: '<b:message name="" />', expected: true },
+      { desc: '<b:param name="">', line: '<b:param name="" />', expected: true },
+      { desc: '<b:widget-setting name="">', line: '<b:widget-setting name="" />', expected: true },
       { desc: 'standard HTML <input type="">', line: '<input type="" />', expected: false },
       { desc: 'standard HTML <meta description="">', line: '<meta description="" />', expected: false },
       { desc: 'standard HTML <div tag="">', line: '<div tag="" />', expected: false },
+      { desc: 'standard HTML <div name="">', line: '<div name="" />', expected: false },
     ])('should return $expected for $desc', ({ line, expected }) => {
       const doc = createMockDocument(line);
       const pos = new vscode.Position(0, line.indexOf('""') + 1);

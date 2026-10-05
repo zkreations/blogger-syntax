@@ -42,7 +42,7 @@
         "bloggerSyntax.autoTriggerInEmptyAttributes": {
           "type": "boolean",
           "default": true,
-          "description": "Automatically trigger suggestions when moving the cursor inside empty description=\"\" or type=\"\" attributes."
+          "description": "Automatically trigger suggestions when moving the cursor inside empty attributes (e.g. name=\"\", type=\"\", description=\"\", etc.) or <data:/> tags."
         }
       }
     }

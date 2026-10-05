@@ -216,6 +216,29 @@ export function parseTagAttributeContext(text: string): {
   return { tagName, typedPrefix, existingAttrs };
 }
 
+export function hasAttributeValueCompletions(tagName: string, attrName: string): boolean {
+  if (attrName === 'name') {
+    return (
+      tagName === 'b:include'
+      || tagName === 'b:message'
+      || tagName === 'b:param'
+      || tagName === 'b:widget-setting'
+      || tagName === 'b:tag'
+    );
+  }
+
+  if (attrName === 'description') {
+    return tagName === 'Variable' || tagName === 'Group';
+  }
+
+  if (attrName === 'type') {
+    return tagName === 'Variable' || tagName === 'b:widget' || tagName === 'b:defaultmarkup';
+  }
+
+  const tagDef = bloggerTags[tagName];
+  return Boolean(tagDef?.attributes?.[attrName]?.values && tagDef.attributes[attrName].values.length > 0);
+}
+
 export function navigatePropertyPath(
   segments: readonly string[],
   localVariables?: Record<string, BloggerProperty>,
