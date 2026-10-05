@@ -7,6 +7,7 @@ import type {
 } from '../models/types.js';
 import { bloggerCommonAttributes, bloggerExprPrefixInfo } from '../data/attributesData.js';
 import { bloggerDescriptions } from '../data/descriptions.js';
+import { bloggerFunctionsCatalog, getGlobalFunctionSuggestions } from '../data/functionsData.js';
 import { bloggerGlobalRoot } from '../data/globalData.js';
 import { getHtmlTagSuggestions } from '../data/htmlTagsData.js';
 import {
@@ -14,6 +15,7 @@ import {
   getSystemMessageSuggestions,
   systemMessagesCatalog,
 } from '../data/messagesCatalog.js';
+import { bloggerOperatorsCatalog, getOperatorSuggestions } from '../data/operatorsData.js';
 import {
   bloggerSkinVariableTags,
   bloggerSkinVariableTypeDetails,
@@ -33,6 +35,10 @@ import {
   bloggerWidgetTypeDetails,
   bloggerWidgetTypes,
 } from '../data/widgetTypes.js';
+import {
+  resolveLambdaContextAtCursor,
+  resolveLambdaHoverAtPosition,
+} from '../parser/exprParser.js';
 
 const ATTR_VALUE_REGEX = /\b([\w:-]+)\s*=\s*["']([^"']*)$/;
 const TAG_CONTEXT_REGEX = /<([\w:-]+)(?:\s[^>]*)?$/;
@@ -43,6 +49,8 @@ const HOVER_TAG_REGEX = /(<\/?)(b:[\w-]+|Variable|Group)/g;
 const HOVER_EXPR_REGEX = /\b(expr:[\w-]*)/g;
 const HOVER_ATTR_REGEX = /\b([\w-]+)\s*=/g;
 const HOVER_ATTR_VAL_REGEX = /\b([\w:-]+)\s*=\s*(["'])([^"']*)\2/g;
+const OPERATOR_TRIGGER_REGEX = /(?:data:[\w.[\]]+|[a-zA-Z_]\w*(?:\.\w+)*|[)"'\d])\s+([a-zA-Z_]\w*)?$/;
+const FUNCTION_TRIGGER_REGEX = /(?:^|[=?:,(]|\band\b|\bor\b|\bnot\b)\s*([a-zA-Z_]\w*)?$/;
 
 const STATIC_DESCRIPTIONS_SUGGESTIONS: readonly BloggerSuggestion[] = Object.freeze(
   bloggerDescriptions.map(desc => ({
@@ -553,6 +561,85 @@ export class BloggerPathResolver {
           replacementLength: typedText.length,
         };
       }
+
+      const isExpressionAttr
+        = attrName.startsWith('expr:')
+          || attrName === 'cond'
+          || attrName === 'values'
+          || (attrName === 'value' && ['b:with', 'b:eval', 'b:param'].includes(tagName ?? ''))
+          || (attrName === 'expr' && tagName === 'b:eval');
+
+      if (isExpressionAttr) {
+        const localVariables = resolveLocalVariables(options?.localVariables);
+        const lambdaContext = resolveLambdaContextAtCursor(typedText, typedText.length, localVariables);
+        if (lambdaContext) {
+          if (lambdaContext.isNavigatingMember && lambdaContext.targetProperty?.children) {
+            const suggestions: BloggerSuggestion[] = Object.values(lambdaContext.targetProperty.children).map(prop => ({
+              name: prop.name,
+              type: prop.type,
+              description: prop.description,
+              example: `${lambdaContext.activeParam}.${prop.name}`,
+              kind: 'property' as const,
+              deprecated: prop.deprecated,
+              docUrl: prop.docUrl,
+            }));
+            return {
+              suggestions,
+              replacementLength: lambdaContext.currentToken.length,
+            };
+          }
+          if (!lambdaContext.isNavigatingMember && lambdaContext.currentToken) {
+            const suggestions: BloggerSuggestion[] = Object.entries(lambdaContext.activeScopes).map(([pName, prop]) => ({
+              name: pName,
+              type: prop.type,
+              kind: 'variable' as const,
+              description: prop.description ?? `Lambda parameter \`${pName}\`.`,
+              example: pName,
+            }));
+            return {
+              suggestions,
+              replacementLength: lambdaContext.currentToken.length,
+            };
+          }
+        }
+
+        const opMatch = OPERATOR_TRIGGER_REGEX.exec(typedText);
+        if (opMatch) {
+          const fullOpMatch = opMatch[0];
+          const typedOp = opMatch[1] ?? '';
+          const operand = fullOpMatch.slice(0, fullOpMatch.length - typedOp.length).trim();
+
+          const isCol
+            = /\b(?:posts|labels|comments|feedLinks|links)\b/i.test(operand)
+              || operand.endsWith(')')
+              || operand.endsWith(']');
+
+          const allOps = getOperatorSuggestions(false);
+          const sorted = isCol
+            ? [...allOps].sort((a, b) => {
+                const aCol = bloggerOperatorsCatalog[a.name]?.isCollectionOperator ? 0 : 1;
+                const bCol = bloggerOperatorsCatalog[b.name]?.isCollectionOperator ? 0 : 1;
+                return aCol - bCol;
+              })
+            : allOps;
+
+          return {
+            suggestions: sorted,
+            replacementLength: typedOp.length,
+          };
+        }
+
+        const fnMatch = FUNCTION_TRIGGER_REGEX.exec(typedText);
+        if (fnMatch) {
+          const typedFn = fnMatch[1] ?? '';
+          if (!typedFn || Object.keys(bloggerFunctionsCatalog).some(k => k.startsWith(typedFn))) {
+            return {
+              suggestions: getGlobalFunctionSuggestions(),
+              replacementLength: typedFn.length,
+            };
+          }
+        }
+      }
     }
 
     const tagAttrContext = parseTagAttributeContext(linePrefix);
@@ -586,6 +673,39 @@ export class BloggerPathResolver {
             replacementLength: typedPrefix.length,
           };
         }
+      }
+    }
+
+    const localVars = resolveLocalVariables(options?.localVariables);
+    const bareLambdaContext = resolveLambdaContextAtCursor(linePrefix, linePrefix.length, localVars);
+    if (bareLambdaContext) {
+      if (bareLambdaContext.isNavigatingMember && bareLambdaContext.targetProperty?.children) {
+        const suggestions: BloggerSuggestion[] = Object.values(bareLambdaContext.targetProperty.children).map(prop => ({
+          name: prop.name,
+          type: prop.type,
+          description: prop.description,
+          example: `${bareLambdaContext.activeParam}.${prop.name}`,
+          kind: 'property' as const,
+          deprecated: prop.deprecated,
+          docUrl: prop.docUrl,
+        }));
+        return {
+          suggestions,
+          replacementLength: bareLambdaContext.currentToken.length,
+        };
+      }
+      if (!bareLambdaContext.isNavigatingMember && bareLambdaContext.currentToken) {
+        const suggestions: BloggerSuggestion[] = Object.entries(bareLambdaContext.activeScopes).map(([pName, prop]) => ({
+          name: pName,
+          type: prop.type,
+          kind: 'variable' as const,
+          description: prop.description ?? `Lambda parameter \`${pName}\`.`,
+          example: pName,
+        }));
+        return {
+          suggestions,
+          replacementLength: bareLambdaContext.currentToken.length,
+        };
       }
     }
 
@@ -667,6 +787,80 @@ export class BloggerPathResolver {
               description: resolved.description,
               example: resolved.example ?? token,
               docUrls: normalizeDocUrls(resolved.docUrl),
+            },
+            range: { start: tokenStart, end: tokenEnd },
+          };
+        }
+      }
+    }
+
+    const localVars = resolveLocalVariables(options?.localVariables);
+    const lambdaHover = resolveLambdaHoverAtPosition(lineText, character, localVars);
+    if (lambdaHover) {
+      return {
+        hover: {
+          title: lambdaHover.title,
+          category: lambdaHover.category,
+          type: lambdaHover.type,
+          description: lambdaHover.description,
+          example: lambdaHover.example,
+          docUrls: lambdaHover.docUrls,
+        },
+        range: lambdaHover.range,
+      };
+    }
+
+    for (const match of lineText.matchAll(/\b(filter|where|map|select|count|first|last|any|all|none|take|limit|skip|offset|to|in|contains|format|params|appendParams|path|fragment|and|or|not)\b/g)) {
+      const opName = match[1];
+      if (!opName || match.index === undefined) {
+        continue;
+      }
+      const tokenStart = match.index;
+      const tokenEnd = tokenStart + opName.length;
+
+      if (character >= tokenStart && character <= tokenEnd) {
+        if (tokenStart > 0 && lineText[tokenStart - 1] === '.') {
+          continue;
+        }
+        const op = bloggerOperatorsCatalog[opName];
+        if (op) {
+          return {
+            hover: {
+              title: `Operator: ${op.name}`,
+              category: 'operator',
+              type: (op.returnType === 'same' || op.returnType === 'element') ? 'object' : op.returnType,
+              description: `${op.description}\n\n**Syntax:** \`${op.signature}\``,
+              example: op.example,
+              docUrls: normalizeDocUrls(op.docUrl),
+            },
+            range: { start: tokenStart, end: tokenEnd },
+          };
+        }
+      }
+    }
+
+    for (const match of lineText.matchAll(/\b(snippet|resizeImage|sourceSet)\b/g)) {
+      const fnName = match[1];
+      if (!fnName || match.index === undefined) {
+        continue;
+      }
+      const tokenStart = match.index;
+      const tokenEnd = tokenStart + fnName.length;
+
+      if (character >= tokenStart && character <= tokenEnd) {
+        if (tokenStart > 0 && lineText[tokenStart - 1] === '.') {
+          continue;
+        }
+        const fn = bloggerFunctionsCatalog[fnName];
+        if (fn) {
+          return {
+            hover: {
+              title: `Function: ${fn.name}`,
+              category: 'function',
+              type: fn.returnType,
+              description: `${fn.description}\n\n**Signature:** \`${fn.signature}\``,
+              example: fn.example,
+              docUrls: normalizeDocUrls(fn.docUrl),
             },
             range: { start: tokenStart, end: tokenEnd },
           };

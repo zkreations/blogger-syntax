@@ -8,6 +8,7 @@ import {
   singlePostProperties,
   WIDGET_DATA_DICTIONARIES,
 } from '../data/widgetsData.js';
+import { getArrayElementProperty, inferExpressionType } from '../parser/exprParser.js';
 import { navigatePropertyPath } from '../resolver/pathResolver.js';
 
 const PATH_EXTRACTOR_REGEX = /^(?:data:)?([\w.]+)/;
@@ -77,30 +78,36 @@ export function inferLoopVariables(
 
   if (varName && varName.trim()) {
     const cleanVarName = varName.trim();
-    const segments = extractDataPathSegments(valuesExpr);
-    const resolvedProp = resolvePropertyFromScope(segments, localVariables);
-
-    let children = resolvedProp?.children;
-    let type: BloggerDataType = resolvedProp?.type ?? 'object';
-
-    if (resolvedProp?.type === 'array') {
-      const itemProp = resolvedProp.itemChildren
-        ? { children: resolvedProp.itemChildren, type: 'object' as BloggerDataType }
-        : getPropertyMembers(resolvedProp)?.first;
-
-      children = itemProp?.children;
-      type = itemProp?.type ?? 'object';
+    if (/\bto\b/i.test(valuesExpr)) {
+      result[cleanVarName] = {
+        name: cleanVarName,
+        type: 'number',
+        description: `Loop number variable for range \`${valuesExpr}\`.`,
+      };
     }
+    else {
+      const segments = extractDataPathSegments(valuesExpr);
+      const resolvedProp = resolvePropertyFromScope(segments, localVariables);
 
-    result[cleanVarName] = {
-      name: cleanVarName,
-      type,
-      description: resolvedProp?.description
-        ? `Loop variable for \`${valuesExpr}\`: ${resolvedProp.description}`
-        : `Loop variable representing each item in \`${valuesExpr}\`.`,
-      children,
-      docUrl: resolvedProp?.docUrl,
-    };
+      let children = resolvedProp?.children;
+      let type: BloggerDataType = resolvedProp?.type ?? 'object';
+
+      if (resolvedProp?.type === 'array') {
+        const itemProp = getArrayElementProperty(resolvedProp);
+        children = itemProp?.children;
+        type = itemProp?.type ?? 'object';
+      }
+
+      result[cleanVarName] = {
+        name: cleanVarName,
+        type,
+        description: resolvedProp?.description
+          ? `Loop variable for \`${valuesExpr}\`: ${resolvedProp.description}`
+          : `Loop variable representing each item in \`${valuesExpr}\`.`,
+        children,
+        docUrl: resolvedProp?.docUrl,
+      };
+    }
   }
 
   if (indexName && indexName.trim()) {
@@ -127,11 +134,16 @@ export function inferWithVariables(
 
   if (varName && varName.trim()) {
     const cleanVarName = varName.trim();
-    const segments = extractDataPathSegments(valueExpr);
-    const resolvedProp = resolvePropertyFromScope(segments, localVariables);
+    const inferred = inferExpressionType(valueExpr, localVariables);
+
+    let resolvedProp = inferred.targetProperty;
+    if (!resolvedProp) {
+      const segments = extractDataPathSegments(valueExpr);
+      resolvedProp = resolvePropertyFromScope(segments, localVariables);
+    }
 
     const children = resolvedProp?.children;
-    const type: BloggerDataType = resolvedProp?.type ?? 'object';
+    const type: BloggerDataType = inferred.type !== 'object' ? inferred.type : (resolvedProp?.type ?? 'object');
 
     result[cleanVarName] = {
       name: cleanVarName,
@@ -140,7 +152,7 @@ export function inferWithVariables(
         ? `Alias variable for \`${valueExpr}\`: ${resolvedProp.description}`
         : `Alias variable holding the value of \`${valueExpr}\`.`,
       children,
-      itemChildren: resolvedProp?.itemChildren,
+      itemChildren: inferred.itemChildren ?? resolvedProp?.itemChildren,
       docUrl: resolvedProp?.docUrl,
     };
   }
