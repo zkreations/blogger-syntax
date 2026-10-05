@@ -127,9 +127,6 @@ export function buildHoverDocumentation(hoverInfo: BloggerHoverInfo): vscode.Mar
   else if (hoverInfo.category === 'operator') {
     headerBadge = '(operator)';
   }
-  else if (hoverInfo.category === 'function') {
-    headerBadge = '(function)';
-  }
   else if (hoverInfo.category === 'variable') {
     headerBadge = '(variable)';
   }

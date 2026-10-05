@@ -12,8 +12,6 @@ function mapSuggestionKindToVsCode(kind: BloggerSuggestionKind): vscode.Completi
       return vscode.CompletionItemKind.Variable;
     case 'operator':
       return vscode.CompletionItemKind.Operator;
-    case 'function':
-      return vscode.CompletionItemKind.Function;
     case 'property':
     default:
       return vscode.CompletionItemKind.Property;
@@ -35,9 +33,6 @@ function formatDetail(suggestion: BloggerSuggestion): string {
   }
   if (suggestion.kind === 'operator') {
     return '(Blogger Operator)';
-  }
-  if (suggestion.kind === 'function') {
-    return '(Blogger Function)';
   }
   const typeFormatted = suggestion.type.charAt(0).toUpperCase() + suggestion.type.slice(1);
   return `(Blogger Data: ${typeFormatted})`;

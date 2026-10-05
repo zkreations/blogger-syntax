@@ -7,7 +7,6 @@ import type {
 } from '../models/types.js';
 import { bloggerCommonAttributes, bloggerExprPrefixInfo } from '../data/attributesData.js';
 import { bloggerDescriptions } from '../data/descriptions.js';
-import { bloggerFunctionsCatalog, getGlobalFunctionSuggestions } from '../data/functionsData.js';
 import { bloggerGlobalRoot } from '../data/globalData.js';
 import { getHtmlTagSuggestions } from '../data/htmlTagsData.js';
 import {
@@ -15,7 +14,11 @@ import {
   getSystemMessageSuggestions,
   systemMessagesCatalog,
 } from '../data/messagesCatalog.js';
-import { bloggerOperatorsCatalog, getOperatorSuggestions } from '../data/operatorsData.js';
+import {
+  bloggerOperatorsCatalog,
+  getFunctionalOperatorSuggestions,
+  getOperatorSuggestions,
+} from '../data/operatorsData.js';
 import {
   bloggerSkinVariableTags,
   bloggerSkinVariableTypeDetails,
@@ -632,9 +635,10 @@ export class BloggerPathResolver {
         const fnMatch = FUNCTION_TRIGGER_REGEX.exec(typedText);
         if (fnMatch) {
           const typedFn = fnMatch[1] ?? '';
-          if (!typedFn || Object.keys(bloggerFunctionsCatalog).some(k => k.startsWith(typedFn))) {
+          const functionalOps = getFunctionalOperatorSuggestions();
+          if (!typedFn || functionalOps.some(k => k.name.startsWith(typedFn))) {
             return {
-              suggestions: getGlobalFunctionSuggestions(),
+              suggestions: functionalOps,
               replacementLength: typedFn.length,
             };
           }
@@ -810,7 +814,7 @@ export class BloggerPathResolver {
       };
     }
 
-    for (const match of lineText.matchAll(/\b(filter|where|map|select|count|first|last|any|all|none|take|limit|skip|offset|to|in|contains|format|params|appendParams|path|fragment|and|or|not)\b/g)) {
+    for (const match of lineText.matchAll(/\b(filter|where|map|select|count|first|last|any|all|none|take|limit|skip|offset|to|in|contains|format|params|appendParams|path|fragment|and|or|not|eq|neq|lt|lte|gt|gte|snippet|resizeImage|sourceSet)\b/g)) {
       const opName = match[1];
       if (!opName || match.index === undefined) {
         continue;
@@ -824,43 +828,28 @@ export class BloggerPathResolver {
         }
         const op = bloggerOperatorsCatalog[opName];
         if (op) {
+          let description = op.description;
+          if (op.signatureInfix && op.signatureFunctional) {
+            description += `\n\n**Infix Syntax:** \`${op.signatureInfix}\`\n\n**Functional Syntax:** \`${op.signatureFunctional}\``;
+          }
+          else if (op.signatureInfix) {
+            description += `\n\n**Syntax (Infix only):** \`${op.signatureInfix}\``;
+          }
+          else if (op.signature) {
+            description += `\n\n**Syntax:** \`${op.signature}\``;
+          }
+          if (op.supportsVariadic) {
+            description += `\n\n*(Supports variadic chaining with 3+ arguments)*`;
+          }
+
           return {
             hover: {
               title: `Operator: ${op.name}`,
               category: 'operator',
               type: (op.returnType === 'same' || op.returnType === 'element') ? 'object' : op.returnType,
-              description: `${op.description}\n\n**Syntax:** \`${op.signature}\``,
+              description,
               example: op.example,
               docUrls: normalizeDocUrls(op.docUrl),
-            },
-            range: { start: tokenStart, end: tokenEnd },
-          };
-        }
-      }
-    }
-
-    for (const match of lineText.matchAll(/\b(snippet|resizeImage|sourceSet)\b/g)) {
-      const fnName = match[1];
-      if (!fnName || match.index === undefined) {
-        continue;
-      }
-      const tokenStart = match.index;
-      const tokenEnd = tokenStart + fnName.length;
-
-      if (character >= tokenStart && character <= tokenEnd) {
-        if (tokenStart > 0 && lineText[tokenStart - 1] === '.') {
-          continue;
-        }
-        const fn = bloggerFunctionsCatalog[fnName];
-        if (fn) {
-          return {
-            hover: {
-              title: `Function: ${fn.name}`,
-              category: 'function',
-              type: fn.returnType,
-              description: `${fn.description}\n\n**Signature:** \`${fn.signature}\``,
-              example: fn.example,
-              docUrls: normalizeDocUrls(fn.docUrl),
             },
             range: { start: tokenStart, end: tokenEnd },
           };

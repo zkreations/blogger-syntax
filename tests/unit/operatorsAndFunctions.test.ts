@@ -1,20 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import {
-  bloggerFunctionsCatalog,
-  getGlobalFunctionSuggestions,
-} from '../../src/core/data/functionsData.js';
-import {
   bloggerOperatorsCatalog,
+  getFunctionalOperatorSuggestions,
   getOperatorSuggestions,
 } from '../../src/core/data/operatorsData.js';
 import { BloggerPathResolver } from '../../src/core/resolver/pathResolver.js';
 
-describe('operatorsAndFunctions - Catalog Integrity & Autocompletion', () => {
+describe('operators - Catalog Integrity, Dual Syntax & Autocompletion', () => {
   const resolver = new BloggerPathResolver();
 
   describe('bloggerOperatorsCatalog', () => {
-    it('contains all 25 canonical Blogger operators', () => {
+    it('contains all canonical Blogger operators across all families', () => {
       const expectedOperators = [
+        // Lambdas (infix only)
         'filter',
         'where',
         'map',
@@ -25,21 +23,42 @@ describe('operatorsAndFunctions - Catalog Integrity & Autocompletion', () => {
         'any',
         'all',
         'none',
+        // Collection & range
         'take',
         'limit',
         'skip',
         'offset',
         'to',
+        // Membership & content
         'in',
         'contains',
+        // Transforms (dual syntax)
         'format',
         'params',
         'appendParams',
         'path',
         'fragment',
+        'snippet',
+        'resizeImage',
+        'sourceSet',
+        // Logical
         'and',
         'or',
         'not',
+        // Comparison (word aliases)
+        'eq',
+        'neq',
+        'lt',
+        'lte',
+        'gt',
+        'gte',
+        // Coalescing & arithmetic
+        '?:',
+        '+',
+        '-',
+        '*',
+        '/',
+        '%',
       ];
 
       for (const op of expectedOperators) {
@@ -50,32 +69,89 @@ describe('operatorsAndFunctions - Catalog Integrity & Autocompletion', () => {
       }
     });
 
-    it('returns operator suggestions list with metadata', () => {
-      const allSuggestions = getOperatorSuggestions(false);
-      expect(allSuggestions.length).toBeGreaterThanOrEqual(25);
-      const filterItem = allSuggestions.find(s => s.name === 'filter');
-      expect(filterItem).toBeDefined();
-      expect(filterItem?.detail).toContain('Operator');
-    });
-  });
+    it('strictly prohibits "ne" and ensures only "neq" exists', () => {
+      expect(bloggerOperatorsCatalog.ne).toBeUndefined();
+      expect(bloggerOperatorsCatalog.neq).toBeDefined();
+      expect(bloggerOperatorsCatalog.neq?.aliases).toContain('!=');
+      expect(bloggerOperatorsCatalog.neq?.aliases).not.toContain('ne');
 
-  describe('bloggerFunctionsCatalog', () => {
-    it('contains snippet, resizeImage, and sourceSet', () => {
-      expect(bloggerFunctionsCatalog.snippet).toBeDefined();
-      expect(bloggerFunctionsCatalog.resizeImage).toBeDefined();
-      expect(bloggerFunctionsCatalog.sourceSet).toBeDefined();
+      const allInfix = getOperatorSuggestions(false);
+      expect(allInfix.some(s => s.name === 'ne')).toBe(false);
+      expect(allInfix.some(s => s.name === 'neq')).toBe(true);
 
-      expect(bloggerFunctionsCatalog.snippet?.signature).toContain('snippet(');
-      expect(bloggerFunctionsCatalog.resizeImage?.signature).toContain('resizeImage(');
-      expect(bloggerFunctionsCatalog.sourceSet?.signature).toContain('sourceSet(');
+      const allFunctional = getFunctionalOperatorSuggestions();
+      expect(allFunctional.some(s => s.name === 'ne')).toBe(false);
+      expect(allFunctional.some(s => s.name === 'neq')).toBe(true);
     });
 
-    it('generates global function snippet suggestions', () => {
-      const fnSuggestions = getGlobalFunctionSuggestions();
-      expect(fnSuggestions).toHaveLength(3);
-      expect(fnSuggestions.some(f => f.name === 'snippet' && f.isSnippet)).toBe(true);
-      expect(fnSuggestions.some(f => f.name === 'resizeImage' && f.isSnippet)).toBe(true);
-      expect(fnSuggestions.some(f => f.name === 'sourceSet' && f.isSnippet)).toBe(true);
+    it('correctly declares dual syntax capability and functional snippets', () => {
+      // Infix-only operators
+      expect(bloggerOperatorsCatalog.filter?.supportsFunctional).toBe(false);
+      expect(bloggerOperatorsCatalog.map?.supportsFunctional).toBe(false);
+      expect(bloggerOperatorsCatalog.count?.supportsFunctional).toBe(false);
+      expect(bloggerOperatorsCatalog.to?.supportsFunctional).toBe(false);
+      expect(bloggerOperatorsCatalog.not?.supportsFunctional).toBe(false);
+
+      // Dual syntax operators (both infix and functional)
+      expect(bloggerOperatorsCatalog.snippet?.supportsFunctional).toBe(true);
+      expect(bloggerOperatorsCatalog.resizeImage?.supportsFunctional).toBe(true);
+      expect(bloggerOperatorsCatalog.sourceSet?.supportsFunctional).toBe(true);
+      expect(bloggerOperatorsCatalog.format?.supportsFunctional).toBe(true);
+      expect(bloggerOperatorsCatalog.in?.supportsFunctional).toBe(true);
+      expect(bloggerOperatorsCatalog.contains?.supportsFunctional).toBe(true);
+      expect(bloggerOperatorsCatalog.take?.supportsFunctional).toBe(true);
+      expect(bloggerOperatorsCatalog.and?.supportsFunctional).toBe(true);
+      expect(bloggerOperatorsCatalog.or?.supportsFunctional).toBe(true);
+      expect(bloggerOperatorsCatalog.eq?.supportsFunctional).toBe(true);
+      expect(bloggerOperatorsCatalog.neq?.supportsFunctional).toBe(true);
+      expect(bloggerOperatorsCatalog['?:']?.supportsFunctional).toBe(true);
+
+      // Snippet templates for functional form
+      expect(bloggerOperatorsCatalog.snippet?.functionalSnippet).toContain('snippet(');
+      expect(bloggerOperatorsCatalog.resizeImage?.functionalSnippet).toContain('resizeImage(');
+      expect(bloggerOperatorsCatalog.sourceSet?.functionalSnippet).toContain('sourceSet(');
+      expect(bloggerOperatorsCatalog.eq?.functionalSnippet).toContain('eq(');
+      expect(bloggerOperatorsCatalog.neq?.functionalSnippet).toContain('neq(');
+    });
+
+    it('flags variadic support for +, and, or, and ?:', () => {
+      expect(bloggerOperatorsCatalog['+']?.supportsVariadic).toBe(true);
+      expect(bloggerOperatorsCatalog.and?.supportsVariadic).toBe(true);
+      expect(bloggerOperatorsCatalog.or?.supportsVariadic).toBe(true);
+      expect(bloggerOperatorsCatalog['?:']?.supportsVariadic).toBe(true);
+
+      // Fixed arity operators do NOT support variadic chaining
+      expect(bloggerOperatorsCatalog.snippet?.supportsVariadic).toBeFalsy();
+      expect(bloggerOperatorsCatalog.eq?.supportsVariadic).toBeFalsy();
+      expect(bloggerOperatorsCatalog.neq?.supportsVariadic).toBeFalsy();
+      expect(bloggerOperatorsCatalog['-']?.supportsVariadic).toBeFalsy();
+    });
+
+    it('suggests word aliases only for XML attribute safety, omitting raw symbols', () => {
+      const suggestions = getOperatorSuggestions(false);
+      const names = suggestions.map(s => s.name);
+
+      // Word aliases present
+      expect(names).toContain('eq');
+      expect(names).toContain('neq');
+      expect(names).toContain('lt');
+      expect(names).toContain('lte');
+      expect(names).toContain('gt');
+      expect(names).toContain('gte');
+      expect(names).toContain('and');
+      expect(names).toContain('or');
+      expect(names).toContain('snippet');
+      expect(names).toContain('resizeImage');
+
+      // Raw symbols requiring escaping are NOT suggested as named suggestions
+      expect(names).not.toContain('==');
+      expect(names).not.toContain('!=');
+      expect(names).not.toContain('<');
+      expect(names).not.toContain('<=');
+      expect(names).not.toContain('>');
+      expect(names).not.toContain('>=');
+      expect(names).not.toContain('&&');
+      expect(names).not.toContain('||');
     });
   });
 
@@ -96,7 +172,7 @@ describe('operatorsAndFunctions - Catalog Integrity & Autocompletion', () => {
       expect(res).toBeDefined();
       expect(res?.suggestions.some(s => s.name === 'name')).toBe(true);
       expect(res?.suggestions.some(s => s.name === 'url')).toBe(true);
-      expect(res?.suggestions.some(s => s.name === 'count')).toBe(false); // canonical post.labels only has name, url
+      expect(res?.suggestions.some(s => s.name === 'count')).toBe(false);
     });
 
     it('suggests operators after typing space after collection', () => {
@@ -117,11 +193,21 @@ describe('operatorsAndFunctions - Catalog Integrity & Autocompletion', () => {
       expect(res?.replacementLength).toBe(3);
     });
 
-    it('suggests global functions at expression start with partial prefix', () => {
+    it('suggests functional operators at expression start with partial prefix', () => {
       const line = '<b:eval expr="sni';
       const res = resolver.resolveFromLinePrefix(line);
       expect(res).toBeDefined();
       expect(res?.suggestions.some(s => s.name === 'snippet')).toBe(true);
+      expect(res?.suggestions.find(s => s.name === 'snippet')?.isSnippet).toBe(true);
+      expect(res?.replacementLength).toBe(3);
+    });
+
+    it('suggests functional neq at expression start with partial prefix', () => {
+      const line = '<b:if cond="neq';
+      const res = resolver.resolveFromLinePrefix(line);
+      expect(res).toBeDefined();
+      expect(res?.suggestions.some(s => s.name === 'neq')).toBe(true);
+      expect(res?.suggestions.some(s => s.name === 'ne')).toBe(false);
       expect(res?.replacementLength).toBe(3);
     });
   });
@@ -129,25 +215,53 @@ describe('operatorsAndFunctions - Catalog Integrity & Autocompletion', () => {
   describe('hover Cards in PathResolver', () => {
     it('returns operator hover card when hovering over filter', () => {
       const line = '<b:eval expr="data:posts filter (p => p.title)" />';
-      const hover = resolver.resolveHoverAtPosition(line, 26); // on 'filter'
+      const hover = resolver.resolveHoverAtPosition(line, 26);
       expect(hover).toBeDefined();
       expect(hover?.hover.category).toBe('operator');
       expect(hover?.hover.title).toBe('Operator: filter');
       expect(hover?.hover.description).toContain('Filters a collection');
     });
 
-    it('returns function hover card when hovering over snippet', () => {
+    it('returns operator hover card when hovering over snippet in functional syntax', () => {
       const line = '<b:eval expr="snippet(data:post.body, { length: 150 })" />';
-      const hover = resolver.resolveHoverAtPosition(line, 17); // on 'snippet'
+      const hover = resolver.resolveHoverAtPosition(line, 17);
       expect(hover).toBeDefined();
-      expect(hover?.hover.category).toBe('function');
-      expect(hover?.hover.title).toBe('Function: snippet');
+      expect(hover?.hover.category).toBe('operator');
+      expect(hover?.hover.title).toBe('Operator: snippet');
       expect(hover?.hover.description).toContain('Generates a clean');
+      expect(hover?.hover.description).toContain('Infix Syntax:');
+      expect(hover?.hover.description).toContain('Functional Syntax:');
+    });
+
+    it('returns operator hover card when hovering over snippet in infix syntax', () => {
+      const line = '<b:eval expr="data:post.body snippet { length: 150 }" />';
+      const hover = resolver.resolveHoverAtPosition(line, 32);
+      expect(hover).toBeDefined();
+      expect(hover?.hover.category).toBe('operator');
+      expect(hover?.hover.title).toBe('Operator: snippet');
+    });
+
+    it('returns operator hover card when hovering over neq', () => {
+      const line = '<b:if cond="data:view.type neq \'item\'">';
+      const hover = resolver.resolveHoverAtPosition(line, 28);
+      expect(hover).toBeDefined();
+      expect(hover?.hover.category).toBe('operator');
+      expect(hover?.hover.title).toBe('Operator: neq');
+      expect(hover?.hover.description).toContain('Strict inequality');
+    });
+
+    it('returns operator hover card when hovering over variadic and', () => {
+      const line = '<b:if cond="data:view.isPost and data:post.allowComments">';
+      const hover = resolver.resolveHoverAtPosition(line, 30);
+      expect(hover).toBeDefined();
+      expect(hover?.hover.category).toBe('operator');
+      expect(hover?.hover.title).toBe('Operator: and');
+      expect(hover?.hover.description).toContain('variadic chaining');
     });
 
     it('returns lambda property hover when hovering over p.title', () => {
       const line = '<b:eval expr="data:posts filter (p => p.title)" />';
-      const hover = resolver.resolveHoverAtPosition(line, 40); // on 'p.title'
+      const hover = resolver.resolveHoverAtPosition(line, 40);
       expect(hover).toBeDefined();
       expect(hover?.hover.title).toBe('(property) p.title');
       expect(hover?.hover.type).toBe('string');
@@ -155,7 +269,7 @@ describe('operatorsAndFunctions - Catalog Integrity & Autocompletion', () => {
 
     it('returns lambda parameter hover when hovering over p', () => {
       const line = '<b:eval expr="data:posts filter (p => p.title)" />';
-      const hover = resolver.resolveHoverAtPosition(line, 33); // on 'p'
+      const hover = resolver.resolveHoverAtPosition(line, 33);
       expect(hover).toBeDefined();
       expect(hover?.hover.title).toBe('(parameter) p');
     });

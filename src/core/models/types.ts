@@ -21,7 +21,7 @@ export interface BloggerProperty {
   readonly itemChildren?: Record<string, BloggerProperty> | undefined;
 }
 
-export type BloggerSuggestionKind = 'property' | 'enumMember' | 'snippet' | 'variable' | 'function' | 'operator';
+export type BloggerSuggestionKind = 'property' | 'enumMember' | 'snippet' | 'variable' | 'operator';
 
 export interface BloggerSuggestion {
   readonly name: string;
@@ -63,7 +63,7 @@ export interface BloggerTagDefinition {
 
 export interface BloggerHoverInfo {
   readonly title: string;
-  readonly category: 'tag' | 'data' | 'attribute' | 'prefix' | 'setting' | 'message' | 'param' | 'operator' | 'function' | 'variable';
+  readonly category: 'tag' | 'data' | 'attribute' | 'prefix' | 'setting' | 'message' | 'param' | 'operator' | 'variable';
   readonly type?: BloggerDataType | string | undefined;
   readonly description?: string | undefined;
   readonly example?: string | undefined;
