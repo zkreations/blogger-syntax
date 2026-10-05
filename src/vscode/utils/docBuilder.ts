@@ -124,6 +124,15 @@ export function buildHoverDocumentation(hoverInfo: BloggerHoverInfo): vscode.Mar
   else if (hoverInfo.category === 'attribute' && hoverInfo.type) {
     headerBadge = `(attribute: ${hoverInfo.type})`;
   }
+  else if (hoverInfo.category === 'operator') {
+    headerBadge = '(operator)';
+  }
+  else if (hoverInfo.category === 'function') {
+    headerBadge = '(function)';
+  }
+  else if (hoverInfo.category === 'variable') {
+    headerBadge = '(variable)';
+  }
 
   markdown.appendMarkdown(`${headerBadge} **\`${hoverInfo.title}\`**\n\n`);
 
