@@ -282,4 +282,60 @@ describe('contextualCompletion and Hover', () => {
       expect(items).toBeUndefined();
     });
   });
+
+  describe('data: prefix autocompletion inside expression attributes', () => {
+    it('should suggest root data objects and ZERO operators inside <b:eval expr="data:">', () => {
+      const lines = ['<b:eval expr="data:" />'];
+      const doc = createMockDocument(lines, 'file:///evalExprData.xml');
+      const position = new vscode.Position(0, '<b:eval expr="data:'.length);
+
+      const items = completionProvider.provideCompletionItems(doc, position) as vscode.CompletionList;
+      expect(items).toBeDefined();
+      expect(items.items.length).toBeGreaterThan(0);
+
+      const labels = items.items.map(item => item.label);
+      expect(labels).toContain('blog');
+      expect(labels).toContain('view');
+      expect(labels).toContain('skin');
+      expect(items.items.every(item => item.kind !== vscode.CompletionItemKind.Operator)).toBe(true);
+    });
+
+    it('should suggest root data objects and ZERO operators inside <b:loop values="data:"> inside Blog widget', () => {
+      const lines = [
+        '<b:widget id="Blog1" type="Blog">',
+        '  <b:includable id="main">',
+        '    <b:loop values="data:" var="i">',
+        '    </b:loop>',
+        '  </b:includable>',
+        '</b:widget>',
+      ];
+      const doc = createMockDocument(lines, 'file:///loopValuesData.xml');
+      const position = new vscode.Position(2, '    <b:loop values="data:'.length);
+
+      const items = completionProvider.provideCompletionItems(doc, position) as vscode.CompletionList;
+      expect(items).toBeDefined();
+      expect(items.items.length).toBeGreaterThan(0);
+
+      const labels = items.items.map(item => item.label);
+      expect(labels).toContain('posts');
+      expect(items.items.every(item => item.kind !== vscode.CompletionItemKind.Operator)).toBe(true);
+    });
+
+    it('should suggest root data objects and ZERO operators inside <b:with value="data:">', () => {
+      const lines = [
+        '<b:with value="data:" var="total">',
+        '</b:with>',
+      ];
+      const doc = createMockDocument(lines, 'file:///withValueData.xml');
+      const position = new vscode.Position(0, '<b:with value="data:'.length);
+
+      const items = completionProvider.provideCompletionItems(doc, position) as vscode.CompletionList;
+      expect(items).toBeDefined();
+      expect(items.items.length).toBeGreaterThan(0);
+
+      const labels = items.items.map(item => item.label);
+      expect(labels).toContain('blog');
+      expect(items.items.every(item => item.kind !== vscode.CompletionItemKind.Operator)).toBe(true);
+    });
+  });
 });

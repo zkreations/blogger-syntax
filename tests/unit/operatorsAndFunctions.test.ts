@@ -228,6 +228,85 @@ describe('operators - Catalog Integrity, Dual Syntax & Autocompletion', () => {
       expect(res?.suggestions.some(s => s.name === '!=')).toBe(true);
       expect(res?.replacementLength).toBe(1);
     });
+
+    it('suggests root data properties and ZERO operators on data: in b:eval expr', () => {
+      const line = '<b:eval expr="data:';
+      const res = resolver.resolveFromLinePrefix(line);
+      expect(res).toBeDefined();
+      expect(res?.suggestions.some(s => s.name === 'blog')).toBe(true);
+      expect(res?.suggestions.some(s => s.name === 'view')).toBe(true);
+      expect(res?.suggestions.some(s => s.name === 'skin')).toBe(true);
+      expect(res?.suggestions.every(s => s.kind !== 'operator')).toBe(true);
+    });
+
+    it('suggests root data properties and ZERO operators on data: in b:loop values', () => {
+      const line = '<b:loop values="data:';
+      const res = resolver.resolveFromLinePrefix(line);
+      expect(res).toBeDefined();
+      expect(res?.suggestions.some(s => s.name === 'blog')).toBe(true);
+      expect(res?.suggestions.some(s => s.name === 'view')).toBe(true);
+      expect(res?.suggestions.every(s => s.kind !== 'operator')).toBe(true);
+    });
+
+    it('suggests root data properties and ZERO operators on data: in b:with value', () => {
+      const line = '<b:with value="data:';
+      const res = resolver.resolveFromLinePrefix(line);
+      expect(res).toBeDefined();
+      expect(res?.suggestions.some(s => s.name === 'blog')).toBe(true);
+      expect(res?.suggestions.some(s => s.name === 'view')).toBe(true);
+      expect(res?.suggestions.every(s => s.kind !== 'operator')).toBe(true);
+    });
+
+    it('suggests root data properties and ZERO operators on data: in b:if cond', () => {
+      const line = '<b:if cond="data:';
+      const res = resolver.resolveFromLinePrefix(line);
+      expect(res).toBeDefined();
+      expect(res?.suggestions.some(s => s.name === 'view')).toBe(true);
+      expect(res?.suggestions.every(s => s.kind !== 'operator')).toBe(true);
+    });
+
+    it('suggests root data properties and ZERO operators on data: in expr:class', () => {
+      const line = '<div expr:class="data:';
+      const res = resolver.resolveFromLinePrefix(line);
+      expect(res).toBeDefined();
+      expect(res?.suggestions.some(s => s.name === 'blog')).toBe(true);
+      expect(res?.suggestions.every(s => s.kind !== 'operator')).toBe(true);
+    });
+
+    it('suggests blog members and ZERO operators on data:blog. in b:eval expr', () => {
+      const line = '<b:eval expr="data:blog.';
+      const res = resolver.resolveFromLinePrefix(line);
+      expect(res).toBeDefined();
+      expect(res?.suggestions.some(s => s.name === 'title')).toBe(true);
+      expect(res?.suggestions.some(s => s.name === 'pageType')).toBe(true);
+      expect(res?.suggestions.every(s => s.kind !== 'operator')).toBe(true);
+    });
+
+    it('suggests operand start and functional operators after comparison operator', () => {
+      const line = '<b:eval expr="data:posts count (p => p.allowComments) == ';
+      const res = resolver.resolveFromLinePrefix(line);
+      expect(res).toBeDefined();
+      expect(res?.suggestions.some(s => s.name === 'data:')).toBe(true);
+    });
+
+    it('suggests post members on bare variable post. inside expression attribute', () => {
+      const line = '<b:eval expr="post.';
+      const localVariables = {
+        post: {
+          name: 'post',
+          type: 'object' as const,
+          children: {
+            title: { name: 'title', type: 'string' as const, description: 'Post title' },
+            author: { name: 'author', type: 'object' as const, description: 'Post author' },
+          },
+        },
+      };
+      const res = resolver.resolveFromLinePrefix(line, { localVariables });
+      expect(res).toBeDefined();
+      expect(res?.suggestions.some(s => s.name === 'title')).toBe(true);
+      expect(res?.suggestions.some(s => s.name === 'author')).toBe(true);
+      expect(res?.suggestions.every(s => s.kind !== 'operator')).toBe(true);
+    });
   });
 
   describe('hover Cards in PathResolver', () => {
