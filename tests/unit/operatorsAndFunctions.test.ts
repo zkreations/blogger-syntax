@@ -127,13 +127,17 @@ describe('operators - Catalog Integrity, Dual Syntax & Autocompletion', () => {
       expect(bloggerOperatorsCatalog['-']?.supportsVariadic).toBeFalsy();
     });
 
-    it('suggests word aliases only for XML attribute safety, omitting raw symbols', () => {
+    it('suggests standard == and != while omitting XML-escaped symbols (<, >, &&, ||)', () => {
       const suggestions = getOperatorSuggestions(false);
       const names = suggestions.map(s => s.name);
 
-      // Word aliases present
+      // Equality and inequality operators are included for clarity and convenience
+      expect(names).toContain('==');
+      expect(names).toContain('!=');
       expect(names).toContain('eq');
       expect(names).toContain('neq');
+
+      // Word aliases for XML-escaped operators
       expect(names).toContain('lt');
       expect(names).toContain('lte');
       expect(names).toContain('gt');
@@ -143,9 +147,7 @@ describe('operators - Catalog Integrity, Dual Syntax & Autocompletion', () => {
       expect(names).toContain('snippet');
       expect(names).toContain('resizeImage');
 
-      // Raw symbols requiring escaping are NOT suggested as named suggestions
-      expect(names).not.toContain('==');
-      expect(names).not.toContain('!=');
+      // Raw symbols requiring XML escaping are strictly omitted
       expect(names).not.toContain('<');
       expect(names).not.toContain('<=');
       expect(names).not.toContain('>');
@@ -210,9 +212,43 @@ describe('operators - Catalog Integrity, Dual Syntax & Autocompletion', () => {
       expect(res?.suggestions.some(s => s.name === 'ne')).toBe(false);
       expect(res?.replacementLength).toBe(3);
     });
+
+    it('suggests == on typing = after an operand', () => {
+      const line = '<b:if cond="data:view.isPost =';
+      const res = resolver.resolveFromLinePrefix(line);
+      expect(res).toBeDefined();
+      expect(res?.suggestions.some(s => s.name === '==')).toBe(true);
+      expect(res?.replacementLength).toBe(1);
+    });
+
+    it('suggests != on typing ! after an operand', () => {
+      const line = '<b:if cond="data:view.type !';
+      const res = resolver.resolveFromLinePrefix(line);
+      expect(res).toBeDefined();
+      expect(res?.suggestions.some(s => s.name === '!=')).toBe(true);
+      expect(res?.replacementLength).toBe(1);
+    });
   });
 
   describe('hover Cards in PathResolver', () => {
+    it('returns operator hover card when hovering over ==', () => {
+      const line = '<b:if cond="data:view.isPost == true">';
+      const hover = resolver.resolveHoverAtPosition(line, 29);
+      expect(hover).toBeDefined();
+      expect(hover?.hover.category).toBe('operator');
+      expect(hover?.hover.title).toBe('Operator: ==');
+      expect(hover?.hover.description).toContain('Strict equality');
+    });
+
+    it('returns operator hover card when hovering over !=', () => {
+      const line = '<b:if cond="data:view.type != \'item\'">';
+      const hover = resolver.resolveHoverAtPosition(line, 27);
+      expect(hover).toBeDefined();
+      expect(hover?.hover.category).toBe('operator');
+      expect(hover?.hover.title).toBe('Operator: !=');
+      expect(hover?.hover.description).toContain('Strict inequality');
+    });
+
     it('returns operator hover card when hovering over filter', () => {
       const line = '<b:eval expr="data:posts filter (p => p.title)" />';
       const hover = resolver.resolveHoverAtPosition(line, 26);

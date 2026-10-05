@@ -52,8 +52,8 @@ const HOVER_TAG_REGEX = /(<\/?)(b:[\w-]+|Variable|Group)/g;
 const HOVER_EXPR_REGEX = /\b(expr:[\w-]*)/g;
 const HOVER_ATTR_REGEX = /\b([\w-]+)\s*=/g;
 const HOVER_ATTR_VAL_REGEX = /\b([\w:-]+)\s*=\s*(["'])([^"']*)\2/g;
-const OPERATOR_TRIGGER_REGEX = /(?:data:[\w.[\]]+|[a-zA-Z_]\w*(?:\.\w+)*|[)"'\d])\s+([a-zA-Z_]\w*)?$/;
-const FUNCTION_TRIGGER_REGEX = /(?:^|[=?:,(]|\band\b|\bor\b|\bnot\b)\s*([a-zA-Z_]\w*)?$/;
+const OPERATOR_TRIGGER_REGEX = /(?:data:[\w.[\]]+|[a-zA-Z_]\w*(?:\.\w+)*|[)"'\d])\s+([\w!=+\-*/?:%]*)$/;
+const FUNCTION_TRIGGER_REGEX = /(?:^|[=?:,(]|\band\b|\bor\b|\bnot\b)\s*([\w!=]*)$/;
 
 const STATIC_DESCRIPTIONS_SUGGESTIONS: readonly BloggerSuggestion[] = Object.freeze(
   bloggerDescriptions.map(desc => ({
@@ -814,8 +814,8 @@ export class BloggerPathResolver {
       };
     }
 
-    for (const match of lineText.matchAll(/\b(filter|where|map|select|count|first|last|any|all|none|take|limit|skip|offset|to|in|contains|format|params|appendParams|path|fragment|and|or|not|eq|neq|lt|lte|gt|gte|snippet|resizeImage|sourceSet)\b/g)) {
-      const opName = match[1];
+    for (const match of lineText.matchAll(/==|!=|\b(?:filter|where|map|select|count|first|last|any|all|none|take|limit|skip|offset|to|in|contains|format|params|appendParams|path|fragment|and|or|not|eq|neq|lt|lte|gt|gte|snippet|resizeImage|sourceSet)\b/g)) {
+      const opName = match[0];
       if (!opName || match.index === undefined) {
         continue;
       }
