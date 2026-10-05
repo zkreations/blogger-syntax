@@ -29,16 +29,27 @@ describe('typeInferencer - Loop and With Variable Inference', () => {
   });
 
   describe('inferWithVariables', () => {
-    it('infers number type for count operation', () => {
+    it('infers number type and undefined children for count operation', () => {
       const vars = inferWithVariables('data:posts count (p => p.allowComments)', 'commentCount');
       expect(vars.commentCount).toBeDefined();
       expect(vars.commentCount?.type).toBe('number');
+      expect(vars.commentCount?.children).toBeUndefined();
+      expect(vars.commentCount?.itemChildren).toBeUndefined();
+    });
+
+    it('infers boolean type and undefined children for any predicate', () => {
+      const vars = inferWithVariables('data:posts any (p => p.allowComments)', 'hasComments');
+      expect(vars.hasComments).toBeDefined();
+      expect(vars.hasComments?.type).toBe('boolean');
+      expect(vars.hasComments?.children).toBeUndefined();
+      expect(vars.hasComments?.itemChildren).toBeUndefined();
     });
 
     it('infers string type for string ternary expression', () => {
       const vars = inferWithVariables('data:post.hasOlderPage ? "Yes" : "No"', 'hasOlder');
       expect(vars.hasOlder).toBeDefined();
       expect(vars.hasOlder?.type).toBe('string');
+      expect(vars.hasOlder?.children).toBeUndefined();
     });
 
     it('infers element properties for data:posts.first', () => {

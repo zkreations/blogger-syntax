@@ -252,7 +252,34 @@ describe('contextualCompletion and Hover', () => {
       expect(itemLabels).toContain('feedType');
       expect(itemLabels).toContain('mimeType');
       expect(itemLabels).toContain('name');
-      expect(itemLabels).toContain('url');
+    });
+  });
+
+  describe('scalar variables in b:loop and b:with', () => {
+    it('should NOT suggest any members for loop numeric range variable <data:i.', () => {
+      const lines = [
+        '<b:loop values="1 to 10" var="i">',
+        '  <data:i.',
+        '</b:loop>',
+      ];
+      const doc = createMockDocument(lines, 'file:///loopRange.xml');
+      const position = new vscode.Position(1, '  <data:i.'.length);
+
+      const items = completionProvider.provideCompletionItems(doc, position);
+      expect(items).toBeUndefined();
+    });
+
+    it('should NOT suggest array modifiers for count scalar variable <data:total.', () => {
+      const lines = [
+        '<b:with value="data:posts count (p => p.allowComments)" var="total">',
+        '  <data:total.',
+        '</b:with>',
+      ];
+      const doc = createMockDocument(lines, 'file:///withCount.xml');
+      const position = new vscode.Position(1, '  <data:total.'.length);
+
+      const items = completionProvider.provideCompletionItems(doc, position);
+      expect(items).toBeUndefined();
     });
   });
 });

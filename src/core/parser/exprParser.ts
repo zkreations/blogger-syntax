@@ -19,6 +19,7 @@ export interface ActiveLambdaContext {
 export interface InferredExprResult {
   readonly type: BloggerDataType;
   readonly targetProperty?: BloggerProperty | undefined;
+  readonly children?: Record<string, BloggerProperty> | undefined;
   readonly itemChildren?: Record<string, BloggerProperty> | undefined;
 }
 
@@ -454,12 +455,54 @@ export function inferExpressionType(
     return { type: 'number' };
   }
 
-  // 3. Boolean predicates: "... any (...)", "... all (...)", "... none (...)", "in", "contains"
-  if (/\b(?:any|all|none)\s*\(/i.test(trimmed) || /\b(?:in|contains)\b/i.test(trimmed)) {
+  // 3. Boolean predicates: "... any (...)", "... all (...)", "... none (...)", "in", "contains", comparisons and logical
+  if (
+    /\b(?:any|all|none)\s*\(/i.test(trimmed)
+    || /\b(?:in|contains|and|or|not|eq|neq|lt|lte|gt|gte)\b/i.test(trimmed)
+    || /==|!=/.test(trimmed)
+  ) {
     return { type: 'boolean' };
   }
 
-  // 4. Ternary operation: "cond ? branchA : branchB"
+  // 4. Collection pipeline (filter / where / take / limit / skip / offset)
+  const filterKeywordMatch = /\s+(?:filter|where)\s*\(/i.exec(trimmed);
+  if (filterKeywordMatch && filterKeywordMatch.index > 0) {
+    const sourceExpr = trimmed.slice(0, filterKeywordMatch.index).trim();
+    const source = inferExpressionType(sourceExpr, localVariables);
+    return {
+      type: 'array',
+      targetProperty: source.targetProperty,
+      children: source.targetProperty?.children,
+      itemChildren: source.itemChildren,
+    };
+  }
+
+  const sliceKeywordMatch = /\s+(?:take|limit|skip|offset)\s+\d+/i.exec(trimmed);
+  if (sliceKeywordMatch && sliceKeywordMatch.index > 0) {
+    const sourceExpr = trimmed.slice(0, sliceKeywordMatch.index).trim();
+    const source = inferExpressionType(sourceExpr, localVariables);
+    return {
+      type: 'array',
+      targetProperty: source.targetProperty,
+      children: source.targetProperty?.children,
+      itemChildren: source.itemChildren,
+    };
+  }
+
+  // 5. Element navigation: .first or .last
+  const elementNavMatch = /(?:\.(?:first|last)|\s+(?:first|last))$/i.exec(trimmed);
+  if (elementNavMatch && elementNavMatch.index > 0) {
+    const sourceExpr = trimmed.slice(0, elementNavMatch.index).trim();
+    const source = inferExpressionType(sourceExpr, localVariables);
+    const elementProp = getArrayElementProperty(source.targetProperty);
+    return {
+      type: elementProp?.type ?? 'object',
+      targetProperty: elementProp,
+      children: elementProp?.children,
+    };
+  }
+
+  // 6. Ternary operation: "cond ? branchA : branchB"
   const questionIdx = trimmed.indexOf('?');
   const colonIdx = trimmed.lastIndexOf(':');
   if (questionIdx > 0 && colonIdx > questionIdx) {
@@ -476,7 +519,7 @@ export function inferExpressionType(
     return inferExpressionType(branchA, localVariables);
   }
 
-  // 5. String concatenation or string literal
+  // 7. String concatenation or string literal
   if ((trimmed.startsWith('"') && trimmed.endsWith('"')) || (trimmed.startsWith('\'') && trimmed.endsWith('\''))) {
     return { type: 'string' };
   }
@@ -487,12 +530,21 @@ export function inferExpressionType(
     return { type: 'boolean' };
   }
 
-  // 6. Direct collection or property path
+  // 8. Truncation and images
+  if (/\bsnippet\s*[({]/i.test(trimmed)) {
+    return { type: 'string' };
+  }
+  if (/\bresizeImage\s*[( ]/i.test(trimmed)) {
+    return { type: 'image' };
+  }
+
+  // 9. Direct collection or property path
   const targetProp = resolveCollectionProperty(trimmed, localVariables);
   if (targetProp) {
     return {
       type: targetProp.type,
       targetProperty: targetProp,
+      children: targetProp.children,
       itemChildren: targetProp.itemChildren,
     };
   }

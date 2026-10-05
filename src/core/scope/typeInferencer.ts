@@ -1,6 +1,6 @@
 import type { BloggerDataType, BloggerProperty } from '../models/types.js';
 import { bloggerGlobalRoot } from '../data/globalData.js';
-import { getPropertyMembers } from '../data/typeMembers.js';
+import { createArrayProperties, getPropertyMembers } from '../data/typeMembers.js';
 import {
   commentProperties,
   labelItemProperties,
@@ -137,13 +137,32 @@ export function inferWithVariables(
     const inferred = inferExpressionType(valueExpr, localVariables);
 
     let resolvedProp = inferred.targetProperty;
-    if (!resolvedProp) {
+    const isPureDataPath = /^(?:data:)?[\w.]+$/.test(valueExpr.trim());
+    if (!resolvedProp && isPureDataPath) {
       const segments = extractDataPathSegments(valueExpr);
       resolvedProp = resolvePropertyFromScope(segments, localVariables);
     }
 
-    const children = resolvedProp?.children;
-    const type: BloggerDataType = inferred.type !== 'object' ? inferred.type : (resolvedProp?.type ?? 'object');
+    const type: BloggerDataType = inferred.type !== 'object'
+      ? inferred.type
+      : (resolvedProp?.type ?? 'object');
+
+    const isScalarPrimitive = type === 'number' || type === 'boolean' || type === 'string';
+    let children: Record<string, BloggerProperty> | undefined;
+    let itemChildren: Record<string, BloggerProperty> | undefined;
+
+    if (!isScalarPrimitive) {
+      if (type === 'array') {
+        itemChildren = inferred.itemChildren ?? resolvedProp?.itemChildren;
+        children = inferred.children ?? resolvedProp?.children;
+        if (!children && itemChildren) {
+          children = createArrayProperties(itemChildren);
+        }
+      }
+      else if (type === 'object') {
+        children = inferred.children ?? resolvedProp?.children;
+      }
+    }
 
     result[cleanVarName] = {
       name: cleanVarName,
@@ -152,7 +171,7 @@ export function inferWithVariables(
         ? `Alias variable for \`${valueExpr}\`: ${resolvedProp.description}`
         : `Alias variable holding the value of \`${valueExpr}\`.`,
       children,
-      itemChildren: inferred.itemChildren ?? resolvedProp?.itemChildren,
+      itemChildren,
       docUrl: resolvedProp?.docUrl,
     };
   }
