@@ -77,6 +77,15 @@ export function isBloggerAttributeContext(
   return false;
 }
 
+export function isCursorInsideDataTag(lineText: string, character: number): boolean {
+  if (character < 0 || character > lineText.length) {
+    return false;
+  }
+  const prefix = lineText.slice(0, character);
+  const suffix = lineText.slice(character);
+  return prefix.endsWith('<data:') && /^\s*\/?>/.test(suffix);
+}
+
 /**
  * Registers an editor selection change listener that triggers code completion
  * when the cursor is positioned inside empty attributes like `description=""` or `type=""` in supported documents.
@@ -120,7 +129,10 @@ export function registerCursorSuggestListener(
 
       const lineText = activeEditor.document.lineAt(position.line).text;
 
-      if (isCursorInsideEmptyAttribute(lineText, position.character) && isBloggerAttributeContext(activeEditor.document, position)) {
+      const insideEmptyAttr = isCursorInsideEmptyAttribute(lineText, position.character) && isBloggerAttributeContext(activeEditor.document, position);
+      const insideDataTag = isCursorInsideDataTag(lineText, position.character);
+
+      if (insideEmptyAttr || insideDataTag) {
         void vscode.commands.executeCommand('editor.action.triggerSuggest').then(undefined, () => {});
       }
     }, debounceMs);

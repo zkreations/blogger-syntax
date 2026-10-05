@@ -8,6 +8,12 @@ import type {
 import { bloggerCommonAttributes, bloggerExprPrefixInfo } from '../data/attributesData.js';
 import { bloggerDescriptions } from '../data/descriptions.js';
 import { bloggerGlobalRoot } from '../data/globalData.js';
+import { getHtmlTagSuggestions } from '../data/htmlTagsData.js';
+import {
+  getMessageParamSuggestions,
+  getSystemMessageSuggestions,
+  systemMessagesCatalog,
+} from '../data/messagesCatalog.js';
 import {
   bloggerSkinVariableTags,
   bloggerSkinVariableTypeDetails,
@@ -18,6 +24,10 @@ import { getPropertyMembers } from '../data/typeMembers.js';
 import { getWidgetDescriptor } from '../data/widgetDescriptors.js';
 import { blogWidgetProperties, singlePostProperties } from '../data/widgetsData.js';
 import {
+  getWidgetSettingsSuggestions,
+  widgetSettingsCatalog,
+} from '../data/widgetSettingsData.js';
+import {
   bloggerDefaultMarkupTypeDetails,
   bloggerDefaultMarkupTypes,
   bloggerWidgetTypeDetails,
@@ -27,11 +37,12 @@ import {
 const ATTR_VALUE_REGEX = /\b([\w:-]+)\s*=\s*["']([^"']*)$/;
 const TAG_CONTEXT_REGEX = /<([\w:-]+)(?:\s[^>]*)?$/;
 const DATA_PREFIX_REGEX = /(?:^|[^\w:.])(data:[[\]\w.]*)$/;
-const TAG_PREFIX_REGEX = /(?:^|[^\w:])(?:(<\/|<)(b:[\w-]*|Var\w*|Gro\w*)?|(b:[\w-]*|Variable\w*|Group\w*))$/i;
+const TAG_PREFIX_REGEX = /(?:^|[^\w:])(?:(<\/|<)([\w:-]*)|(b:[\w-]*|data:?|Variable\w*|Group\w*))$/i;
 const HOVER_DATA_REGEX = /(?:^|[^\w:.])(data:[[\]\w.]*)/g;
 const HOVER_TAG_REGEX = /(<\/?)(b:[\w-]+|Variable|Group)/g;
 const HOVER_EXPR_REGEX = /\b(expr:[\w-]*)/g;
 const HOVER_ATTR_REGEX = /\b([\w-]+)\s*=/g;
+const HOVER_ATTR_VAL_REGEX = /\b([\w:-]+)\s*=\s*(["'])([^"']*)\2/g;
 
 const STATIC_DESCRIPTIONS_SUGGESTIONS: readonly BloggerSuggestion[] = Object.freeze(
   bloggerDescriptions.map(desc => ({
@@ -301,6 +312,18 @@ export function navigatePropertyPath(
 
 export type LocalVariablesResolver = Record<string, BloggerProperty> | (() => Record<string, BloggerProperty>);
 
+export interface BloggerIncludablesInfo {
+  readonly local?: readonly string[];
+  readonly defaultMarkups?: readonly string[];
+}
+
+export interface BloggerResolverContext {
+  readonly localVariables?: LocalVariablesResolver | undefined;
+  readonly widgetType?: string | undefined;
+  readonly includables?: BloggerIncludablesInfo | undefined;
+  readonly enclosingMessageName?: string | undefined;
+}
+
 function resolveLocalVariables(resolver?: LocalVariablesResolver): Record<string, BloggerProperty> | undefined {
   return typeof resolver === 'function' ? resolver() : resolver;
 }
@@ -380,7 +403,7 @@ export class BloggerPathResolver {
 
   public resolveFromLinePrefix(
     linePrefix: string,
-    options?: { localVariables?: LocalVariablesResolver },
+    options?: BloggerResolverContext,
   ): BloggerResolveResult | undefined {
     const attrMatch = ATTR_VALUE_REGEX.exec(linePrefix);
     if (attrMatch && attrMatch[1] && attrMatch[2] !== undefined) {
@@ -390,6 +413,76 @@ export class BloggerPathResolver {
       const tagMatch = TAG_CONTEXT_REGEX.exec(beforeAttr)
         || /(?:^|\s)([\w:-]+)(?:\s[^>]*)?$/.exec(beforeAttr);
       const tagName = tagMatch?.[1];
+
+      if (attrName === 'name') {
+        if (tagName === 'b:include') {
+          const suggestions: BloggerSuggestion[] = [];
+          if (options?.includables?.local) {
+            for (const inc of options.includables.local) {
+              if (inc.startsWith('super.')) {
+                continue;
+              }
+              suggestions.push({
+                name: inc,
+                type: 'string',
+                kind: 'property',
+                detail: '(Includable Subroutine)',
+                description: 'Template subroutine defined in current widget or template.',
+                example: `<b:include name="${inc}"/>`,
+              });
+            }
+          }
+          if (options?.includables?.defaultMarkups) {
+            for (const inc of options.includables.defaultMarkups) {
+              if (inc.startsWith('super.')) {
+                continue;
+              }
+              if (!suggestions.some(s => s.name === inc)) {
+                suggestions.push({
+                  name: inc,
+                  type: 'string',
+                  kind: 'property',
+                  detail: '(Default Markup Subroutine)',
+                  description: 'Template subroutine defined in default markup.',
+                  example: `<b:include name="${inc}"/>`,
+                });
+              }
+            }
+          }
+          return {
+            suggestions,
+            replacementLength: typedText.length,
+          };
+        }
+
+        if (tagName === 'b:message') {
+          return {
+            suggestions: getSystemMessageSuggestions(),
+            replacementLength: typedText.length,
+          };
+        }
+
+        if (tagName === 'b:param') {
+          return {
+            suggestions: getMessageParamSuggestions(options?.enclosingMessageName),
+            replacementLength: typedText.length,
+          };
+        }
+
+        if (tagName === 'b:widget-setting') {
+          return {
+            suggestions: getWidgetSettingsSuggestions(options?.widgetType),
+            replacementLength: typedText.length,
+          };
+        }
+
+        if (tagName === 'b:tag') {
+          return {
+            suggestions: getHtmlTagSuggestions(),
+            replacementLength: typedText.length,
+          };
+        }
+      }
 
       if (attrName === 'description') {
         const isSkinTag = tagName === 'Variable' || tagName === 'Group';
@@ -523,7 +616,7 @@ export class BloggerPathResolver {
     lineText: string,
     character: number,
     precedingContext?: string | (() => string | undefined),
-    options?: { localVariables?: LocalVariablesResolver },
+    options?: BloggerResolverContext,
   ): BloggerHoverResult | undefined {
     if (character < 0 || character > lineText.length) {
       return undefined;
@@ -640,6 +733,98 @@ export class BloggerPathResolver {
             },
             range: { start: tokenStart, end: tokenEnd },
           };
+        }
+      }
+    }
+
+    for (const match of lineText.matchAll(HOVER_ATTR_VAL_REGEX)) {
+      const attrName = match[1];
+      const val = match[3];
+      if (!attrName || !val || match.index === undefined) {
+        continue;
+      }
+      const valStart = match.index + match[0].indexOf(val);
+      const valEnd = valStart + val.length;
+
+      if (character >= valStart && character <= valEnd) {
+        const beforeAttr = lineText.slice(0, match.index);
+        const resolvedContext = typeof precedingContext === 'function' ? precedingContext() : precedingContext;
+        const fullContext = resolvedContext ? `${resolvedContext}\n${beforeAttr}` : beforeAttr;
+        const tagMatch = TAG_CONTEXT_REGEX.exec(fullContext);
+        const tagName = tagMatch?.[1];
+
+        if (tagName === 'b:widget-setting' && attrName === 'name') {
+          const widgetType = options?.widgetType;
+          let setting = widgetType ? widgetSettingsCatalog[widgetType]?.[val] : undefined;
+          if (!setting) {
+            for (const dict of Object.values(widgetSettingsCatalog)) {
+              if (dict[val]) {
+                setting = dict[val];
+                break;
+              }
+            }
+          }
+          if (setting) {
+            return {
+              hover: {
+                title: `${val} (${widgetType ? `${widgetType} Setting` : 'Widget Setting'})`,
+                category: 'setting',
+                description: setting.description,
+                example: `<b:widget-setting name="${val}">${setting.default ?? ''}</b:widget-setting>`,
+                docUrls: ['https://bloggercode.orbiona.com/2018/02/tags-b-widget-settings.html'],
+              },
+              range: { start: valStart, end: valEnd },
+            };
+          }
+        }
+
+        if (tagName === 'b:message' && attrName === 'name') {
+          const cleanKey = val.replace(/^messages\./, '');
+          const msg = systemMessagesCatalog[cleanKey];
+          if (msg) {
+            return {
+              hover: {
+                title: `${msg.canonicalName} (${msg.isParameterized ? 'Parameterized Message' : 'System Message'})`,
+                category: 'message',
+                description: msg.isParameterized
+                  ? `${msg.description} Requires child <b:param> tags; direct <data:messages...> output is prohibited.`
+                  : msg.description,
+                example: msg.isParameterized
+                  ? `<b:message name="${msg.canonicalName}">\n  <b:param name="${msg.params?.[0]?.name ?? 'param'}" value="..."/>\n</b:message>`
+                  : `<b:message name="${msg.canonicalName}"/>`,
+                docUrls: ['https://bloggercode.orbiona.com/2018/02/data-messages.html'],
+              },
+              range: { start: valStart, end: valEnd },
+            };
+          }
+        }
+
+        if (tagName === 'b:param' && attrName === 'name') {
+          const encMsg = options?.enclosingMessageName;
+          const cleanKey = encMsg ? encMsg.replace(/^messages\./, '') : undefined;
+          const msg = cleanKey ? systemMessagesCatalog[cleanKey] : undefined;
+          let param = msg?.params?.find(p => p.name === val);
+          if (!param) {
+            for (const m of Object.values(systemMessagesCatalog)) {
+              const found = m.params?.find(p => p.name === val);
+              if (found) {
+                param = found;
+                break;
+              }
+            }
+          }
+          if (param) {
+            return {
+              hover: {
+                title: `${val} (Parameter Pos ${param.position})`,
+                category: 'param',
+                description: `${param.description} (Positional substitution order: ${param.position}).`,
+                example: `<b:param name="${val}" value="${param.exampleValue}"/>`,
+                docUrls: ['https://bloggercode.orbiona.com/2018/02/tag-b-message-b-param.html'],
+              },
+              range: { start: valStart, end: valEnd },
+            };
+          }
         }
       }
     }

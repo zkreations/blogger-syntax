@@ -17,13 +17,17 @@ export class BloggerHoverProvider implements vscode.HoverProvider {
   ): vscode.ProviderResult<vscode.Hover> {
     const lineText = document.lineAt(position.line).text;
 
+    const docKey = document.uri ? document.uri.toString() : 'untitled';
+    const version = document.version ?? 0;
+    const fullText = getDocumentText(document);
+    const offset = getDocumentOffset(document, position);
+
     const getLocalVariables = (): Record<string, BloggerProperty> => {
-      const docKey = document.uri ? document.uri.toString() : 'untitled';
-      const version = document.version ?? 0;
-      const fullText = getDocumentText(document);
-      const offset = getDocumentOffset(document, position);
       return this.scopeTracker.getActiveVariables(docKey, version, fullText, offset);
     };
+
+    const widgetType = this.scopeTracker.getEnclosingWidgetType(docKey, version, fullText, offset);
+    const enclosingMessageName = this.scopeTracker.getEnclosingMessageName(fullText, offset);
 
     const getPrecedingContext = (): string | undefined => {
       if (position.line === 0) {
@@ -41,7 +45,7 @@ export class BloggerHoverProvider implements vscode.HoverProvider {
       lineText,
       position.character,
       getPrecedingContext,
-      { localVariables: getLocalVariables },
+      { localVariables: getLocalVariables, widgetType, enclosingMessageName },
     );
 
     if (!result) {

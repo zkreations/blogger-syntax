@@ -2,12 +2,32 @@ import { describe, expect, it } from 'vitest';
 import * as vscode from 'vscode';
 import {
   isBloggerAttributeContext,
+  isCursorInsideDataTag,
   isCursorInsideEmptyAttribute,
   registerCursorSuggestListener,
 } from '../../src/vscode/listeners/cursorListener.js';
 import { createMockDocument } from '../helpers/mockDocument.js';
 
 describe('cursorListener', () => {
+  describe('isCursorInsideDataTag', () => {
+    it('should return true when cursor is positioned directly between <data: and />', () => {
+      const line = '<data:/>';
+      const char = line.indexOf(':') + 1;
+      expect(isCursorInsideDataTag(line, char)).toBe(true);
+    });
+
+    it('should return true when cursor is between <data: and >', () => {
+      const line = '<data:>';
+      const char = line.indexOf(':') + 1;
+      expect(isCursorInsideDataTag(line, char)).toBe(true);
+    });
+
+    it('should return false when cursor is not directly after <data:', () => {
+      const line = '<data:blog.title/>';
+      expect(isCursorInsideDataTag(line, 2)).toBe(false);
+      expect(isCursorInsideDataTag(line, line.length)).toBe(false);
+    });
+  });
   describe('isCursorInsideEmptyAttribute', () => {
     it.each([
       {

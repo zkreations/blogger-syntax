@@ -18,6 +18,7 @@ export interface BloggerScopeBlock {
   readonly id: string;
   readonly tag: BloggerScopeTag;
   readonly widgetType?: string | undefined;
+  readonly widgetId?: string | undefined;
   readonly includableId?: string | undefined;
   readonly startOffset: number;
   endOffset: number;
@@ -141,9 +142,11 @@ export class BloggerScopeTracker {
       const activeVarsAtOpen = mergeStackVariables(stack);
       let variables: Record<string, BloggerProperty> = {};
       let widgetType: string | undefined;
+      let widgetId: string | undefined;
       let includableId: string | undefined;
 
       if (fullTag === 'b:widget') {
+        widgetId = extractAttribute(attrString, 'id');
         widgetType = extractAttribute(attrString, 'type');
         if (widgetType && WIDGET_DATA_DICTIONARIES[widgetType]) {
           Object.assign(variables, WIDGET_DATA_DICTIONARIES[widgetType]);
@@ -204,6 +207,7 @@ export class BloggerScopeTracker {
         id: `scope_${++blockCounter}_${rawTag}`,
         tag: fullTag,
         widgetType,
+        widgetId,
         includableId,
         startOffset: tagEndOffset,
         endOffset: text.length,
@@ -234,6 +238,117 @@ export class BloggerScopeTracker {
     const rootBlocks = this.parseScopes(text);
     this.documentCache.set(documentKey, { version, rootBlocks });
     return rootBlocks;
+  }
+
+  public getInnermostBlockAtOffset(
+    documentKey: string,
+    version: number,
+    text: string,
+    offset: number,
+  ): BloggerScopeBlock | undefined {
+    const rootBlocks = this.getScopeBlocks(documentKey, version, text);
+    let match: BloggerScopeBlock | undefined;
+
+    function find(blocks: readonly BloggerScopeBlock[]) {
+      for (const block of blocks) {
+        if (offset >= block.startOffset && offset <= block.endOffset) {
+          match = block;
+          if (block.children.length > 0) {
+            find(block.children);
+          }
+        }
+      }
+    }
+
+    find(rootBlocks);
+    return match;
+  }
+
+  public getEnclosingWidgetType(
+    documentKey: string,
+    version: number,
+    text: string,
+    offset: number,
+  ): string | undefined {
+    let block = this.getInnermostBlockAtOffset(documentKey, version, text, offset);
+    while (block) {
+      if (block.widgetType) {
+        return block.widgetType;
+      }
+      block = block.parent;
+    }
+    return undefined;
+  }
+
+  public getAvailableIncludables(
+    documentKey: string,
+    version: number,
+    text: string,
+    offset: number,
+  ): { local: string[]; defaultMarkups: string[] } {
+    const rootBlocks = this.getScopeBlocks(documentKey, version, text);
+    const block = this.getInnermostBlockAtOffset(documentKey, version, text, offset);
+
+    let enclosingWidget: BloggerScopeBlock | undefined;
+    let curr: BloggerScopeBlock | undefined = block;
+    while (curr) {
+      if (curr.tag === 'b:widget') {
+        enclosingWidget = curr;
+        break;
+      }
+      curr = curr.parent;
+    }
+
+    const localSet = new Set<string>();
+    const defaultMarkupsSet = new Set<string>();
+
+    if (enclosingWidget) {
+      for (const child of enclosingWidget.children) {
+        if (child.tag === 'b:includable' && child.includableId) {
+          localSet.add(child.includableId);
+        }
+      }
+    }
+    else {
+      function collectAll(blocks: readonly BloggerScopeBlock[]) {
+        for (const b of blocks) {
+          if (b.tag === 'b:includable' && b.includableId) {
+            localSet.add(b.includableId);
+          }
+          if (b.children.length > 0) {
+            collectAll(b.children);
+          }
+        }
+      }
+      collectAll(rootBlocks);
+    }
+
+    function collectDefaultMarkups(blocks: readonly BloggerScopeBlock[]) {
+      for (const b of blocks) {
+        if (b.tag === 'b:defaultmarkup') {
+          if (!enclosingWidget || !b.widgetType || b.widgetType === enclosingWidget.widgetType) {
+            for (const child of b.children) {
+              if (child.tag === 'b:includable' && child.includableId) {
+                defaultMarkupsSet.add(child.includableId);
+              }
+            }
+          }
+        }
+        if (b.children.length > 0) {
+          collectDefaultMarkups(b.children);
+        }
+      }
+    }
+    collectDefaultMarkups(rootBlocks);
+
+    return {
+      local: Array.from(localSet),
+      defaultMarkups: Array.from(defaultMarkupsSet),
+    };
+  }
+
+  public getEnclosingMessageName(text: string, offset: number): string | undefined {
+    return extractEnclosingMessageName(text, offset);
   }
 
   private collectVariablesAtOffset(
@@ -271,4 +386,26 @@ export class BloggerScopeTracker {
       this.documentCache.clear();
     }
   }
+}
+
+export function extractEnclosingMessageName(text: string, offset: number): string | undefined {
+  const sanitizedText = maskCommentsAndCdata(text.slice(0, offset));
+  const tagMsgRegex = /<(\/)?b:message\b((?:"[^"]*"|'[^']*'|[^"'/>])*)(\/?)>/gi;
+  const stack: string[] = [];
+
+  for (const match of sanitizedText.matchAll(tagMsgRegex)) {
+    const isClosing = match[1] === '/';
+    const attrString = match[2] ?? '';
+    const isSelfClosing = match[3] === '/' || attrString.trimEnd().endsWith('/');
+
+    if (isClosing) {
+      stack.pop();
+    }
+    else if (!isSelfClosing) {
+      const name = extractAttribute(attrString, 'name');
+      stack.push(name ?? '');
+    }
+  }
+
+  return stack.length > 0 ? stack[stack.length - 1] : undefined;
 }

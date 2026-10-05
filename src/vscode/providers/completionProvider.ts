@@ -14,19 +14,31 @@ export class BloggerCompletionProvider implements vscode.CompletionItemProvider 
   public provideCompletionItems(
     document: vscode.TextDocument,
     position: vscode.Position,
-  ): vscode.ProviderResult<vscode.CompletionItem[]> {
+  ): vscode.ProviderResult<vscode.CompletionItem[] | vscode.CompletionList> {
     const lineText = document.lineAt(position.line).text;
     const linePrefix = lineText.slice(0, position.character);
 
+    const docKey = document.uri ? document.uri.toString() : 'untitled';
+    const version = document.version ?? 0;
+    const fullText = getDocumentText(document);
+    const offset = getDocumentOffset(document, position);
+
     const getLocalVariables = (): Record<string, BloggerProperty> => {
-      const docKey = document.uri ? document.uri.toString() : 'untitled';
-      const version = document.version ?? 0;
-      const fullText = getDocumentText(document);
-      const offset = getDocumentOffset(document, position);
       return this.scopeTracker.getActiveVariables(docKey, version, fullText, offset);
     };
 
-    let result = this.pathResolver.resolveFromLinePrefix(linePrefix, { localVariables: getLocalVariables });
+    const widgetType = this.scopeTracker.getEnclosingWidgetType(docKey, version, fullText, offset);
+    const includables = this.scopeTracker.getAvailableIncludables(docKey, version, fullText, offset);
+    const enclosingMessageName = this.scopeTracker.getEnclosingMessageName(fullText, offset);
+
+    const resolverContext = {
+      localVariables: getLocalVariables,
+      widgetType,
+      includables,
+      enclosingMessageName,
+    };
+
+    let result = this.pathResolver.resolveFromLinePrefix(linePrefix, resolverContext);
 
     if (!result && position.line > 0) {
       const startLine = Math.max(0, position.line - 15);
@@ -36,7 +48,7 @@ export class BloggerCompletionProvider implements vscode.CompletionItemProvider 
       }
       precedingLines.push(linePrefix);
       const multiLineText = precedingLines.join('\n');
-      result = this.pathResolver.resolveFromLinePrefix(multiLineText, { localVariables: getLocalVariables });
+      result = this.pathResolver.resolveFromLinePrefix(multiLineText, resolverContext);
     }
 
     if (!result || result.suggestions.length === 0) {
@@ -44,8 +56,20 @@ export class BloggerCompletionProvider implements vscode.CompletionItemProvider 
     }
 
     const startChar = Math.max(0, position.character - result.replacementLength);
-    const range = new vscode.Range(position.line, startChar, position.line, position.character);
+    let endChar = position.character;
 
-    return createCompletionItems(result.suggestions, range);
+    const lineSuffix = lineText.slice(position.character);
+    const isTagSnippet = result.suggestions.some(s => s.kind === 'snippet' && s.insertText?.includes('/>'));
+    if (isTagSnippet) {
+      const match = /^(:?\s*\/?>)/.exec(lineSuffix);
+      if (match && match[1]) {
+        endChar += match[1].length;
+      }
+    }
+
+    const range = new vscode.Range(position.line, startChar, position.line, endChar);
+
+    const items = createCompletionItems(result.suggestions, range);
+    return new vscode.CompletionList(items, true);
   }
 }

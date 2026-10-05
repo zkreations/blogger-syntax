@@ -53,6 +53,13 @@ export function createCompletionItem(
     }
   }
 
+  if (suggestion.name === 'data:') {
+    item.command = {
+      command: 'editor.action.triggerSuggest',
+      title: 'Trigger Blogger Data Suggestions',
+    };
+  }
+
   return item;
 }
 

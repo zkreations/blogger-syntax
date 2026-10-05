@@ -50,6 +50,12 @@ export const bloggerTags: Record<string, BloggerTagDefinition> = {
       type: { name: 'type', type: 'string', required: true, description: 'Widget type to define default markup for.', values: bloggerDefaultMarkupTypes },
     },
   },
+  'data:': {
+    name: 'data:',
+    description: 'Outputs a resolved Blogger data expression directly into output HTML.',
+    snippetBody: 'data:${1}/>$0',
+    docUrl: 'https:x//bloggercode.orbiona.com/1979/11/data-balise.html',
+  },
   'b:eval': {
     name: 'b:eval',
     description: 'Evaluates a Blogger expression and explicitly outputs the result.',

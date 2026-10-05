@@ -107,10 +107,33 @@ export class CompletionItem {
   public documentation?: MarkdownString | string | undefined;
   public range?: Range | undefined;
   public insertText?: string | SnippetString | undefined;
+  public command?: { title: string; command: string; arguments?: any[] } | undefined;
 
   constructor(label: string, kind?: CompletionItemKind | undefined) {
     this.label = label;
     this.kind = kind;
+  }
+}
+
+export class CompletionList<T extends CompletionItem = CompletionItem> extends Array<T> {
+  static get [Symbol.species]() {
+    return Array;
+  }
+
+  public items: T[];
+  public isIncomplete: boolean;
+
+  constructor(items: T[] | number = [], isIncomplete: boolean = false) {
+    if (typeof items === 'number') {
+      super(items);
+      this.items = [];
+      this.isIncomplete = isIncomplete;
+    }
+    else {
+      super(...items);
+      this.items = items;
+      this.isIncomplete = isIncomplete;
+    }
   }
 }
 

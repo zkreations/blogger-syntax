@@ -84,4 +84,20 @@ describe('bloggerCompletionProvider', () => {
     const items = provider.provideCompletionItems(document, position);
     expect(items).toBeUndefined();
   });
+
+  it('should consume trailing :/> when completing tag inside existing <data:/> to prevent duplication', () => {
+    const text = '<data:/>';
+    const document = createMockDocument(text);
+    const position = new vscode.Position(0, text.indexOf(':')); // cursor right before ':'
+
+    const result = provider.provideCompletionItems(document, position) as vscode.CompletionList;
+    expect(result).toBeDefined();
+    expect(result.isIncomplete).toBe(true);
+
+    const dataItem = result.items.find(item => item.label === 'data:');
+    expect(dataItem).toBeDefined();
+    const range = dataItem?.range as vscode.Range;
+    expect(range.start.character).toBe(1); // after '<'
+    expect(range.end.character).toBe(text.length); // replaces up to the end of ':/>'
+  });
 });

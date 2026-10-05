@@ -68,4 +68,19 @@ describe('completionAdapter', () => {
     expect(item.kind).toBe(vscode.CompletionItemKind.EnumMember);
     expect(item.detail).toBe('(Blogger Widget Type)');
   });
+
+  it('should attach editor.action.triggerSuggest command for data: tag completion', () => {
+    const suggestion: BloggerSuggestion = {
+      name: 'data:',
+      type: 'string',
+      description: 'Outputs resolved data expression',
+      kind: 'snippet',
+      insertText: 'data:${1}/>$0',
+      isSnippet: true,
+    };
+
+    const item = createCompletionItem(suggestion);
+    expect(item.command).toBeDefined();
+    expect(item.command?.command).toBe('editor.action.triggerSuggest');
+  });
 });
