@@ -176,6 +176,7 @@ export const bloggerTags: Record<string, BloggerTagDefinition> = {
       tag: { name: 'tag', type: 'string', required: false, description: 'Semantic HTML5 container element to generate for the section (e.g. main, aside, header, footer).', values: ['main', 'section', 'article', 'aside', 'header', 'footer', 'nav', 'div'], docUrl: 'https://bloggercode.orbiona.com/2016/03/tag-b-section.html' },
       name: { name: 'name', type: 'string', required: false, description: 'Display label for the section in Blogger layout editor.' },
       showaddelement: { name: 'showaddelement', type: 'string', required: false, description: 'Whether to show the Add a Gadget button in layout editor (yes / no).', values: ['yes', 'no'] },
+      preferred: { name: 'preferred', type: 'string', required: false, description: 'Designates this section as preferred target for new gadgets in layout editor (yes / no).', values: ['yes', 'no'] },
       cond: { name: 'cond', type: 'string', required: false, description: 'Conditional expression governing section rendering.' },
     },
   },

@@ -43,6 +43,25 @@
           "type": "boolean",
           "default": true,
           "description": "Automatically trigger suggestions when moving the cursor inside empty attributes (e.g. name=\"\", type=\"\", description=\"\", etc.) or <data:/> tags."
+        },
+        "bloggerSyntax.linter.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable real-time diagnostic warnings and linting for Blogger XML templates."
+        },
+        "bloggerSyntax.linter.trigger": {
+          "type": "string",
+          "enum": [
+            "onType",
+            "onSave"
+          ],
+          "default": "onType",
+          "description": "Control when the Blogger linter validates documents (with debounce on type, or strictly on save)."
+        },
+        "bloggerSyntax.linter.debounceMs": {
+          "type": "number",
+          "default": 400,
+          "description": "Debounce delay in milliseconds when validating documents during typing."
         }
       }
     }

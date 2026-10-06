@@ -121,7 +121,8 @@ describe('plan 1: Data Model Integrity & Canonical Specifications', () => {
       expect(attrs.cond).toBeDefined();
       expect(attrs.maxwidgets).toBeUndefined();
       expect(attrs.growth).toBeUndefined();
-      expect(attrs.preferred).toBeUndefined();
+      expect(attrs.preferred).toBeDefined();
+      expect(attrs.preferred?.values).toEqual(['yes', 'no']);
     });
 
     it('should enforce title as required on b:widget and support cond and visible', () => {

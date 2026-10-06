@@ -52,12 +52,12 @@ describe('tag attribute completion & canonical data:widgets descriptors', () => 
       expect(names).toContain('tag');
       expect(names).toContain('name');
       expect(names).toContain('showaddelement');
+      expect(names).toContain('preferred');
       expect(names).toContain('cond');
 
       // Never suggest deprecated attributes
       expect(names).not.toContain('growth');
       expect(names).not.toContain('mobile');
-      expect(names).not.toContain('preferred');
       expect(names).not.toContain('maxwidgets');
 
       // Check snippet insertion

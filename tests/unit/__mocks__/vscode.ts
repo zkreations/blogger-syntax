@@ -54,6 +54,36 @@ export class Range {
       this.end = arg2 as Position;
     }
   }
+
+  public intersection(other: Range): Range | undefined {
+    const startLine = Math.max(this.start.line, other.start.line);
+    const endLine = Math.min(this.end.line, other.end.line);
+    if (startLine > endLine)
+      return undefined;
+    let startChar = 0;
+    if (this.start.line === other.start.line) {
+      startChar = Math.max(this.start.character, other.start.character);
+    }
+    else if (startLine === this.start.line) {
+      startChar = this.start.character;
+    }
+    else {
+      startChar = other.start.character;
+    }
+    let endChar = 0;
+    if (this.end.line === other.end.line) {
+      endChar = Math.min(this.end.character, other.end.character);
+    }
+    else if (endLine === this.end.line) {
+      endChar = this.end.character;
+    }
+    else {
+      endChar = other.end.character;
+    }
+    if (startLine === endLine && startChar > endChar)
+      return undefined;
+    return new Range(startLine, startChar, endLine, endChar);
+  }
 }
 
 export class SnippetString {
@@ -182,9 +212,87 @@ export class Disposable {
   }
 }
 
+export enum DiagnosticSeverity {
+  Error = 0,
+  Warning = 1,
+  Information = 2,
+  Hint = 3,
+}
+
+export enum DiagnosticTag {
+  Unnecessary = 1,
+  Deprecated = 2,
+}
+
+export class Diagnostic {
+  public code?: string | number | { value: string | number; target: any };
+  public source?: string;
+  public tags?: DiagnosticTag[];
+
+  constructor(
+    public range: Range,
+    public message: string,
+    public severity: DiagnosticSeverity = DiagnosticSeverity.Error,
+  ) {}
+}
+
+export interface DiagnosticCollection {
+  name: string;
+  set: (uri: any, diagnostics: readonly Diagnostic[] | undefined) => void;
+  delete: (uri: any) => void;
+  clear: () => void;
+  dispose: () => void;
+}
+
+export const CodeActionKind = {
+  QuickFix: { value: 'quickfix' },
+  Refactor: { value: 'refactor' },
+  Source: { value: 'source' },
+};
+
+export class CodeAction {
+  public edit?: WorkspaceEdit;
+  public isPreferred?: boolean;
+
+  constructor(
+    public title: string,
+    public kind?: { value: string },
+  ) {}
+}
+
+export class WorkspaceEdit {
+  public readonly entries = new Map<string, { range: Range; newText: string }[]>();
+
+  public replace(uri: any, range: Range, newText: string): void {
+    const uriStr = uri?.toString?.() ?? String(uri);
+    const list = this.entries.get(uriStr) ?? [];
+    list.push({ range, newText });
+    this.entries.set(uriStr, list);
+  }
+}
+
 export const languages = {
   registerCompletionItemProvider: () => new Disposable(() => {}),
   registerHoverProvider: () => new Disposable(() => {}),
+  registerCodeActionsProvider: () => new Disposable(() => {}),
+  createDiagnosticCollection: (name: string = 'default'): DiagnosticCollection => {
+    const store = new Map<string, readonly Diagnostic[]>();
+    return {
+      name,
+      set: (uri: any, diagnostics: readonly Diagnostic[] | undefined) => {
+        store.set(uri?.toString?.() ?? String(uri), diagnostics ?? []);
+      },
+      delete: (uri: any) => {
+        store.delete(uri?.toString?.() ?? String(uri));
+      },
+      clear: () => {
+        store.clear();
+      },
+      dispose: () => {
+        store.clear();
+      },
+    };
+  },
 };
 
 export const window = {
@@ -200,8 +308,13 @@ export const commands = {
 };
 
 export const workspace = {
-  getConfiguration: () => ({
+  textDocuments: [] as MockTextDocument[],
+  getConfiguration: (_section?: string) => ({
     get: <T>(_key: string, defaultValue: T): T => defaultValue,
   }),
+  onDidOpenTextDocument: () => new Disposable(() => {}),
+  onDidSaveTextDocument: () => new Disposable(() => {}),
+  onDidChangeTextDocument: () => new Disposable(() => {}),
   onDidCloseTextDocument: () => new Disposable(() => {}),
+  onDidChangeConfiguration: () => new Disposable(() => {}),
 };
