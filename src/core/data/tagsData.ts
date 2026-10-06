@@ -54,7 +54,7 @@ export const bloggerTags: Record<string, BloggerTagDefinition> = {
     name: 'data:',
     description: 'Outputs a resolved Blogger data expression directly into output HTML.',
     snippetBody: 'data:${1}/>$0',
-    docUrl: 'https:x//bloggercode.orbiona.com/1979/11/data-balise.html',
+    docUrl: 'https://bloggercode.orbiona.com/2016/03/tag-data.html',
   },
   'b:eval': {
     name: 'b:eval',
@@ -199,7 +199,7 @@ export const bloggerTags: Record<string, BloggerTagDefinition> = {
     name: 'b:template-script',
     description: 'Declares and asynchronously initializes Blogger platform scripts in Layouts v3.',
     snippetBody: 'b:template-script name="${1:indie}"/>$0',
-    docUrl: 'https://bloggercode.orbiona.com/2016/03/tag-b-template-script.html',
+    docUrl: 'https://bloggercode.orbiona.com/2018/02/tag-b-template-script.html',
     attributes: {
       name: { name: 'name', type: 'string', required: true, description: 'Registered platform script identifier.' },
     },
@@ -297,7 +297,7 @@ export const bloggerTags: Record<string, BloggerTagDefinition> = {
     name: 'Group',
     description: 'Groups variables and creates a section in the Blogger Template Designer.',
     snippetBody: `Group description="\${1|${descriptionsChoices}|}" selector="\${2:selector}">\n\t$0\n</Group>`,
-    docUrl: 'https://bloggercode-blogconnexion.blogspot.com/2014/06/tag-b-skin-b-template-skin.html',
+    docUrl: 'https://bloggercode.orbiona.com/2014/06/tag-b-skin-b-template-skin.html',
     attributes: {
       description: { name: 'description', type: 'string', required: true, description: 'Variable group description in Template Designer.' },
       selector: { name: 'selector', type: 'string', required: false, description: 'CSS selector targeted by the variable group.' },
@@ -307,7 +307,7 @@ export const bloggerTags: Record<string, BloggerTagDefinition> = {
     name: 'Variable',
     description: 'Creates customization options for the Blogger Template Designer.',
     snippetBody: `Variable name="\${1:name}" description="\${2|${descriptionsChoices}|}" type="\${3|color,font,length,background,string,url|}" default="\${4:default}" value="\${5:value}"/>$0`,
-    docUrl: 'https://bloggercode-blogconnexion.blogspot.com/2014/06/tag-b-skin-b-template-skin.html',
+    docUrl: 'https://bloggercode.orbiona.com/2014/06/tag-b-skin-b-template-skin.html',
     attributes: {
       name: { name: 'name', type: 'string', required: true, description: 'Unique variable identifier name.' },
       description: { name: 'description', type: 'string', required: true, description: 'Variable label shown in Template Designer.' },

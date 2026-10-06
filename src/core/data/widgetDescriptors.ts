@@ -6,25 +6,25 @@ export const baseWidgetDescriptorProperties: Record<string, BloggerProperty> = O
     name: 'id',
     type: 'string',
     description: 'Unique widget instance ID (e.g. "Blog1", "Header1").',
-    docUrl: 'https://bloggercode.orbiona.com/1978/01/data-widget-instanceId.html',
+    docUrl: 'https://bloggercode.orbiona.com/1978/02/data-widgets-id.html',
   },
   sectionId: {
     name: 'sectionId',
     type: 'string',
     description: 'Parent <b:section> identifier containing the widget.',
-    docUrl: 'https://bloggercode.orbiona.com/1978/01/data-widget-sectionId.html',
+    docUrl: 'https://bloggercode.orbiona.com/1978/02/data-widgets-sectionId.html',
   },
   title: {
     name: 'title',
     type: 'string',
     description: 'Configured widget header title.',
-    docUrl: 'https://bloggercode.orbiona.com/1978/01/data-widget-title.html',
+    docUrl: 'https://bloggercode.orbiona.com/1978/02/data-widgets-title.html',
   },
   type: {
     name: 'type',
     type: 'string',
     description: 'Canonical widget type name (e.g. "Blog", "AdSense").',
-    docUrl: 'https://bloggercode.orbiona.com/1978/01/data-widget-type.html',
+    docUrl: 'https://bloggercode.orbiona.com/1978/02/data-widgets-type.html',
   },
 });
 
@@ -33,25 +33,25 @@ export const blogDescriptorPostSummaryProperties: Record<string, BloggerProperty
     name: 'id',
     type: 'number',
     description: 'Unique numerical post identifier.',
-    docUrl: 'https://bloggercode.orbiona.com/1978/05/data-post-id.html',
+    docUrl: 'https://bloggercode.orbiona.com/1978/02/data-widgets-posts-id.html',
   },
   title: {
     name: 'title',
     type: 'string',
     description: 'Post title string.',
-    docUrl: 'https://bloggercode.orbiona.com/1978/05/data-post-title.html',
+    docUrl: 'https://bloggercode.orbiona.com/1978/02/data-widgets-posts-title.html',
   },
   featuredImage: {
     name: 'featuredImage',
     type: 'image',
     description: 'Primary post hero image URL.',
-    docUrl: 'https://bloggercode.orbiona.com/1978/05/data-post-featuredImage.html',
+    docUrl: 'https://bloggercode.orbiona.com/1978/02/data-widgets-posts-featuredImage.html',
   },
   showInlineAds: {
     name: 'showInlineAds',
     type: 'boolean',
     description: 'Inline ads display toggle.',
-    docUrl: 'https://bloggercode.orbiona.com/1978/05/data-post-showInlineAds.html',
+    docUrl: 'https://bloggercode.orbiona.com/1978/02/data-widgets-posts-showInlineAds.html',
   },
 });
 
@@ -89,7 +89,7 @@ export const blogDescriptorProperties: Record<string, BloggerProperty> = Object.
     name: 'posts',
     type: 'array',
     description: 'Summaries of blog posts rendered in the main blog gadget.',
-    docUrl: 'https://bloggercode.orbiona.com/1978/07/data-posts.html',
+    docUrl: 'https://bloggercode.orbiona.com/1978/02/data-widgets-posts.html',
     itemChildren: blogDescriptorPostSummaryProperties,
     children: createArrayProperties(blogDescriptorPostSummaryProperties),
   },
@@ -121,7 +121,7 @@ export const featuredPostDescriptorProperties: Record<string, BloggerProperty> =
     name: 'postId',
     type: 'number',
     description: 'Numerical identifier of the featured post.',
-    docUrl: 'https://bloggercode.orbiona.com/1978/07/data-postId.html',
+    docUrl: 'https://bloggercode.orbiona.com/1978/02/data-widgets-postId.html',
   },
 });
 
@@ -130,13 +130,13 @@ export const popularPostsSummaryProperties: Record<string, BloggerProperty> = Ob
     name: 'id',
     type: 'number',
     description: 'Unique numerical post identifier.',
-    docUrl: 'https://bloggercode.orbiona.com/1978/05/data-post-id.html',
+    docUrl: 'https://bloggercode.orbiona.com/1978/02/data-widgets-posts-id.html',
   },
   title: {
     name: 'title',
     type: 'string',
     description: 'Post title string.',
-    docUrl: 'https://bloggercode.orbiona.com/1978/05/data-post-title.html',
+    docUrl: 'https://bloggercode.orbiona.com/1978/02/data-widgets-posts-title.html',
   },
 });
 
@@ -146,7 +146,7 @@ export const popularPostsDescriptorProperties: Record<string, BloggerProperty> =
     name: 'posts',
     type: 'array',
     description: 'Summaries of popular posts in the gadget.',
-    docUrl: 'https://bloggercode.orbiona.com/1978/07/data-posts.html',
+    docUrl: 'https://bloggercode.orbiona.com/1978/02/data-widgets-posts.html',
     itemChildren: popularPostsSummaryProperties,
     children: createArrayProperties(popularPostsSummaryProperties),
   },

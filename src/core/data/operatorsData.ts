@@ -28,7 +28,7 @@ export const bloggerOperatorsCatalog: Record<string, BloggerOperatorDefinition> 
     signatureInfix: 'collection filter (item => boolean)',
     description: 'Filters a collection using a lambda predicate expression.',
     example: 'data:posts filter (p => p.allowComments)',
-    docUrl: 'https://bloggercode.orbiona.com/2017/05/lambda-expressions.html',
+    docUrl: 'https://bloggercode.orbiona.com/2016/04/operators-lambdas.html',
   },
   'where': {
     name: 'where',
@@ -40,7 +40,7 @@ export const bloggerOperatorsCatalog: Record<string, BloggerOperatorDefinition> 
     signatureInfix: 'collection where (item => boolean)',
     description: 'Alias for filter. Filters a collection using a lambda predicate expression.',
     example: 'data:posts where (p => p.allowComments)',
-    docUrl: 'https://bloggercode.orbiona.com/2017/05/lambda-expressions.html',
+    docUrl: 'https://bloggercode.orbiona.com/2016/04/operators-lambdas.html',
   },
   'map': {
     name: 'map',
@@ -52,7 +52,7 @@ export const bloggerOperatorsCatalog: Record<string, BloggerOperatorDefinition> 
     signatureInfix: 'collection map (item => any)',
     description: 'Projects each item in a collection into a new array.',
     example: 'data:posts map (p => p.title)',
-    docUrl: 'https://bloggercode.orbiona.com/2017/05/lambda-expressions.html',
+    docUrl: 'https://bloggercode.orbiona.com/2016/04/operators-lambdas.html',
   },
   'select': {
     name: 'select',
@@ -64,7 +64,7 @@ export const bloggerOperatorsCatalog: Record<string, BloggerOperatorDefinition> 
     signatureInfix: 'collection select (item => any)',
     description: 'Alias for map. Projects each item in a collection into a new array.',
     example: 'data:posts select (p => p.title)',
-    docUrl: 'https://bloggercode.orbiona.com/2017/05/lambda-expressions.html',
+    docUrl: 'https://bloggercode.orbiona.com/2016/04/operators-lambdas.html',
   },
   'count': {
     name: 'count',
@@ -75,7 +75,7 @@ export const bloggerOperatorsCatalog: Record<string, BloggerOperatorDefinition> 
     signatureInfix: 'collection count (item => boolean)',
     description: 'Counts the number of items in a collection matching a predicate.',
     example: 'data:posts count (p => p.allowComments)',
-    docUrl: 'https://bloggercode.orbiona.com/2017/05/lambda-expressions.html',
+    docUrl: 'https://bloggercode.orbiona.com/2016/04/operators-lambdas.html',
   },
   'first': {
     name: 'first',
@@ -86,18 +86,7 @@ export const bloggerOperatorsCatalog: Record<string, BloggerOperatorDefinition> 
     signatureInfix: 'collection.first or collection first',
     description: 'Returns the first element of a collection, or null if empty.',
     example: 'data:posts.first',
-    docUrl: 'https://bloggercode.orbiona.com/2017/05/lambda-expressions.html',
-  },
-  'last': {
-    name: 'last',
-    isCollectionOperator: true,
-    supportsFunctional: false,
-    returnType: 'element',
-    signature: 'collection.last or collection last',
-    signatureInfix: 'collection.last or collection last',
-    description: 'Returns the last element of a collection, or null if empty.',
-    example: 'data:posts.last',
-    docUrl: 'https://bloggercode.orbiona.com/2017/05/lambda-expressions.html',
+    docUrl: 'https://bloggercode.orbiona.com/2016/04/operators-lambdas.html',
   },
   'any': {
     name: 'any',
@@ -108,7 +97,7 @@ export const bloggerOperatorsCatalog: Record<string, BloggerOperatorDefinition> 
     signatureInfix: 'collection any (item => boolean)',
     description: 'Returns true if any element in the collection matches the predicate.',
     example: 'data:posts any (p => p.allowComments)',
-    docUrl: 'https://bloggercode.orbiona.com/2017/05/lambda-expressions.html',
+    docUrl: 'https://bloggercode.orbiona.com/2016/04/operators-lambdas.html',
   },
   'all': {
     name: 'all',
@@ -119,7 +108,7 @@ export const bloggerOperatorsCatalog: Record<string, BloggerOperatorDefinition> 
     signatureInfix: 'collection all (item => boolean)',
     description: 'Returns true if all elements in the collection match the predicate.',
     example: 'data:posts all (p => p.allowComments)',
-    docUrl: 'https://bloggercode.orbiona.com/2017/05/lambda-expressions.html',
+    docUrl: 'https://bloggercode.orbiona.com/2016/04/operators-lambdas.html',
   },
   'none': {
     name: 'none',
@@ -130,7 +119,7 @@ export const bloggerOperatorsCatalog: Record<string, BloggerOperatorDefinition> 
     signatureInfix: 'collection none (item => boolean)',
     description: 'Returns true if no elements in the collection match the predicate.',
     example: 'data:posts none (p => p.allowComments)',
-    docUrl: 'https://bloggercode.orbiona.com/2017/05/lambda-expressions.html',
+    docUrl: 'https://bloggercode.orbiona.com/2016/04/operators-lambdas.html',
   },
 
   // --- Collection / Slicing & Numeric Range ---
@@ -146,7 +135,7 @@ export const bloggerOperatorsCatalog: Record<string, BloggerOperatorDefinition> 
     functionalSnippet: 'take(${1:collection}, ${2:count})',
     description: 'Returns a slice containing the first N elements of the collection.',
     example: 'data:posts take 5',
-    docUrl: 'https://bloggercode.orbiona.com/2017/05/lambda-expressions.html',
+    docUrl: 'https://bloggercode.orbiona.com/2016/04/operators-array.html',
   },
   'limit': {
     name: 'limit',
@@ -160,7 +149,7 @@ export const bloggerOperatorsCatalog: Record<string, BloggerOperatorDefinition> 
     functionalSnippet: 'limit(${1:collection}, ${2:count})',
     description: 'Alias for take. Returns a slice containing the first N elements.',
     example: 'data:posts limit 5',
-    docUrl: 'https://bloggercode.orbiona.com/2017/05/lambda-expressions.html',
+    docUrl: 'https://bloggercode.orbiona.com/2016/04/operators-array.html',
   },
   'skip': {
     name: 'skip',
@@ -174,7 +163,7 @@ export const bloggerOperatorsCatalog: Record<string, BloggerOperatorDefinition> 
     functionalSnippet: 'skip(${1:collection}, ${2:count})',
     description: 'Bypasses a specified number of elements and returns the remaining elements.',
     example: 'data:posts skip 3',
-    docUrl: 'https://bloggercode.orbiona.com/2017/05/lambda-expressions.html',
+    docUrl: 'https://bloggercode.orbiona.com/2016/04/operators-array.html',
   },
   'offset': {
     name: 'offset',
@@ -188,7 +177,7 @@ export const bloggerOperatorsCatalog: Record<string, BloggerOperatorDefinition> 
     functionalSnippet: 'offset(${1:collection}, ${2:count})',
     description: 'Alias for skip. Bypasses a specified number of elements.',
     example: 'data:posts offset 3',
-    docUrl: 'https://bloggercode.orbiona.com/2017/05/lambda-expressions.html',
+    docUrl: 'https://bloggercode.orbiona.com/2016/04/operators-array.html',
   },
   'to': {
     name: 'to',
@@ -199,7 +188,7 @@ export const bloggerOperatorsCatalog: Record<string, BloggerOperatorDefinition> 
     signatureInfix: 'start to end',
     description: 'Generates a range of integer numbers from start to end inclusive. Infix only, inside b:loop values.',
     example: '1 to 10',
-    docUrl: 'https://bloggercode.orbiona.com/2017/05/lambda-expressions.html',
+    docUrl: 'https://bloggercode.orbiona.com/2016/04/operators-array.html',
   },
 
   // --- Membership & Content Operators ---
@@ -214,7 +203,7 @@ export const bloggerOperatorsCatalog: Record<string, BloggerOperatorDefinition> 
     functionalSnippet: 'in(${1:item}, ${2:collection})',
     description: 'Determines whether an item is contained in a collection or set.',
     example: 'data:view.search.label in data:post.labels map (l => l.name)',
-    docUrl: 'https://bloggercode.orbiona.com/2017/05/lambda-expressions.html',
+    docUrl: 'https://bloggercode.orbiona.com/2016/04/operators-memberships.html',
   },
   'contains': {
     name: 'contains',
@@ -227,7 +216,7 @@ export const bloggerOperatorsCatalog: Record<string, BloggerOperatorDefinition> 
     functionalSnippet: 'contains(${1:haystack}, ${2:needle})',
     description: 'Checks if a string contains a specific substring or collection contains an item.',
     example: 'data:blog.url contains "https"',
-    docUrl: 'https://bloggercode.orbiona.com/2017/05/lambda-expressions.html',
+    docUrl: 'https://bloggercode.orbiona.com/2016/04/operators-memberships.html',
   },
 
   // --- URL Operators ---
@@ -242,7 +231,7 @@ export const bloggerOperatorsCatalog: Record<string, BloggerOperatorDefinition> 
     functionalSnippet: 'params(${1:url}, { ${2:key}: ${3:value} })',
     description: 'Replaces query parameters in a URL with a secure URL-encoded parameter object.',
     example: 'data:blog.canonicalUrl params { m: "1" }',
-    docUrl: 'https://bloggercode.orbiona.com/2017/05/lambda-expressions.html',
+    docUrl: 'https://bloggercode.orbiona.com/2017/04/operators-URLs.html',
   },
   'appendParams': {
     name: 'appendParams',
@@ -255,7 +244,7 @@ export const bloggerOperatorsCatalog: Record<string, BloggerOperatorDefinition> 
     functionalSnippet: 'appendParams(${1:url}, { ${2:key}: ${3:value} })',
     description: 'Appends additional query parameters to an existing URL.',
     example: 'data:blog.canonicalUrl appendParams { page: "2" }',
-    docUrl: 'https://bloggercode.orbiona.com/2017/05/lambda-expressions.html',
+    docUrl: 'https://bloggercode.orbiona.com/2017/04/operators-URLs.html',
   },
   'path': {
     name: 'path',
@@ -268,7 +257,7 @@ export const bloggerOperatorsCatalog: Record<string, BloggerOperatorDefinition> 
     functionalSnippet: 'path(${1:url}, "${2:/path}")',
     description: 'Replaces the pathname portion of a URL.',
     example: 'data:blog.canonicalHomepageUrl path "/p/about.html"',
-    docUrl: 'https://bloggercode.orbiona.com/2017/05/lambda-expressions.html',
+    docUrl: 'https://bloggercode.orbiona.com/2017/04/operators-URLs.html',
   },
   'fragment': {
     name: 'fragment',
@@ -281,7 +270,7 @@ export const bloggerOperatorsCatalog: Record<string, BloggerOperatorDefinition> 
     functionalSnippet: 'fragment(${1:url}, "${2:sectionId}")',
     description: 'Sets or replaces the fragment (#hash) identifier of a URL.',
     example: 'data:post.url fragment "comments"',
-    docUrl: 'https://bloggercode.orbiona.com/2017/05/lambda-expressions.html',
+    docUrl: 'https://bloggercode.orbiona.com/2017/04/operators-URLs.html',
   },
 
   // --- Date Operator ---
@@ -296,7 +285,7 @@ export const bloggerOperatorsCatalog: Record<string, BloggerOperatorDefinition> 
     functionalSnippet: 'format(${1:date}, "${2:YYYY-MM-dd}")',
     description: 'Formats a date or timestamp using an ICU date pattern string.',
     example: 'data:post.date format "YYYY-MM-dd"',
-    docUrl: 'https://bloggercode.orbiona.com/2017/05/lambda-expressions.html',
+    docUrl: 'https://bloggercode.orbiona.com/2017/04/date-operator.html',
   },
 
   // --- Image Transform Operators (Native dual syntax) ---
@@ -311,7 +300,7 @@ export const bloggerOperatorsCatalog: Record<string, BloggerOperatorDefinition> 
     functionalSnippet: 'resizeImage(${1:imageUrl}, ${2:300}, "${3|1:1,4:3,16:9|}")',
     description: 'Generates a resized and cropped image URL from Blogger CDN with an optional aspect ratio ("1:1", "4:3", "16:9").',
     example: 'data:post.featuredImage resizeImage 300',
-    docUrl: 'https://bloggercode.orbiona.com/2017/05/lambda-expressions.html',
+    docUrl: 'https://bloggercode.orbiona.com/2016/04/operators-images.html',
   },
   'sourceSet': {
     name: 'sourceSet',
@@ -324,7 +313,7 @@ export const bloggerOperatorsCatalog: Record<string, BloggerOperatorDefinition> 
     functionalSnippet: 'sourceSet(${1:imageUrl}, [${2:200, 400, 800}], "${3|16:9,4:3,1:1|}")',
     description: 'Generates a responsive HTML srcset attribute string with multiple target widths from Blogger CDN.',
     example: 'data:post.featuredImage sourceSet [200, 400, 800]',
-    docUrl: 'https://bloggercode.orbiona.com/2017/05/lambda-expressions.html',
+    docUrl: 'https://bloggercode.orbiona.com/2016/04/operators-images.html',
   },
 
   // --- Truncation Operator (Native dual syntax) ---
@@ -339,7 +328,7 @@ export const bloggerOperatorsCatalog: Record<string, BloggerOperatorDefinition> 
     functionalSnippet: 'snippet(${1:text}, { length: ${2:150}, links: ${3:false}, linebreaks: ${4:false}, ellipsis: ${5:true} })',
     description: 'Generates a clean, plain text or shortened excerpt from HTML body content, stripping unsafe markup.',
     example: 'data:post.body snippet { length: 150 }',
-    docUrl: 'https://bloggercode.orbiona.com/2017/05/lambda-expressions.html',
+    docUrl: 'https://bloggercode.orbiona.com/2017/04/operator-snippet.html',
   },
 
   // --- Logical Operators ---
@@ -356,7 +345,7 @@ export const bloggerOperatorsCatalog: Record<string, BloggerOperatorDefinition> 
     functionalSnippet: 'and(${1:condA}, ${2:condB})',
     description: 'Logical AND operator. Word alias avoids XML entity escaping (&amp;&amp;). Supports variadic chaining with 3+ arguments in functional syntax.',
     example: 'data:view.isPost and data:post.allowComments',
-    docUrl: 'https://bloggercode.orbiona.com/2016/03/tag-b-eval.html',
+    docUrl: 'https://bloggercode.orbiona.com/2016/04/operators-logicals.html',
   },
   'or': {
     name: 'or',
@@ -371,7 +360,7 @@ export const bloggerOperatorsCatalog: Record<string, BloggerOperatorDefinition> 
     functionalSnippet: 'or(${1:condA}, ${2:condB})',
     description: 'Logical OR operator. Word alias avoids XML escaping. Supports variadic chaining with 3+ arguments in functional syntax.',
     example: 'data:view.isPost or data:view.isPage',
-    docUrl: 'https://bloggercode.orbiona.com/2016/03/tag-b-eval.html',
+    docUrl: 'https://bloggercode.orbiona.com/2016/04/operators-logicals.html',
   },
   'not': {
     name: 'not',
@@ -383,7 +372,7 @@ export const bloggerOperatorsCatalog: Record<string, BloggerOperatorDefinition> 
     signatureInfix: 'not cond',
     description: 'Logical NOT operator. Prefix notation. Inverts boolean truthiness.',
     example: 'not data:view.isMultipleItems',
-    docUrl: 'https://bloggercode.orbiona.com/2016/03/tag-b-eval.html',
+    docUrl: 'https://bloggercode.orbiona.com/2016/04/operators-logicals.html',
   },
 
   // --- Comparison Operators (==, !=, and word aliases eq, neq, lt, lte, gt, gte) ---
@@ -399,7 +388,7 @@ export const bloggerOperatorsCatalog: Record<string, BloggerOperatorDefinition> 
     functionalSnippet: '==(${1:a}, ${2:b})',
     description: 'Strict equality comparison operator.',
     example: 'data:view.isPost == true',
-    docUrl: 'https://bloggercode.orbiona.com/2016/03/tag-b-eval.html',
+    docUrl: 'https://bloggercode.orbiona.com/2016/04/operators-equivalence.html',
   },
   '!=': {
     name: '!=',
@@ -413,7 +402,7 @@ export const bloggerOperatorsCatalog: Record<string, BloggerOperatorDefinition> 
     functionalSnippet: '!=(${1:a}, ${2:b})',
     description: 'Strict inequality comparison operator (alias neq).',
     example: 'data:view.type != "item"',
-    docUrl: 'https://bloggercode.orbiona.com/2016/03/tag-b-eval.html',
+    docUrl: 'https://bloggercode.orbiona.com/2016/04/operators-equivalence.html',
   },
   'eq': {
     name: 'eq',
@@ -427,7 +416,7 @@ export const bloggerOperatorsCatalog: Record<string, BloggerOperatorDefinition> 
     functionalSnippet: 'eq(${1:a}, ${2:b})',
     description: 'Strict equality comparison operator. Word alias avoids XML character escaping.',
     example: 'data:view.isPost eq true',
-    docUrl: 'https://bloggercode.orbiona.com/2016/03/tag-b-eval.html',
+    docUrl: 'https://bloggercode.orbiona.com/2016/04/operators-equivalence.html',
   },
   'neq': {
     name: 'neq',
@@ -441,7 +430,7 @@ export const bloggerOperatorsCatalog: Record<string, BloggerOperatorDefinition> 
     functionalSnippet: 'neq(${1:a}, ${2:b})',
     description: 'Strict inequality comparison operator. Strictly "neq" ("ne" is invalid in Blogger). Word alias avoids XML character escaping.',
     example: 'data:view.type neq "item"',
-    docUrl: 'https://bloggercode.orbiona.com/2016/03/tag-b-eval.html',
+    docUrl: 'https://bloggercode.orbiona.com/2016/04/operators-equivalence.html',
   },
   'lt': {
     name: 'lt',
@@ -455,7 +444,7 @@ export const bloggerOperatorsCatalog: Record<string, BloggerOperatorDefinition> 
     functionalSnippet: 'lt(${1:a}, ${2:b})',
     description: 'Strictly less-than comparison operator for numbers. Word alias avoids XML parse error (&lt;).',
     example: 'data:posts.size lt 10',
-    docUrl: 'https://bloggercode.orbiona.com/2016/03/tag-b-eval.html',
+    docUrl: 'https://bloggercode.orbiona.com/2016/04/operators-equivalence.html',
   },
   'lte': {
     name: 'lte',
@@ -469,7 +458,7 @@ export const bloggerOperatorsCatalog: Record<string, BloggerOperatorDefinition> 
     functionalSnippet: 'lte(${1:a}, ${2:b})',
     description: 'Less-than or equal comparison operator for numbers. Word alias avoids XML escaping.',
     example: 'data:posts.size lte 10',
-    docUrl: 'https://bloggercode.orbiona.com/2016/03/tag-b-eval.html',
+    docUrl: 'https://bloggercode.orbiona.com/2016/04/operators-equivalence.html',
   },
   'gt': {
     name: 'gt',
@@ -483,7 +472,7 @@ export const bloggerOperatorsCatalog: Record<string, BloggerOperatorDefinition> 
     functionalSnippet: 'gt(${1:a}, ${2:b})',
     description: 'Strictly greater-than comparison operator for numbers. Word alias avoids XML character escaping (&gt;).',
     example: 'data:posts.size gt 0',
-    docUrl: 'https://bloggercode.orbiona.com/2016/03/tag-b-eval.html',
+    docUrl: 'https://bloggercode.orbiona.com/2016/04/operators-equivalence.html',
   },
   'gte': {
     name: 'gte',
@@ -497,7 +486,7 @@ export const bloggerOperatorsCatalog: Record<string, BloggerOperatorDefinition> 
     functionalSnippet: 'gte(${1:a}, ${2:b})',
     description: 'Greater-than or equal comparison operator for numbers. Word alias avoids XML character escaping.',
     example: 'data:view.description.size gte 150',
-    docUrl: 'https://bloggercode.orbiona.com/2016/03/tag-b-eval.html',
+    docUrl: 'https://bloggercode.orbiona.com/2016/04/operators-equivalence.html',
   },
 
   // --- Coalescing / Fallback Operator ---
@@ -513,7 +502,7 @@ export const bloggerOperatorsCatalog: Record<string, BloggerOperatorDefinition> 
     functionalSnippet: '?:(${1:val1}, ${2:val2})',
     description: 'Elvis / Null-coalescing fallback operator. Selects the first non-empty operand. Functional syntax cascades 3+ operands.',
     example: 'data:post.snippet ?: "No summary"',
-    docUrl: 'https://bloggercode.orbiona.com/2017/05/lambda-expressions.html',
+    docUrl: 'https://bloggercode.orbiona.com/2025/08/elvis-operator.html',
   },
 
   // --- Arithmetic & Concatenation ---
@@ -529,7 +518,7 @@ export const bloggerOperatorsCatalog: Record<string, BloggerOperatorDefinition> 
     functionalSnippet: '+(${1:a}, ${2:b})',
     description: 'Addition and string concatenation operator. Functional form supports variadic chaining with 3+ operands.',
     example: '+(3, 5, 9, 100)',
-    docUrl: 'https://bloggercode.orbiona.com/2016/03/tag-b-eval.html',
+    docUrl: 'https://bloggercode.orbiona.com/2016/04/operators-arithmetic.html',
   },
   '-': {
     name: '-',
@@ -542,7 +531,7 @@ export const bloggerOperatorsCatalog: Record<string, BloggerOperatorDefinition> 
     functionalSnippet: '-(${1:a}, ${2:b})',
     description: 'Numeric subtraction operator.',
     example: 'data:posts.size - 1',
-    docUrl: 'https://bloggercode.orbiona.com/2016/03/tag-b-eval.html',
+    docUrl: 'https://bloggercode.orbiona.com/2016/04/operators-arithmetic.html',
   },
   '*': {
     name: '*',
@@ -555,7 +544,7 @@ export const bloggerOperatorsCatalog: Record<string, BloggerOperatorDefinition> 
     functionalSnippet: '*(${1:a}, ${2:b})',
     description: 'Numeric multiplication operator.',
     example: 'data:index * 10',
-    docUrl: 'https://bloggercode.orbiona.com/2016/03/tag-b-eval.html',
+    docUrl: 'https://bloggercode.orbiona.com/2016/04/operators-arithmetic.html',
   },
   '/': {
     name: '/',
@@ -568,7 +557,7 @@ export const bloggerOperatorsCatalog: Record<string, BloggerOperatorDefinition> 
     functionalSnippet: '/(${1:a}, ${2:b})',
     description: 'Numeric division operator.',
     example: 'data:posts.size / 2',
-    docUrl: 'https://bloggercode.orbiona.com/2016/03/tag-b-eval.html',
+    docUrl: 'https://bloggercode.orbiona.com/2016/04/operators-arithmetic.html',
   },
   '%': {
     name: '%',
@@ -581,7 +570,7 @@ export const bloggerOperatorsCatalog: Record<string, BloggerOperatorDefinition> 
     functionalSnippet: '%(${1:a}, ${2:b})',
     description: 'Numeric modulo operator.',
     example: 'data:index % 2',
-    docUrl: 'https://bloggercode.orbiona.com/2016/03/tag-b-eval.html',
+    docUrl: 'https://bloggercode.orbiona.com/2016/04/operators-arithmetic.html',
   },
 };
 

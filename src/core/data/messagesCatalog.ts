@@ -625,7 +625,7 @@ export function getSystemMessageSuggestions(): readonly BloggerSuggestion[] {
     example: msg.isParameterized
       ? `<b:message name="${msg.canonicalName}">\n  <b:param name="${msg.params?.[0]?.name ?? 'param'}" value="..."/>\n</b:message>`
       : `<b:message name="${msg.canonicalName}"/>`,
-    docUrl: 'https://bloggercode.orbiona.com/2018/02/data-messages.html',
+    docUrl: 'https://bloggercode.orbiona.com/1979/12/Ressource-data-messages.html',
   }));
 }
 

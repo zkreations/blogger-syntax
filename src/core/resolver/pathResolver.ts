@@ -1105,7 +1105,7 @@ export class BloggerPathResolver {
                 example: msg.isParameterized
                   ? `<b:message name="${msg.canonicalName}">\n  <b:param name="${msg.params?.[0]?.name ?? 'param'}" value="..."/>\n</b:message>`
                   : `<b:message name="${msg.canonicalName}"/>`,
-                docUrls: ['https://bloggercode.orbiona.com/2018/02/data-messages.html'],
+                docUrls: ['https://bloggercode.orbiona.com/1979/12/Ressource-data-messages.html'],
               },
               range: { start: valStart, end: valEnd },
             };

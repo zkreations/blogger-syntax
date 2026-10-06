@@ -1,6 +1,6 @@
 /**
  * Blogger Template Skin / Designer variable descriptions
- * Reference: https://bloggercode-blogconnexion.blogspot.com/2014/06/tag-b-skin-b-template-skin.html#chapitre-07
+ * Reference: https://bloggercode.orbiona.com/2014/06/tag-b-skin-b-template-skin.html#chapitre-07#chapitre-07
  */
 export const bloggerDescriptions: readonly string[] = [
   'Accents',
