@@ -128,6 +128,18 @@ export class MockTextDocument {
     }
     return offset + position.character;
   }
+
+  public positionAt(offset: number): Position {
+    let current = 0;
+    for (let l = 0; l < this.lines.length; l++) {
+      const lineLen = (this.lines[l]?.length ?? 0) + 1;
+      if (current + lineLen > offset || l === this.lines.length - 1) {
+        return new Position(l, Math.max(0, offset - current));
+      }
+      current += lineLen;
+    }
+    return new Position(0, 0);
+  }
 }
 
 export class CompletionItem {
@@ -271,10 +283,79 @@ export class WorkspaceEdit {
   }
 }
 
+export class Location {
+  constructor(public uri: any, public range: Range) {}
+}
+
+export enum SymbolKind {
+  File = 0,
+  Module = 1,
+  Namespace = 2,
+  Package = 3,
+  Class = 4,
+  Method = 5,
+  Property = 6,
+  Field = 7,
+  Constructor = 8,
+  Enum = 9,
+  Interface = 10,
+  Function = 11,
+  Variable = 12,
+  Constant = 13,
+  String = 14,
+  Number = 15,
+  Boolean = 16,
+  Array = 17,
+  Object = 18,
+  Key = 19,
+  Null = 20,
+  EnumMember = 21,
+  Struct = 22,
+  Event = 23,
+  Operator = 24,
+  TypeParameter = 25,
+}
+
+export class DocumentSymbol {
+  public children: DocumentSymbol[] = [];
+
+  constructor(
+    public name: string,
+    public detail: string,
+    public kind: SymbolKind,
+    public range: Range,
+    public selectionRange: Range,
+  ) {}
+}
+
+export enum StatusBarAlignment {
+  Left = 1,
+  Right = 2,
+}
+
+export class MockStatusBarItem {
+  public text: string = '';
+  public tooltip: string = '';
+  public command?: string;
+  public isVisible: boolean = false;
+
+  public show(): void {
+    this.isVisible = true;
+  }
+
+  public hide(): void {
+    this.isVisible = false;
+  }
+
+  public dispose(): void {}
+}
+
 export const languages = {
   registerCompletionItemProvider: () => new Disposable(() => {}),
   registerHoverProvider: () => new Disposable(() => {}),
   registerCodeActionsProvider: () => new Disposable(() => {}),
+  registerDefinitionProvider: () => new Disposable(() => {}),
+  registerDocumentSymbolProvider: () => new Disposable(() => {}),
   createDiagnosticCollection: (name: string = 'default'): DiagnosticCollection => {
     const store = new Map<string, readonly Diagnostic[]>();
     return {
@@ -297,14 +378,18 @@ export const languages = {
 
 export const window = {
   activeTextEditor: undefined as {
-    document: { lineAt: (line: number) => { text: string }; lineCount: number };
+    document: { lineAt: (line: number) => { text: string }; lineCount: number; getText: () => string; offsetAt: (p: Position) => number; positionAt: (o: number) => Position; languageId: string };
     selection: { active: Position };
   } | undefined,
   onDidChangeTextEditorSelection: () => new Disposable(() => {}),
+  onDidChangeActiveTextEditor: () => new Disposable(() => {}),
+  createStatusBarItem: (_alignment?: StatusBarAlignment, _priority?: number) => new MockStatusBarItem(),
+  showInformationMessage: async (_msg: string) => undefined,
 };
 
 export const commands = {
   executeCommand: async () => {},
+  registerCommand: (_command: string, _callback: (...args: any[]) => any) => new Disposable(() => {}),
 };
 
 export const workspace = {
