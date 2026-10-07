@@ -1,4 +1,5 @@
 import type { BloggerDiagnostic } from '../linterTypes.js';
+import { PARAMETERIZED_MESSAGE_KEYS } from '../../data/messagesCatalog.js';
 import { isExpressionAttribute } from '../../resolver/pathResolver.js';
 import { createRange, scanXmlTags } from '../linterUtils.js';
 
@@ -330,19 +331,49 @@ export function checkHallucinations(
           ],
         });
       }
+
+      // 2h. Parameterized message direct reference inside expressions: data:messages.numberOfComments
+      for (const msgMatch of attrVal.matchAll(/\bdata:messages\.([\w-]+)\b/g)) {
+        const key = msgMatch[1];
+        if (key && PARAMETERIZED_MESSAGE_KEYS.has(key)) {
+          const start = attrValOffset + (msgMatch.index ?? 0);
+          const end = start + msgMatch[0].length;
+          const range = createRange(lineOffsets, start, end);
+          diagnostics.push({
+            code: 'blogger.syntax.parameterized-message-direct-invocation',
+            message: `Direct expression reference "data:messages.${key}" is prohibited. Parameterized messages require '<b:message name="messages.${key}"><b:param .../></b:message>'.`,
+            severity: 'error',
+            range,
+          });
+        }
+      }
     }
   }
 
-  // 3. Detect scalar <data:...> tags containing operators
+  // 3. Detect scalar <data:...> tags containing operators or parameterized messages
   const dataTagScanner = /<data:([\w.:][^>]*)>/gi;
   for (const match of maskedText.matchAll(dataTagScanner)) {
-    const body = match[1]?.trim() ?? '';
-    if (/\?:|\s+[+\-*/%]\s+|==|!=|<=|>=|<|>|\s+(?:and|or|not)\s+/i.test(body)) {
-      const matchStart = match.index ?? 0;
-      const range = createRange(lineOffsets, matchStart, matchStart + match[0].length);
+    const rawBody = match[1]?.trim() ?? '';
+    const cleanBody = rawBody.endsWith('/') ? rawBody.slice(0, -1).trim() : rawBody;
+    const matchStart = match.index ?? 0;
+    const matchEnd = matchStart + match[0].length;
+
+    if (/\?:|\s+[+\-*/%]\s+|==|!=|<=|>=|<|>|\s+(?:and|or|not)\s+/i.test(cleanBody)) {
+      const range = createRange(lineOffsets, matchStart, matchEnd);
       diagnostics.push({
         code: 'blogger.syntax.data-tag-contains-operators',
         message: '<data:...> is strictly for scalar dot-paths; calculated expressions require <b:eval expr="..."/>.',
+        severity: 'error',
+        range,
+      });
+    }
+
+    const msgKeyMatch = /^messages\.([\w-]+)/i.exec(cleanBody);
+    if (msgKeyMatch && msgKeyMatch[1] && PARAMETERIZED_MESSAGE_KEYS.has(msgKeyMatch[1])) {
+      const range = createRange(lineOffsets, matchStart, matchEnd);
+      diagnostics.push({
+        code: 'blogger.syntax.parameterized-message-direct-invocation',
+        message: `Direct tag invocation '<data:messages.${msgKeyMatch[1]}/>' is forbidden. Parameterized messages require '<b:message name="messages.${msgKeyMatch[1]}"><b:param .../></b:message>'.`,
         severity: 'error',
         range,
       });
