@@ -23,6 +23,7 @@ import { getWidgetDescriptor } from '../data/widgetDescriptors.js';
 import { blogWidgetProperties, singlePostProperties } from '../data/widgetsData.js';
 import { getWidgetSettingsSuggestions } from '../data/widgetSettingsData.js';
 import { resolveLambdaContextAtCursor } from '../parser/exprParser.js';
+import { getNearestUnclosedTag } from '../parser/tagTreeTracker.js';
 import {
 
   normalizeDocUrls,
@@ -227,8 +228,12 @@ export class BloggerPathResolver {
     return resolveSkinVariableTypesSuggestions();
   }
 
-  public resolveBloggerTags(hasOpenBracket: boolean, isClosingTag: boolean = false): readonly BloggerSuggestion[] {
-    return resolveBloggerTagSuggestions(hasOpenBracket, isClosingTag);
+  public resolveBloggerTags(
+    hasOpenBracket: boolean,
+    isClosingTag: boolean = false,
+    targetTag?: string,
+  ): readonly BloggerSuggestion[] {
+    return resolveBloggerTagSuggestions(hasOpenBracket, isClosingTag, targetTag);
   }
 
   public resolveExpressionContext(
@@ -616,8 +621,24 @@ export class BloggerPathResolver {
       const isClosingTag = bracketPrefix === '</';
       const hasOpenBracket = bracketPrefix === '<';
       const typedTag = tagMatch[2] ?? tagMatch[3] ?? '';
+
+      if (isClosingTag) {
+        const nearestOpenTag = options?.nearestOpenTag ?? getNearestUnclosedTag(linePrefix);
+        if (!nearestOpenTag) {
+          return undefined;
+        }
+        const closingSuggestions = this.resolveBloggerTags(false, true, nearestOpenTag);
+        if (closingSuggestions.length === 0) {
+          return undefined;
+        }
+        return {
+          suggestions: closingSuggestions,
+          replacementLength: typedTag.length,
+        };
+      }
+
       return {
-        suggestions: this.resolveBloggerTags(hasOpenBracket, isClosingTag),
+        suggestions: this.resolveBloggerTags(hasOpenBracket, false),
         replacementLength: typedTag.length,
       };
     }

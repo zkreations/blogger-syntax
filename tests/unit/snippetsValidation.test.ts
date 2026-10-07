@@ -65,6 +65,9 @@ describe('tags and snippets validation', () => {
 
     expect(varBare?.insertText).toMatch(/^<Variable\s/);
     expect(varOpen?.insertText).toMatch(/^Variable\s/);
-    expect(varClose?.insertText).toBe('Variable>');
+    expect(varClose).toBeUndefined();
+
+    const ifClose = suggestionsClose.find(s => s.name === 'b:if');
+    expect(ifClose?.insertText).toBe('b:if>');
   });
 });

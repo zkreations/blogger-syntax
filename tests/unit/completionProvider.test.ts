@@ -37,16 +37,26 @@ describe('bloggerCompletionProvider', () => {
     expect(ifItem?.kind).toBe(vscode.CompletionItemKind.Snippet);
   });
 
-  it('should provide completion items for closing Blogger tags', () => {
-    const text = '<div></b:loo';
+  it('should provide completion items for closing Blogger tags when tag is open', () => {
+    const text = '<b:loop values="data:posts" var="post"></b:loo';
     const document = createMockDocument(text);
     const position = new vscode.Position(0, text.length);
 
     const items = provider.provideCompletionItems(document, position) as vscode.CompletionItem[];
     expect(items).toBeDefined();
+    expect(items.length).toBe(1);
     const loopItem = items.find(item => item.label === 'b:loop');
     expect(loopItem).toBeDefined();
     expect(loopItem?.insertText).toBe('b:loop>');
+  });
+
+  it('should not provide closing Blogger tag when no Blogger tag is open', () => {
+    const text = '<div></b:loo';
+    const document = createMockDocument(text);
+    const position = new vscode.Position(0, text.length);
+
+    const items = provider.provideCompletionItems(document, position);
+    expect(items).toBeUndefined();
   });
 
   it('should provide attribute value completions in multi-line tags', () => {

@@ -15,6 +15,7 @@ import {
   bloggerWidgetTypeDetails,
   bloggerWidgetTypes,
 } from '../data/widgetTypes.js';
+import { isStrictlySelfClosingTag } from '../parser/tagTreeTracker.js';
 
 export interface TagAttributeContext {
   readonly tagName: string;
@@ -78,7 +79,9 @@ const STATIC_SKIN_VARIABLE_TYPES_SUGGESTIONS: readonly BloggerSuggestion[] = Obj
 );
 
 function createTagSuggestions(hasOpenBracket: boolean, isClosingTag: boolean): readonly BloggerSuggestion[] {
-  const baseTags = Object.values(bloggerTags);
+  const baseTags = isClosingTag
+    ? Object.values(bloggerTags).filter(tag => !isStrictlySelfClosingTag(tag.name))
+    : Object.values(bloggerTags);
   const tagsToMap = isClosingTag
     ? baseTags
     : [...baseTags, ...bloggerSkinVariableTags];
@@ -232,8 +235,17 @@ export function resolveSkinVariableTypesSuggestions(): readonly BloggerSuggestio
   return STATIC_SKIN_VARIABLE_TYPES_SUGGESTIONS;
 }
 
-export function resolveBloggerTagSuggestions(hasOpenBracket: boolean, isClosingTag: boolean = false): readonly BloggerSuggestion[] {
+export function resolveBloggerTagSuggestions(
+  hasOpenBracket: boolean,
+  isClosingTag: boolean = false,
+  targetTag?: string,
+): readonly BloggerSuggestion[] {
   if (isClosingTag) {
+    if (targetTag) {
+      const lower = targetTag.toLowerCase();
+      const match = STATIC_TAG_SUGGESTIONS_CLOSE.find(s => s.name.toLowerCase() === lower);
+      return match ? [match] : [];
+    }
     return STATIC_TAG_SUGGESTIONS_CLOSE;
   }
   return hasOpenBracket ? STATIC_TAG_SUGGESTIONS_OPEN : STATIC_TAG_SUGGESTIONS_BARE;

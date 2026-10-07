@@ -1,6 +1,7 @@
 import type { BloggerProperty } from '../../core/models/types.js';
 import type { BloggerPathResolver } from '../../core/resolver/pathResolver.js';
 import * as vscode from 'vscode';
+import { getNearestUnclosedTag } from '../../core/parser/tagTreeTracker.js';
 import { BloggerScopeTracker } from '../../core/scope/scopeTracker.js';
 import { createCompletionItems } from '../utils/completionAdapter.js';
 import { getDocumentOffset, getDocumentText } from '../utils/documentHelper.js';
@@ -30,12 +31,14 @@ export class BloggerCompletionProvider implements vscode.CompletionItemProvider 
     const widgetType = this.scopeTracker.getEnclosingWidgetType(docKey, version, fullText, offset);
     const includables = this.scopeTracker.getAvailableIncludables(docKey, version, fullText, offset);
     const enclosingMessageName = this.scopeTracker.getEnclosingMessageName(fullText, offset);
+    const nearestOpenTag = getNearestUnclosedTag(fullText, offset);
 
     const resolverContext = {
       localVariables: getLocalVariables,
       widgetType,
       includables,
       enclosingMessageName,
+      nearestOpenTag,
     };
 
     let result = this.pathResolver.resolveFromLinePrefix(linePrefix, resolverContext);

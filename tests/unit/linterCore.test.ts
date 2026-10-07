@@ -140,6 +140,43 @@ describe('linter core engine', () => {
       expect(closingDiags.some(d => d.message.includes('</b:template-script>'))).toBe(true);
     });
 
+    it('detects unclosed strictly self-closing tags and offers quick fixes', () => {
+      const xml = `<b:eval expr='snippet(data:view.description, { length: 150 })'>`;
+      const diags = lintBloggerDocument(xml);
+      const selfCloseDiag = diags.find(d => d.code === 'blogger.syntax.self-closing-required');
+
+      expect(selfCloseDiag).toBeDefined();
+      expect(selfCloseDiag?.severity).toBe('error');
+      expect(selfCloseDiag?.message).toContain('<b:eval> is strictly a self-closing tag');
+      expect(selfCloseDiag?.quickFixes?.[0]?.newText).toBe('/>');
+      expect(selfCloseDiag?.quickFixes?.[0]?.title).toBe('Close <b:eval/> with \'/>\'');
+
+      // Verify that applying the quick fix produces valid self-closing syntax
+      const fix = selfCloseDiag!.quickFixes![0]!;
+      const lines = xml.split('\n');
+      const startLine = lines[fix.range.start.line]!;
+      const modifiedLine = startLine.slice(0, fix.range.start.character)
+        + fix.newText
+        + startLine.slice(fix.range.end.character);
+      expect(modifiedLine).toBe('<b:eval expr=\'snippet(data:view.description, { length: 150 })\'/>');
+    });
+
+    it('detects other unclosed strictly self-closing tags like <b:else>, <b:include>, <b:param>', () => {
+      const xml = `
+        <b:if cond='data:view.isPost'>
+          <b:include name='post'>
+          <b:else>
+          <b:param name='x' value='1'>
+        </b:if>
+      `;
+      const diags = lintBloggerDocument(xml);
+      const selfCloseDiags = diags.filter(d => d.code === 'blogger.syntax.self-closing-required');
+      expect(selfCloseDiags).toHaveLength(3);
+      expect(selfCloseDiags.some(d => d.message.includes('<b:include>'))).toBe(true);
+      expect(selfCloseDiags.some(d => d.message.includes('<b:else>'))).toBe(true);
+      expect(selfCloseDiags.some(d => d.message.includes('<b:param>'))).toBe(true);
+    });
+
     it('detects inverted attributes on directives', () => {
       const xml = `
         <b:switch expr='data:view.type'/>

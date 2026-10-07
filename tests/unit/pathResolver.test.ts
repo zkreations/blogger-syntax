@@ -452,24 +452,36 @@ describe('bloggerPathResolver', () => {
       expect(result!.suggestions.length).toBe(25);
     });
 
-    it('should resolve Blogger tags for "</b:" as closing tags', () => {
-      const result = resolver.resolveFromLinePrefix('</b:');
+    it('should resolve nearest unclosed Blogger tag for "</b:"', () => {
+      const result = resolver.resolveFromLinePrefix('<b:if cond="true">\n</b:');
       expect(result).toBeDefined();
       expect(result!.replacementLength).toBe(2); // "b:".length
-      const ifTag = result!.suggestions.find(s => s.name === 'b:if');
-      expect(ifTag).toBeDefined();
-      expect(ifTag!.insertText).toBe('b:if>');
-      expect(ifTag!.isSnippet).toBe(false);
+      expect(result!.suggestions.length).toBe(1);
+      const ifTag = result!.suggestions[0];
+      expect(ifTag?.name).toBe('b:if');
+      expect(ifTag?.insertText).toBe('b:if>');
+      expect(ifTag?.isSnippet).toBe(false);
     });
 
-    it('should resolve Blogger tags for "</b:lo" with correct replacement length', () => {
-      const result = resolver.resolveFromLinePrefix('<div>\n  </b:lo');
+    it('should resolve Blogger tags for "</b:lo" with correct replacement length when b:loop is open', () => {
+      const result = resolver.resolveFromLinePrefix('<b:loop values="data:posts" var="post">\n  </b:lo');
       expect(result).toBeDefined();
       expect(result!.replacementLength).toBe(4); // "b:lo".length
-      const loopTag = result!.suggestions.find(s => s.name === 'b:loop');
-      expect(loopTag).toBeDefined();
-      expect(loopTag!.insertText).toBe('b:loop>');
-      expect(loopTag!.isSnippet).toBe(false);
+      expect(result!.suggestions.length).toBe(1);
+      const loopTag = result!.suggestions[0];
+      expect(loopTag?.name).toBe('b:loop');
+      expect(loopTag?.insertText).toBe('b:loop>');
+      expect(loopTag?.isSnippet).toBe(false);
+    });
+
+    it('should return undefined for "</b:" if no tags are open or nearest tag is closed', () => {
+      expect(resolver.resolveFromLinePrefix('</b:')).toBeUndefined();
+      expect(resolver.resolveFromLinePrefix('<b:if cond="true"></b:if>\n</b:')).toBeUndefined();
+    });
+
+    it('should return undefined for "</b:" if nearest tag is strictly self-closing or HTML element', () => {
+      expect(resolver.resolveFromLinePrefix('<b:eval expr="data:blog.title">\n</b:')).toBeUndefined();
+      expect(resolver.resolveFromLinePrefix('<div>\n</b:')).toBeUndefined();
     });
 
     it('should return undefined for non-matching lines or unsupported tag attributes', () => {
@@ -554,10 +566,13 @@ describe('bloggerPathResolver', () => {
         expect(tag!.detail).toMatch(/^\w+\(skin\)$/);
       }
 
-      // Closing tag should NOT have Variable (color)>
+      // Closing tag should NOT have Variable (color)> or Variable>
       const closeTags = resolver.resolveBloggerTags(false, true);
       expect(closeTags.find(s => s.name === 'Variable (color)')).toBeUndefined();
-      expect(closeTags.find(s => s.name === 'Variable')).toBeDefined();
+      expect(closeTags.find(s => s.name === 'Variable')).toBeUndefined();
+      expect(closeTags.find(s => s.name === 'b:eval')).toBeUndefined();
+      expect(closeTags.find(s => s.name === 'b:include')).toBeUndefined();
+      expect(closeTags.find(s => s.name === 'b:else')).toBeUndefined();
     });
   });
 });

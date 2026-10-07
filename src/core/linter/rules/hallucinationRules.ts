@@ -41,6 +41,7 @@ const PROHIBITED_CLOSING_TAGS: readonly { tag: string; message: string }[] = [
   { tag: 'b:class', message: '<b:class> is strictly self-closing (<b:class name="..."/>); closing tag </b:class> does not exist in Blogger.' },
   { tag: 'b:param', message: '<b:param> is strictly self-closing (<b:param name="..." value="..."/>); closing tag </b:param> does not exist in Blogger.' },
   { tag: 'b:template-script', message: '<b:template-script> is strictly self-closing (<b:template-script name="..."/>); closing tag </b:template-script> does not exist in Blogger.' },
+  { tag: 'Variable', message: '<Variable> is strictly self-closing (<Variable .../>); closing tag </Variable> does not exist in Blogger.' },
 ];
 
 const PROHIBITED_CLOSING_MAP = new Map(PROHIBITED_CLOSING_TAGS.map(t => [t.tag.toLowerCase(), t]));
@@ -106,6 +107,27 @@ export function checkHallucinations(
     const tagContent = tag.tagContent;
     const tagContentOffset = tag.tagContentOffset;
     const lowerTagName = tagName.toLowerCase();
+
+    // Strictly self-closing tags must end with '/>'
+    const isSelfClosing = tagContent.trimEnd().endsWith('/');
+    if (!isSelfClosing && PROHIBITED_CLOSING_MAP.has(lowerTagName)) {
+      const tagRange = createRange(lineOffsets, tag.tagStart, tag.tagEnd);
+      const closeDelimiterRange = createRange(lineOffsets, tag.tagEnd - 1, tag.tagEnd);
+      diagnostics.push({
+        code: 'blogger.syntax.self-closing-required',
+        message: `<${tagName}> is strictly a self-closing tag and must end with '/>' (e.g. <${tagName} .../>).`,
+        severity: 'error',
+        range: tagRange,
+        quickFixes: [
+          {
+            title: `Close <${tagName}/> with '/>'`,
+            newText: '/>',
+            range: closeDelimiterRange,
+            isPreferred: true,
+          },
+        ],
+      });
+    }
 
     for (const attrMatch of tagContent.matchAll(ATTR_VALUE_SCANNER)) {
       const attrName = attrMatch[1] ?? '';

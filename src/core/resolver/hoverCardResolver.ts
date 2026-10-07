@@ -21,6 +21,7 @@ export interface BloggerResolverContext {
   readonly widgetType?: string | undefined;
   readonly includables?: BloggerIncludablesInfo | undefined;
   readonly enclosingMessageName?: string | undefined;
+  readonly nearestOpenTag?: string | undefined;
 }
 
 const HOVER_DATA_REGEX = /(?:^|[^\w:.])(data:[[\]\w.]*)/g;
