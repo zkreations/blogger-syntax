@@ -19,7 +19,6 @@ describe('operators - Catalog Integrity, Dual Syntax & Autocompletion', () => {
         'select',
         'count',
         'first',
-        'last',
         'any',
         'all',
         'none',
