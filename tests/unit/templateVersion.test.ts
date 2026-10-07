@@ -16,8 +16,8 @@ describe('template version detector', () => {
     expect(res.confidence).toBe('explicit');
   });
 
-  it('detects explicit <b:layoutsVersion> tag', () => {
-    const xml = `<b:layoutsVersion>1</b:layoutsVersion>`;
+  it('detects explicit b:layoutsVersion="1" attribute', () => {
+    const xml = `<html b:layoutsVersion='1'></html>`;
     const res = detectTemplateVersion(xml);
     expect(res.version).toBe(1);
     expect(res.confidence).toBe('explicit');
