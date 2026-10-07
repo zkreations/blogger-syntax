@@ -103,7 +103,6 @@ interface StackElement {
   readonly type?: string | undefined;
   readonly start: number;
   readonly end: number;
-  hasMainIncludable?: boolean | undefined;
 }
 
 export function checkDocumentStructure(
@@ -152,20 +151,6 @@ export function checkDocumentStructure(
     if (token.isClosing) {
       for (let i = stack.length - 1; i >= 0; i--) {
         if (stack[i]!.lowerTagName === lower) {
-          const closingEl = stack[i]!;
-
-          // Check if <b:widget> had an includable id='main'
-          if (closingEl.lowerTagName === 'b:widget' && !closingEl.hasMainIncludable) {
-            const range = createRange(lineOffsets, closingEl.start, closingEl.end);
-            const wIdStr = closingEl.id ? ` "${closingEl.id}"` : '';
-            diagnostics.push({
-              code: 'blogger.structure.missing-main-includable',
-              message: `<b:widget${wIdStr}> must declare a primary <b:includable id='main'> subroutine.`,
-              severity: 'error',
-              range,
-            });
-          }
-
           stack.splice(i);
           break;
         }
@@ -302,9 +287,24 @@ export function checkDocumentStructure(
       }
     }
 
-    if (lower === 'b:includable' && parentLower === 'b:widget') {
-      if (idVal === 'main' && parent) {
-        parent.hasMainIncludable = true;
+    if (lower === 'group') {
+      if (parentLower === 'group') {
+        diagnostics.push({
+          code: 'blogger.structure.nested-group',
+          message: `<Group> cannot nest inside another <Group>.`,
+          severity: 'error',
+          range: currentRange,
+        });
+      }
+    }
+    else if (parentLower === 'group') {
+      if (lower !== 'variable') {
+        diagnostics.push({
+          code: 'blogger.structure.invalid-group-child',
+          message: `<Group> permits only <Variable> elements as direct children.`,
+          severity: 'error',
+          range: currentRange,
+        });
       }
     }
 

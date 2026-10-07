@@ -59,6 +59,36 @@ export function createRange(
   };
 }
 
+function maskCdataBlock(match: string): string {
+  if (!match.includes('<Variable') && !match.includes('<Group') && !match.includes('</Group')) {
+    return match.replace(/[^\r\n]/g, ' ');
+  }
+
+  const prefixLen = '<![CDATA['.length;
+  const suffixLen = ']]>'.length;
+  const inner = match.slice(prefixLen, match.length - suffixLen);
+
+  const prefixSpaces = ' '.repeat(prefixLen);
+  const suffixSpaces = ' '.repeat(suffixLen);
+
+  const tagRegex = /<\/?(?:Variable|Group)\b(?:"[^"]*"|'[^']*'|[^"'/>])*\/?>/gi;
+  let maskedInner = '';
+  let lastIndex = 0;
+
+  for (const tagMatch of inner.matchAll(tagRegex)) {
+    const matchIndex = tagMatch.index ?? 0;
+    const gap = inner.slice(lastIndex, matchIndex);
+    maskedInner += gap.replace(/[^\r\n]/g, ' ');
+    maskedInner += tagMatch[0];
+    lastIndex = matchIndex + tagMatch[0].length;
+  }
+
+  const trailing = inner.slice(lastIndex);
+  maskedInner += trailing.replace(/[^\r\n]/g, ' ');
+
+  return prefixSpaces + maskedInner + suffixSpaces;
+}
+
 /**
  * Masks XML comments, CDATA blocks, and <b:comment> bodies with whitespace,
  * preserving character offsets and line breaks.
@@ -71,7 +101,7 @@ export function maskComments(text: string): string {
   }
 
   if (masked.includes('<![CDATA[')) {
-    masked = masked.replace(/<!\[CDATA\[[\s\S]*?\]\]>/g, match => match.replace(/[^\r\n]/g, ' '));
+    masked = masked.replace(/<!\[CDATA\[[\s\S]*?\]\]>/g, match => maskCdataBlock(match));
   }
 
   if (masked.includes('<b:comment')) {

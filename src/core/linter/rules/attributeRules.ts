@@ -23,7 +23,18 @@ const VALID_VARIABLE_TYPES = new Set([
   'background',
   'string',
   'url',
+  'automatic',
 ]);
+
+const VARIABLE_TYPE_ALLOWED_ATTRS: Record<string, ReadonlySet<string>> = {
+  color: new Set(['name', 'description', 'type', 'default', 'value', 'hideeditor', 'red', 'green', 'blue', 'alpha']),
+  font: new Set(['name', 'description', 'type', 'default', 'value', 'hideeditor', 'family', 'size']),
+  length: new Set(['name', 'description', 'type', 'default', 'value', 'hideeditor', 'min', 'max']),
+  background: new Set(['name', 'description', 'type', 'default', 'value', 'color']),
+  string: new Set(['name', 'description', 'type', 'default', 'value']),
+  url: new Set(['name', 'description', 'type', 'default', 'value']),
+  automatic: new Set(['name', 'description', 'type', 'default', 'value']),
+};
 
 const STATIC_ONLY_ATTRS: Record<string, ReadonlySet<string>> = {
   'b:section': new Set(['id', 'showaddelement', 'preferred']),
@@ -173,7 +184,10 @@ const DIRECTIVE_REQUIREMENTS: Record<string, TagAttributeRequirement> = {
     ]),
   },
   'Group': {
-    required: ['description'],
+    required: [
+      'description',
+      'selector',
+    ],
     validAttributes: new Set(['description', 'selector']),
   },
 };
@@ -501,6 +515,22 @@ export function checkDirectiveAttributes(
             severity: 'error',
             range,
           });
+        }
+        else {
+          const allowedAttrs = VARIABLE_TYPE_ALLOWED_ATTRS[typeVal];
+          if (allowedAttrs) {
+            for (const [attrLowerKey, attrInfo] of parsedAttrs) {
+              if (!allowedAttrs.has(attrLowerKey)) {
+                const range = createRange(lineOffsets, attrInfo.attrStart, attrInfo.attrEnd);
+                diagnostics.push({
+                  code: 'blogger.syntax.invalid-variable-attribute',
+                  message: `Attribute "${attrInfo.rawName}" is not valid for <Variable> of type "${typeVal}".`,
+                  severity: 'error',
+                  range,
+                });
+              }
+            }
+          }
         }
       }
     }

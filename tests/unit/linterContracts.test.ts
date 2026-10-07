@@ -267,17 +267,77 @@ describe('linter contracts & horatio specifications', () => {
       expect(invalidChild).toBeDefined();
     });
 
-    it('requires <b:includable id="main"> in every <b:widget>', () => {
+    it('allows <b:widget> without <b:includable id="main"> as compiler injects default inclusion', () => {
       const xml = `
         <b:section id='main'>
           <b:widget id='HTML1' type='HTML'>
             <b:includable id='custom'/>
           </b:widget>
+          <b:widget id='HTML2' type='HTML'/>
         </b:section>
       `;
       const diags = lintBloggerDocument(xml);
-      const missingMain = diags.find(d => d.code === 'blogger.structure.missing-main-includable');
-      expect(missingMain).toBeDefined();
+      const missingMain = diags.filter(d => d.code === 'blogger.structure.missing-main-includable');
+      expect(missingMain).toHaveLength(0);
+    });
+  });
+
+  describe('theme designer skin variables inside <b:skin> CDATA', () => {
+    it('detects unclosed <Variable> and suggests self-closing delimiter />', () => {
+      const xml = `
+        <b:skin><![CDATA[
+          <Group description="Accents" selector="selector">
+            <Variable name="name" description="Accents" type="color" default="default" value="value">
+          </Group>
+        ]]></b:skin>
+      `;
+      const diags = lintBloggerDocument(xml);
+      const selfCloseDiag = diags.find(d => d.code === 'blogger.syntax.self-closing-required' && d.message.includes('Variable'));
+      expect(selfCloseDiag).toBeDefined();
+      expect(selfCloseDiag?.quickFixes?.[0]?.newText).toBe('/>');
+    });
+
+    it('accepts properly closed <Variable .../> with valid core and type-specific attributes', () => {
+      const xml = `
+        <b:skin><![CDATA[
+          <Group description="Accents" selector="selector">
+            <Variable name="name" description="Accents" type="color" default="#333333" value="#333333"/>
+            <Variable name="body.font" description="Body Font" type="font" family="Arial" size="14px" default="Arial" value="Arial"/>
+            <Variable name="content.width" description="Width" type="length" min="600px" max="1200px" default="960px" value="960px"/>
+          </Group>
+        ]]></b:skin>
+      `;
+      const diags = lintBloggerDocument(xml);
+      const varDiags = diags.filter(d => d.code.startsWith('blogger.syntax.invalid-variable') || d.code.startsWith('blogger.missing.attribute'));
+      expect(varDiags).toHaveLength(0);
+    });
+
+    it('rejects type-incompatible attributes on <Variable>', () => {
+      const xml = `
+        <b:skin><![CDATA[
+          <Group description="Accents" selector="selector">
+            <Variable name="test" description="Color" type="color" default="#fff" value="#fff" family="Arial"/>
+          </Group>
+        ]]></b:skin>
+      `;
+      const diags = lintBloggerDocument(xml);
+      const invalidAttr = diags.find(d => d.code === 'blogger.syntax.invalid-variable-attribute');
+      expect(invalidAttr).toBeDefined();
+      expect(invalidAttr?.message).toContain('"family"');
+      expect(invalidAttr?.message).toContain('"color"');
+    });
+
+    it('requires selector and description on <Group>', () => {
+      const xml = `
+        <b:skin><![CDATA[
+          <Group description="Accents">
+            <Variable name="test" description="Color" type="color" default="#fff" value="#fff"/>
+          </Group>
+        ]]></b:skin>
+      `;
+      const diags = lintBloggerDocument(xml);
+      const missingSelector = diags.find(d => d.code === 'blogger.missing.attribute' && d.message.includes('selector'));
+      expect(missingSelector).toBeDefined();
     });
   });
 
