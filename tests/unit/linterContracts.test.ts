@@ -327,17 +327,28 @@ describe('linter contracts & horatio specifications', () => {
       expect(invalidAttr?.message).toContain('"color"');
     });
 
-    it('requires selector and description on <Group>', () => {
-      const xml = `
+    it('requires description on <Group> while selector is optional', () => {
+      const xmlWithoutDesc = `
+        <b:skin><![CDATA[
+          <Group selector="selector">
+            <Variable name="test" description="Color" type="color" default="#fff" value="#fff"/>
+          </Group>
+        ]]></b:skin>
+      `;
+      const diagsWithoutDesc = lintBloggerDocument(xmlWithoutDesc);
+      const missingDesc = diagsWithoutDesc.find(d => d.code === 'blogger.missing.attribute' && d.message.includes('description'));
+      expect(missingDesc).toBeDefined();
+
+      const xmlWithOnlyDesc = `
         <b:skin><![CDATA[
           <Group description="Accents">
             <Variable name="test" description="Color" type="color" default="#fff" value="#fff"/>
           </Group>
         ]]></b:skin>
       `;
-      const diags = lintBloggerDocument(xml);
-      const missingSelector = diags.find(d => d.code === 'blogger.missing.attribute' && d.message.includes('selector'));
-      expect(missingSelector).toBeDefined();
+      const diagsWithOnlyDesc = lintBloggerDocument(xmlWithOnlyDesc);
+      const missingAttr = diagsWithOnlyDesc.find(d => d.code.startsWith('blogger.missing.attribute'));
+      expect(missingAttr).toBeUndefined();
     });
   });
 

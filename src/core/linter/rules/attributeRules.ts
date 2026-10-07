@@ -184,10 +184,7 @@ const DIRECTIVE_REQUIREMENTS: Record<string, TagAttributeRequirement> = {
     ]),
   },
   'Group': {
-    required: [
-      'description',
-      'selector',
-    ],
+    required: ['description'],
     validAttributes: new Set(['description', 'selector']),
   },
 };
