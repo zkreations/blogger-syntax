@@ -1,6 +1,7 @@
 import type { BloggerProperty } from '../models/types.js';
 import { messagesProperties, widgetMetaProperties } from '../data/globalData.js';
 import { WIDGET_DATA_DICTIONARIES } from '../data/widgetsData.js';
+import { maskCommentsAndCdata } from '../utils/textUtils.js';
 import {
   inferIncludableVariables,
   inferLoopVariables,
@@ -51,15 +52,6 @@ function extractAttribute(
   }
   const match = regex.exec(attrString);
   return match ? (match[1] ?? match[2]) : undefined;
-}
-
-function maskCommentsAndCdata(text: string): string {
-  if (!text.includes('<!--') && !text.includes('<![CDATA[')) {
-    return text;
-  }
-  return text.replace(/<!--[\s\S]*?-->|<!\[CDATA\[[\s\S]*?\]\]>/g, (match) => {
-    return match.replace(/[^\r\n]/g, ' ');
-  });
 }
 
 function mergeStackVariables(stack: readonly BloggerScopeBlock[]): Record<string, BloggerProperty> {
@@ -326,7 +318,7 @@ export class BloggerScopeTracker {
     function collectDefaultMarkups(blocks: readonly BloggerScopeBlock[]) {
       for (const b of blocks) {
         if (b.tag === 'b:defaultmarkup') {
-          if (!enclosingWidget || !b.widgetType || b.widgetType === enclosingWidget.widgetType) {
+          if (!enclosingWidget || !b.widgetType || b.widgetType === enclosingWidget.widgetType || b.widgetType === 'Common') {
             for (const child of b.children) {
               if (child.tag === 'b:includable' && child.includableId) {
                 defaultMarkupsSet.add(child.includableId);

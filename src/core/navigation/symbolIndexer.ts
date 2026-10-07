@@ -1,7 +1,7 @@
-export interface Span {
-  start: number;
-  end: number;
-}
+import type { Span } from '../utils/textUtils.js';
+import { maskCommentsAndCdata } from '../utils/textUtils.js';
+
+export type { Span };
 
 export type BloggerSymbolCategory
   = | 'section'
@@ -19,15 +19,6 @@ export interface BloggerSymbolNode {
   span: Span;
   selectionSpan: Span;
   children: BloggerSymbolNode[];
-}
-
-function maskCommentsAndCdata(text: string): string {
-  if (!text.includes('<!--') && !text.includes('<![CDATA[')) {
-    return text;
-  }
-  return text.replace(/<!--[\s\S]*?-->|<!\[CDATA\[[\s\S]*?\]\]>/g, (m) => {
-    return m.replace(/[^\r\n]/g, ' ');
-  });
 }
 
 const SYMBOL_TAG_REGEX = /<(\/)?b:(section|widget-settings|widget|includable|defaultmarkups|defaultmarkup|template-skin|skin)\b((?:"[^"]*"|'[^']*'|[^"'/>])*)(\/?)>/gi;

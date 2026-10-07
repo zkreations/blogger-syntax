@@ -1,7 +1,7 @@
-export interface Span {
-  start: number;
-  end: number;
-}
+import type { Span } from '../utils/textUtils.js';
+import { maskCommentsAndCdata } from '../utils/textUtils.js';
+
+export type { Span };
 
 export interface IncludableDefinitionMatch {
   targetId: string;
@@ -17,15 +17,6 @@ interface IncludableCandidate {
   tagSpan: Span;
   idSpan: Span;
   fullSpan: Span;
-}
-
-function maskCommentsAndCdata(text: string): string {
-  if (!text.includes('<!--') && !text.includes('<![CDATA[')) {
-    return text;
-  }
-  return text.replace(/<!--[\s\S]*?-->|<!\[CDATA\[[\s\S]*?\]\]>/g, (m) => {
-    return m.replace(/[^\r\n]/g, ' ');
-  });
 }
 
 const INCLUDE_TAG_REGEX = /<b:include\b((?:"[^"]*"|'[^']*'|[^"'/>])*)\/?>/gi;
@@ -268,7 +259,14 @@ export function findIncludableDefinition(
     );
   }
 
-  // Priority 3: Fallback to the first matching candidate in the document
+  // Priority 3: In defaultmarkup of type 'Common' (universal subroutines)
+  if (!bestCandidate) {
+    bestCandidate = matchingCandidates.find(
+      c => c.parentMarkupType && c.parentMarkupType.toLowerCase() === 'common',
+    );
+  }
+
+  // Priority 4: Fallback to the first matching candidate in the document
   if (!bestCandidate) {
     bestCandidate = matchingCandidates[0];
   }
