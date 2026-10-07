@@ -13,6 +13,7 @@ import {
   getSystemMessageSuggestions,
 } from '../data/messagesCatalog.js';
 import {
+  bloggerOperatorsCatalog,
   getFunctionalOperatorSuggestions,
   getOperatorSuggestions,
 } from '../data/operatorsData.js';
@@ -22,9 +23,12 @@ import { getWidgetDescriptor } from '../data/widgetDescriptors.js';
 import { blogWidgetProperties, singlePostProperties } from '../data/widgetsData.js';
 import { getWidgetSettingsSuggestions } from '../data/widgetSettingsData.js';
 import {
+  detectLambdaPreArrowContext,
   extractLeftOperandAtCursor,
   extractPrecedingExpressionForMember,
   inferExpressionType,
+  inferSingularParamName,
+  resolveCollectionProperty,
   resolveLambdaContextAtCursor,
 } from '../parser/exprParser.js';
 import { getNearestUnclosedTag } from '../parser/tagTreeTracker.js';
@@ -244,6 +248,7 @@ export class BloggerPathResolver {
     expressionText: string,
     localVariables?: Record<string, BloggerProperty>,
     isLoopContext: boolean = false,
+    lineSuffix?: string,
   ): BloggerResolveResult | undefined {
     // 1. Data path context (data: or data:path. or data:path.partial)
     const dataMatch = DATA_PREFIX_REGEX.exec(expressionText);
@@ -294,17 +299,70 @@ export class BloggerPathResolver {
           replacementLength: lambdaContext.currentToken.length,
         };
       }
-      if (!lambdaContext.isNavigatingMember && lambdaContext.currentToken) {
-        const suggestions: BloggerSuggestion[] = Object.entries(lambdaContext.activeScopes).map(([pName, prop]) => ({
+      if (!lambdaContext.isNavigatingMember) {
+        const varSuggestions: BloggerSuggestion[] = Object.entries(lambdaContext.activeScopes).map(([pName, prop]) => ({
           name: pName,
           type: prop.type,
           kind: 'variable' as const,
           description: prop.description ?? `Lambda parameter \`${pName}\`.`,
           example: pName,
         }));
+        const dataPrefixSuggestion: BloggerSuggestion = {
+          name: 'data:',
+          type: 'object',
+          kind: 'property',
+          detail: '(Blogger Data Prefix)',
+          description: 'Blogger data expression prefix.',
+          example: 'data:blog.title',
+        };
+        const suggestions = [...varSuggestions, dataPrefixSuggestion];
+        const filtered = lambdaContext.currentToken
+          ? suggestions.filter(s => s.name.startsWith(lambdaContext.currentToken))
+          : suggestions;
+        if (filtered.length > 0) {
+          return {
+            suggestions: filtered,
+            replacementLength: lambdaContext.currentToken.length,
+          };
+        }
+      }
+    }
+
+    // 2.5. Incomplete Lambda pre-arrow context (e.g. data:posts first ( or data:posts first (p )
+    const preArrow = detectLambdaPreArrowContext(expressionText);
+    if (preArrow) {
+      if (preArrow.isWaitingForArrow) {
         return {
-          suggestions,
-          replacementLength: lambdaContext.currentToken.length,
+          suggestions: [{
+            name: '=>',
+            insertText: '=> $0',
+            isSnippet: true,
+            kind: 'operator' as const,
+            type: 'object',
+            detail: '(Blogger Lambda Arrow)',
+            description: 'Mandatory arrow separator between lambda parameter and predicate expression.',
+            example: `(${preArrow.paramName} => expression)`,
+          }],
+          replacementLength: 0,
+        };
+      }
+      if (!preArrow.paramName) {
+        const colProp = preArrow.collectionOperand
+          ? resolveCollectionProperty(preArrow.collectionOperand, localVariables)
+          : undefined;
+        const paramName = inferSingularParamName(preArrow.collectionOperand ?? '', colProp);
+        return {
+          suggestions: [{
+            name: paramName,
+            insertText: `\${1:${paramName}} => \$0`,
+            isSnippet: true,
+            kind: 'variable' as const,
+            type: 'object',
+            detail: `(Lambda Parameter: ${paramName})`,
+            description: `Lambda iterator parameter for \`${preArrow.operator}\`.`,
+            example: `(${paramName} => ...)`,
+          }],
+          replacementLength: 0,
         };
       }
     }
@@ -365,15 +423,33 @@ export class BloggerPathResolver {
     // 4. Infix operator position (<operand> <space> [partialOp])
     const opInfo = extractLeftOperandAtCursor(expressionText);
     if (opInfo) {
-      const inferred = inferExpressionType(opInfo.operand, localVariables);
+      const lambdaScopes = lambdaContext?.activeScopes;
+      const inferred = inferExpressionType(opInfo.operand, localVariables, lambdaScopes);
       const leftType = inferred.type;
       const allOps = getOperatorSuggestions(leftType, isLoopContext);
       const filtered = opInfo.partialOp
         ? allOps.filter(op => op.name.startsWith(opInfo.partialOp))
         : allOps;
       if (filtered.length > 0) {
+        const hasParenSuffix = lineSuffix ? /^\s*\(/.test(lineSuffix) : false;
+        const colProp = hasParenSuffix ? undefined : resolveCollectionProperty(opInfo.operand, localVariables, lambdaScopes);
+        const paramName = hasParenSuffix ? 'item' : inferSingularParamName(opInfo.operand, colProp);
+
+        const enriched = filtered.map((op) => {
+          const isLambda = bloggerOperatorsCatalog[op.name]?.isLambdaOperator;
+          if (isLambda && !hasParenSuffix) {
+            return {
+              ...op,
+              isSnippet: true,
+              insertText: `${op.name} (\${1:${paramName}} => \$0)`,
+              detail: '(Blogger Lambda Operator)',
+            };
+          }
+          return op;
+        });
+
         return {
-          suggestions: filtered,
+          suggestions: enriched,
           replacementLength: opInfo.partialOp.length,
         };
       }
@@ -561,6 +637,7 @@ export class BloggerPathResolver {
           typedText,
           localVariables,
           attrName === 'values' && tagName === 'b:loop',
+          options?.lineSuffix,
         );
       }
     }
@@ -591,18 +668,32 @@ export class BloggerPathResolver {
           replacementLength: bareLambdaContext.currentToken.length,
         };
       }
-      if (!bareLambdaContext.isNavigatingMember && bareLambdaContext.currentToken) {
-        const suggestions: BloggerSuggestion[] = Object.entries(bareLambdaContext.activeScopes).map(([pName, prop]) => ({
+      if (!bareLambdaContext.isNavigatingMember) {
+        const varSuggestions: BloggerSuggestion[] = Object.entries(bareLambdaContext.activeScopes).map(([pName, prop]) => ({
           name: pName,
           type: prop.type,
           kind: 'variable' as const,
           description: prop.description ?? `Lambda parameter \`${pName}\`.`,
           example: pName,
         }));
-        return {
-          suggestions,
-          replacementLength: bareLambdaContext.currentToken.length,
+        const dataPrefixSuggestion: BloggerSuggestion = {
+          name: 'data:',
+          type: 'object',
+          kind: 'property',
+          detail: '(Blogger Data Prefix)',
+          description: 'Blogger data expression prefix.',
+          example: 'data:blog.title',
         };
+        const suggestions = [...varSuggestions, dataPrefixSuggestion];
+        const filtered = bareLambdaContext.currentToken
+          ? suggestions.filter(s => s.name.startsWith(bareLambdaContext.currentToken))
+          : suggestions;
+        if (filtered.length > 0) {
+          return {
+            suggestions: filtered,
+            replacementLength: bareLambdaContext.currentToken.length,
+          };
+        }
       }
     }
 

@@ -525,6 +525,9 @@ function findEffectiveOperand(beforeOp: string): string {
         depth--;
       }
       else if (depth === 0) {
+        if (ch === '>' && i > 0 && beforeOp[i - 1] === '=') {
+          return beforeOp.slice(i + 1).trim();
+        }
         if (ch === ',' || ch === '?') {
           return beforeOp.slice(i + 1).trim();
         }
@@ -604,6 +607,7 @@ export function extractPrecedingExpressionForMember(
 export function inferExpressionType(
   expr: string,
   localVariables?: Record<string, BloggerProperty>,
+  lambdaScopes?: Record<string, BloggerProperty>,
 ): InferredExprResult {
   let trimmed = expr.trim();
   if (!trimmed) {
@@ -615,7 +619,7 @@ export function inferExpressionType(
   if (parenMemberMatch && parenMemberMatch[1] && parenMemberMatch[2]) {
     const inner = parenMemberMatch[1].trim();
     const modName = parenMemberMatch[2];
-    const innerRes = inferExpressionType(inner, localVariables);
+    const innerRes = inferExpressionType(inner, localVariables, lambdaScopes);
     const modifiers = getTypeModifiers(innerRes.type, innerRes.itemChildren);
     if (modifiers && modifiers[modName]) {
       const prop = modifiers[modName]!;
@@ -656,7 +660,7 @@ export function inferExpressionType(
   const filterKeywordMatch = /\s+(?:filter|where)\s*\(/i.exec(trimmed);
   if (filterKeywordMatch && filterKeywordMatch.index > 0) {
     const sourceExpr = trimmed.slice(0, filterKeywordMatch.index).trim();
-    const source = inferExpressionType(sourceExpr, localVariables);
+    const source = inferExpressionType(sourceExpr, localVariables, lambdaScopes);
     return {
       type: 'array',
       targetProperty: source.targetProperty,
@@ -673,7 +677,7 @@ export function inferExpressionType(
   const firstLambdaMatch = /\s+first\s*\(/i.exec(trimmed);
   if (firstLambdaMatch && firstLambdaMatch.index > 0) {
     const sourceExpr = trimmed.slice(0, firstLambdaMatch.index).trim();
-    const source = inferExpressionType(sourceExpr, localVariables);
+    const source = inferExpressionType(sourceExpr, localVariables, lambdaScopes);
     const elementProp = getArrayElementProperty(source.targetProperty);
     return {
       type: elementProp?.type ?? 'object',
@@ -685,7 +689,7 @@ export function inferExpressionType(
   const sliceKeywordMatch = /\s+(?:take|limit|skip|offset)\s+\d+/i.exec(trimmed);
   if (sliceKeywordMatch && sliceKeywordMatch.index > 0) {
     const sourceExpr = trimmed.slice(0, sliceKeywordMatch.index).trim();
-    const source = inferExpressionType(sourceExpr, localVariables);
+    const source = inferExpressionType(sourceExpr, localVariables, lambdaScopes);
     return {
       type: 'array',
       targetProperty: source.targetProperty,
@@ -698,7 +702,7 @@ export function inferExpressionType(
   const elementNavMatch = /(?:\.(?:first|last)|\s+(?:first|last))$/i.exec(trimmed);
   if (elementNavMatch && elementNavMatch.index > 0) {
     const sourceExpr = trimmed.slice(0, elementNavMatch.index).trim();
-    const source = inferExpressionType(sourceExpr, localVariables);
+    const source = inferExpressionType(sourceExpr, localVariables, lambdaScopes);
     const elementProp = getArrayElementProperty(source.targetProperty);
     return {
       type: elementProp?.type ?? 'object',
@@ -712,11 +716,11 @@ export function inferExpressionType(
     const elvisIdx = trimmed.indexOf('?:');
     const leftBranch = trimmed.slice(0, elvisIdx).trim();
     const rightBranch = trimmed.slice(elvisIdx + 2).trim();
-    const leftRes = inferExpressionType(leftBranch, localVariables);
+    const leftRes = inferExpressionType(leftBranch, localVariables, lambdaScopes);
     if (leftRes.type !== 'unknown') {
       return leftRes;
     }
-    return inferExpressionType(rightBranch, localVariables);
+    return inferExpressionType(rightBranch, localVariables, lambdaScopes);
   }
 
   // 7. Ternary operation: "cond ? branchA : branchB"
@@ -733,7 +737,7 @@ export function inferExpressionType(
     if (branchA === 'true' || branchA === 'false') {
       return { type: 'boolean' };
     }
-    return inferExpressionType(branchA, localVariables);
+    return inferExpressionType(branchA, localVariables, lambdaScopes);
   }
 
   // 8. String concatenation or string literal
@@ -775,8 +779,8 @@ export function inferExpressionType(
   if (plusMatch) {
     const leftPart = trimmed.slice(0, plusMatch.index).trim();
     const rightPart = trimmed.slice(plusMatch.index + 1).trim();
-    const leftRes = inferExpressionType(leftPart, localVariables);
-    const rightRes = inferExpressionType(rightPart, localVariables);
+    const leftRes = inferExpressionType(leftPart, localVariables, lambdaScopes);
+    const rightRes = inferExpressionType(rightPart, localVariables, lambdaScopes);
     if (leftRes.type === 'number' && rightRes.type === 'number') {
       return { type: 'number' };
     }
@@ -790,7 +794,7 @@ export function inferExpressionType(
   }
 
   // 11. Direct collection or property path
-  const targetProp = resolveCollectionProperty(trimmed, localVariables);
+  const targetProp = resolveCollectionProperty(trimmed, localVariables, lambdaScopes);
   if (targetProp) {
     return {
       type: targetProp.type,
@@ -801,4 +805,65 @@ export function inferExpressionType(
   }
 
   return { type: 'unknown' };
+}
+
+/**
+ * Infers a singular parameter name (e.g. 'p', 'l', 'c', 'item') from a collection expression or property.
+ */
+export function inferSingularParamName(operand: string, prop?: BloggerProperty): string {
+  const rawName = prop?.name ?? operand.split(/[:.[\]]/).filter(Boolean).pop()?.toLowerCase() ?? '';
+  switch (rawName) {
+    case 'posts':
+      return 'p';
+    case 'labels':
+      return 'l';
+    case 'comments':
+      return 'c';
+    case 'links':
+      return 'l';
+    case 'items':
+      return 'item';
+    case 'widgets':
+      return 'w';
+    default:
+      if (rawName.length > 2 && rawName.endsWith('s')) {
+        return rawName[0]?.toLowerCase() ?? 'item';
+      }
+      return 'item';
+  }
+}
+
+export interface LambdaPreArrowContext {
+  readonly operator: string;
+  readonly paramName?: string | undefined;
+  readonly isWaitingForArrow: boolean;
+  readonly collectionOperand?: string | undefined;
+}
+
+/**
+ * Detects whether the cursor is inside an incomplete lambda before the arrow '=>'
+ * (e.g. `data:posts first (` or `data:posts first (p `).
+ */
+export function detectLambdaPreArrowContext(
+  expressionText: string,
+): LambdaPreArrowContext | undefined {
+  const match = /(?:^|[^\w:.])(?:data:[\w.[\]]+|[a-z_]\w*(?:\.\w+)*|\([^)]+\))\s+(filter|where|map|select|count|first|any|all|none)\s*\(\s*(?:([a-z_]\w*)(\s*))?$/i.exec(expressionText);
+  if (!match) {
+    return undefined;
+  }
+  const operator = match[1]!;
+  const paramName = match[2];
+  const trailingSpace = match[3] ?? '';
+  const isWaitingForArrow = Boolean(paramName && trailingSpace.length > 0);
+
+  const beforeOp = expressionText.slice(0, match.index + match[0].indexOf(operator)).trim();
+  const colMatch = /(?:data:[\w.[\]]+|[a-z_]\w*(?:\.\w+)*|\([^)]+\))\s*$/i.exec(beforeOp);
+  const collectionOperand = colMatch ? colMatch[0].trim() : undefined;
+
+  return {
+    operator,
+    paramName,
+    isWaitingForArrow,
+    collectionOperand,
+  };
 }

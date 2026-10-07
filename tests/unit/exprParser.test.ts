@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { singlePostProperties } from '../../src/core/data/widgetsData.js';
 import {
+  detectLambdaPreArrowContext,
   getArrayElementProperty,
   inferExpressionType,
+  inferSingularParamName,
   resolveCollectionProperty,
   resolveLambdaContextAtCursor,
   resolveLambdaHoverAtPosition,
@@ -193,6 +195,66 @@ describe('exprParser - Expression Parsing & Lambda Scopes', () => {
     it('infers collection data path', () => {
       const res = inferExpressionType('data:posts');
       expect(res.type).toBe('array');
+    });
+  });
+
+  describe('inferSingularParamName', () => {
+    it('infers canonical singular letters for standard collections', () => {
+      expect(inferSingularParamName('data:posts')).toBe('p');
+      expect(inferSingularParamName('p.labels')).toBe('l');
+      expect(inferSingularParamName('post.comments')).toBe('c');
+      expect(inferSingularParamName('data:links')).toBe('l');
+      expect(inferSingularParamName('data:widgets')).toBe('w');
+      expect(inferSingularParamName('data:items')).toBe('item');
+    });
+
+    it('infers from property object if provided', () => {
+      const prop = { name: 'posts', type: 'array' as const };
+      expect(inferSingularParamName('expr', prop)).toBe('p');
+    });
+
+    it('falls back to "item" for unknown collections', () => {
+      expect(inferSingularParamName('customCollection')).toBe('item');
+      expect(inferSingularParamName('data:tags')).toBe('t');
+    });
+  });
+
+  describe('detectLambdaPreArrowContext', () => {
+    it('detects pre-arrow context right after open parenthesis', () => {
+      const ctx = detectLambdaPreArrowContext('data:posts first (');
+      expect(ctx).toBeDefined();
+      expect(ctx?.operator).toBe('first');
+      expect(ctx?.paramName).toBeUndefined();
+      expect(ctx?.isWaitingForArrow).toBe(false);
+      expect(ctx?.collectionOperand).toBe('data:posts');
+    });
+
+    it('detects pre-arrow context after typing parameter and space', () => {
+      const ctx = detectLambdaPreArrowContext('data:posts first (p ');
+      expect(ctx).toBeDefined();
+      expect(ctx?.operator).toBe('first');
+      expect(ctx?.paramName).toBe('p');
+      expect(ctx?.isWaitingForArrow).toBe(true);
+      expect(ctx?.collectionOperand).toBe('data:posts');
+    });
+
+    it('detects pre-arrow context in nested lambdas', () => {
+      const ctx = detectLambdaPreArrowContext('data:posts filter (p => p.labels any (l ');
+      expect(ctx).toBeDefined();
+      expect(ctx?.operator).toBe('any');
+      expect(ctx?.paramName).toBe('l');
+      expect(ctx?.isWaitingForArrow).toBe(true);
+      expect(ctx?.collectionOperand).toBe('p.labels');
+    });
+
+    it('returns undefined if arrow is already present', () => {
+      expect(detectLambdaPreArrowContext('data:posts first (p => ')).toBeUndefined();
+      expect(detectLambdaPreArrowContext('data:posts first (p => p.id)')).toBeUndefined();
+    });
+
+    it('returns undefined for non-lambda expressions', () => {
+      expect(detectLambdaPreArrowContext('data:posts take 5')).toBeUndefined();
+      expect(detectLambdaPreArrowContext('data:posts.size + 1')).toBeUndefined();
     });
   });
 });

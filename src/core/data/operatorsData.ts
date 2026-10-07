@@ -5,6 +5,8 @@ export interface BloggerOperatorDefinition {
   readonly name: string;
   readonly aliases?: readonly string[] | undefined;
   readonly isCollectionOperator: boolean;
+  readonly isLambdaOperator?: boolean | undefined;
+  readonly defaultParamName?: string | undefined;
   readonly supportsFunctional: boolean;
   readonly supportsVariadic?: boolean | undefined;
   readonly returnType: BloggerDataType | 'same' | 'element';
@@ -23,6 +25,8 @@ export const bloggerOperatorsCatalog: Record<string, BloggerOperatorDefinition> 
     name: 'filter',
     aliases: ['where'],
     isCollectionOperator: true,
+    isLambdaOperator: true,
+    defaultParamName: 'item',
     supportsFunctional: false,
     returnType: 'same',
     signature: 'collection filter (item => boolean)',
@@ -35,6 +39,8 @@ export const bloggerOperatorsCatalog: Record<string, BloggerOperatorDefinition> 
     name: 'where',
     aliases: ['filter'],
     isCollectionOperator: true,
+    isLambdaOperator: true,
+    defaultParamName: 'item',
     supportsFunctional: false,
     returnType: 'same',
     signature: 'collection where (item => boolean)',
@@ -47,6 +53,8 @@ export const bloggerOperatorsCatalog: Record<string, BloggerOperatorDefinition> 
     name: 'map',
     aliases: ['select'],
     isCollectionOperator: true,
+    isLambdaOperator: true,
+    defaultParamName: 'item',
     supportsFunctional: false,
     returnType: 'array',
     signature: 'collection map (item => any)',
@@ -59,6 +67,8 @@ export const bloggerOperatorsCatalog: Record<string, BloggerOperatorDefinition> 
     name: 'select',
     aliases: ['map'],
     isCollectionOperator: true,
+    isLambdaOperator: true,
+    defaultParamName: 'item',
     supportsFunctional: false,
     returnType: 'array',
     signature: 'collection select (item => any)',
@@ -70,6 +80,8 @@ export const bloggerOperatorsCatalog: Record<string, BloggerOperatorDefinition> 
   'count': {
     name: 'count',
     isCollectionOperator: true,
+    isLambdaOperator: true,
+    defaultParamName: 'item',
     supportsFunctional: false,
     returnType: 'number',
     signature: 'collection count (item => boolean)',
@@ -81,6 +93,8 @@ export const bloggerOperatorsCatalog: Record<string, BloggerOperatorDefinition> 
   'first': {
     name: 'first',
     isCollectionOperator: true,
+    isLambdaOperator: true,
+    defaultParamName: 'item',
     supportsFunctional: false,
     returnType: 'element',
     signature: 'collection first (item => boolean)',
@@ -92,6 +106,8 @@ export const bloggerOperatorsCatalog: Record<string, BloggerOperatorDefinition> 
   'any': {
     name: 'any',
     isCollectionOperator: true,
+    isLambdaOperator: true,
+    defaultParamName: 'item',
     supportsFunctional: false,
     returnType: 'boolean',
     signature: 'collection any (item => boolean)',
@@ -103,6 +119,8 @@ export const bloggerOperatorsCatalog: Record<string, BloggerOperatorDefinition> 
   'all': {
     name: 'all',
     isCollectionOperator: true,
+    isLambdaOperator: true,
+    defaultParamName: 'item',
     supportsFunctional: false,
     returnType: 'boolean',
     signature: 'collection all (item => boolean)',
@@ -114,6 +132,8 @@ export const bloggerOperatorsCatalog: Record<string, BloggerOperatorDefinition> 
   'none': {
     name: 'none',
     isCollectionOperator: true,
+    isLambdaOperator: true,
+    defaultParamName: 'item',
     supportsFunctional: false,
     returnType: 'boolean',
     signature: 'collection none (item => boolean)',

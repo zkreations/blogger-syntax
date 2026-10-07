@@ -306,6 +306,89 @@ describe('operators - Catalog Integrity, Dual Syntax & Autocompletion', () => {
       expect(res?.suggestions.some(s => s.name === 'author')).toBe(true);
       expect(res?.suggestions.every(s => s.kind !== 'operator')).toBe(true);
     });
+
+    describe('lambda operators contextual assistance & snippet insertion', () => {
+      it('generates lambda snippet with inferred parameter p for data:posts', () => {
+        const line = '<b:eval expr="data:posts fi';
+        const res = resolver.resolveFromLinePrefix(line);
+        expect(res).toBeDefined();
+
+        const firstSugg = res?.suggestions.find(s => s.name === 'first');
+        expect(firstSugg).toBeDefined();
+        expect(firstSugg?.isSnippet).toBe(true);
+        expect(firstSugg?.insertText).toBe('first (${1:p} => $0)');
+        expect(firstSugg?.detail).toBe('(Blogger Lambda Operator)');
+      });
+
+      it('generates lambda snippet with inferred parameter l for p.labels in nested lambda', () => {
+        const line = '<b:eval expr="data:posts filter (p => p.labels an';
+        const res = resolver.resolveFromLinePrefix(line);
+        expect(res).toBeDefined();
+
+        const anySugg = res?.suggestions.find(s => s.name === 'any');
+        expect(anySugg).toBeDefined();
+        expect(anySugg?.isSnippet).toBe(true);
+        expect(anySugg?.insertText).toBe('any (${1:l} => $0)');
+      });
+
+      it('omits parenthesis snippet if lineSuffix already contains an opening parenthesis', () => {
+        const linePrefix = '<b:eval expr="data:posts fi';
+        const lineSuffix = ' (p => p.id)"/>';
+        const res = resolver.resolveFromLinePrefix(linePrefix, { lineSuffix });
+        expect(res).toBeDefined();
+
+        const firstSugg = res?.suggestions.find(s => s.name === 'first');
+        expect(firstSugg).toBeDefined();
+        expect(firstSugg?.isSnippet).toBeFalsy();
+        expect(firstSugg?.insertText).toBeUndefined();
+      });
+
+      it('suggests mandatory arrow => after typing parameter and space', () => {
+        const line = '<b:eval expr="data:posts first (p ';
+        const res = resolver.resolveFromLinePrefix(line);
+        expect(res).toBeDefined();
+
+        const arrowSugg = res?.suggestions.find(s => s.name === '=>');
+        expect(arrowSugg).toBeDefined();
+        expect(arrowSugg?.isSnippet).toBe(true);
+        expect(arrowSugg?.insertText).toBe('=> $0');
+        expect(arrowSugg?.detail).toBe('(Blogger Lambda Arrow)');
+        expect(res?.replacementLength).toBe(0);
+      });
+
+      it('suggests parameter template when cursor is right after open parenthesis', () => {
+        const line = '<b:eval expr="data:posts first (';
+        const res = resolver.resolveFromLinePrefix(line);
+        expect(res).toBeDefined();
+
+        const paramSugg = res?.suggestions.find(s => s.name === 'p');
+        expect(paramSugg).toBeDefined();
+        expect(paramSugg?.isSnippet).toBe(true);
+        expect(paramSugg?.insertText).toBe('${1:p} => $0');
+        expect(res?.replacementLength).toBe(0);
+      });
+
+      it('suggests lambda variable p immediately after arrow in lambda body', () => {
+        const line = '<b:eval expr="data:posts first (p => ';
+        const res = resolver.resolveFromLinePrefix(line);
+        expect(res).toBeDefined();
+
+        expect(res?.suggestions.some(s => s.name === 'p')).toBe(true);
+        expect(res?.suggestions.some(s => s.name === 'data:')).toBe(true);
+        expect(res?.replacementLength).toBe(0);
+      });
+
+      it('suggests both inner and outer variables in nested lambda body', () => {
+        const line = '<b:eval expr="data:posts filter (p => p.labels any (l => ';
+        const res = resolver.resolveFromLinePrefix(line);
+        expect(res).toBeDefined();
+
+        expect(res?.suggestions.some(s => s.name === 'l')).toBe(true);
+        expect(res?.suggestions.some(s => s.name === 'p')).toBe(true);
+        expect(res?.suggestions.some(s => s.name === 'data:')).toBe(true);
+        expect(res?.replacementLength).toBe(0);
+      });
+    });
   });
 
   describe('hover Cards in PathResolver', () => {

@@ -18,6 +18,7 @@ export class BloggerCompletionProvider implements vscode.CompletionItemProvider 
   ): vscode.ProviderResult<vscode.CompletionItem[] | vscode.CompletionList> {
     const lineText = document.lineAt(position.line).text;
     const linePrefix = lineText.slice(0, position.character);
+    const lineSuffix = lineText.slice(position.character);
 
     const docKey = document.uri ? document.uri.toString() : 'untitled';
     const version = document.version ?? 0;
@@ -39,6 +40,7 @@ export class BloggerCompletionProvider implements vscode.CompletionItemProvider 
       includables,
       enclosingMessageName,
       nearestOpenTag,
+      lineSuffix,
     };
 
     let result = this.pathResolver.resolveFromLinePrefix(linePrefix, resolverContext);
@@ -61,7 +63,6 @@ export class BloggerCompletionProvider implements vscode.CompletionItemProvider 
     const startChar = Math.max(0, position.character - result.replacementLength);
     let endChar = position.character;
 
-    const lineSuffix = lineText.slice(position.character);
     const isTagSnippet = result.suggestions.some(s => s.kind === 'snippet' && s.insertText?.includes('/>'));
     if (isTagSnippet) {
       const match = /^(:?\s*\/?>)/.exec(lineSuffix);
