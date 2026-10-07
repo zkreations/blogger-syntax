@@ -33,6 +33,12 @@ const PROHIBITED_CLOSING_TAGS: readonly { tag: string; message: string }[] = [
   { tag: 'b:default', message: '<b:default/> is strictly a self-closing branch delimiter; closing tag </b:default> does not exist in Blogger.' },
   { tag: 'b:else', message: '<b:else/> is strictly a self-closing branch delimiter; closing tag </b:else> does not exist in Blogger.' },
   { tag: 'b:elseif', message: '<b:elseif cond="..."/> is strictly a self-closing branch delimiter; closing tag </b:elseif> does not exist in Blogger.' },
+  { tag: 'b:include', message: '<b:include> is strictly self-closing (<b:include name="..."/>); closing tag </b:include> does not exist in Blogger.' },
+  { tag: 'b:eval', message: '<b:eval> is strictly self-closing (<b:eval expr="..."/>); closing tag </b:eval> does not exist in Blogger.' },
+  { tag: 'b:attr', message: '<b:attr> is strictly self-closing (<b:attr name="..." value="..."/>); closing tag </b:attr> does not exist in Blogger.' },
+  { tag: 'b:class', message: '<b:class> is strictly self-closing (<b:class name="..."/>); closing tag </b:class> does not exist in Blogger.' },
+  { tag: 'b:param', message: '<b:param> is strictly self-closing (<b:param name="..." value="..."/>); closing tag </b:param> does not exist in Blogger.' },
+  { tag: 'b:template-script', message: '<b:template-script> is strictly self-closing (<b:template-script name="..."/>); closing tag </b:template-script> does not exist in Blogger.' },
 ];
 
 const PROHIBITED_CLOSING_MAP = new Map(PROHIBITED_CLOSING_TAGS.map(t => [t.tag.toLowerCase(), t]));
