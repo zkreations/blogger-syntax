@@ -6,6 +6,7 @@ import { SUPPORTED_LANGUAGES } from '../constants.js';
 export class BloggerStatusBarItem implements vscode.Disposable {
   private readonly statusBarItem: vscode.StatusBarItem;
   private readonly disposables: vscode.Disposable[] = [];
+  private debounceTimer: ReturnType<typeof setTimeout> | undefined;
 
   constructor() {
     this.statusBarItem = vscode.window.createStatusBarItem(
@@ -19,7 +20,7 @@ export class BloggerStatusBarItem implements vscode.Disposable {
       vscode.window.onDidChangeActiveTextEditor(() => this.update()),
       vscode.workspace.onDidChangeTextDocument((e) => {
         if (vscode.window.activeTextEditor?.document === e.document) {
-          this.update();
+          this.triggerDebouncedUpdate();
         }
       }),
       vscode.commands.registerCommand('bloggerSyntax.showTemplateInfo', () => {
@@ -28,6 +29,16 @@ export class BloggerStatusBarItem implements vscode.Disposable {
     );
 
     this.update();
+  }
+
+  private triggerDebouncedUpdate(): void {
+    if (this.debounceTimer) {
+      clearTimeout(this.debounceTimer);
+    }
+    this.debounceTimer = setTimeout(() => {
+      this.debounceTimer = undefined;
+      this.update();
+    }, 300);
   }
 
   public update(): void {
@@ -86,6 +97,10 @@ export class BloggerStatusBarItem implements vscode.Disposable {
   }
 
   public dispose(): void {
+    if (this.debounceTimer) {
+      clearTimeout(this.debounceTimer);
+      this.debounceTimer = undefined;
+    }
     for (const d of this.disposables) {
       d.dispose();
     }
