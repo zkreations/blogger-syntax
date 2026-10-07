@@ -24,7 +24,7 @@ const INCLUDABLE_TAG_REGEX = /<b:includable\b((?:"[^"]*"|'[^']*'|[^"'/>])*)(\/?)
 const WIDGET_TAG_REGEX = /<(\/)?b:widget\b((?:"[^"]*"|'[^']*'|[^"'/>])*)(\/?)>/gi;
 const DEFAULTMARKUP_TAG_REGEX = /<(\/)?b:defaultmarkup\b((?:"[^"]*"|'[^']*'|[^"'/>])*)(\/?)>/gi;
 
-const ATTR_NAME_REGEX = /\bname\s*=\s*(["'])([\s\S]*?)\1/i;
+const ATTR_NAME_REGEX = /(?<![\w:])name\s*=\s*(["'])([\s\S]*?)\1/i;
 const ATTR_ID_REGEX = /\bid\s*=\s*(["'])([\s\S]*?)\1/i;
 const ATTR_TYPE_REGEX = /\btype\s*=\s*(["'])([\s\S]*?)\1/i;
 
@@ -57,6 +57,10 @@ export function findIncludableDefinition(
     }
 
     const attrContent = match[1] ?? '';
+    if (/\bexpr:name\s*=/i.test(attrContent)) {
+      continue;
+    }
+
     const nameMatch = ATTR_NAME_REGEX.exec(attrContent);
     if (!nameMatch) {
       continue;

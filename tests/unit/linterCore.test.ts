@@ -689,5 +689,18 @@ describe('linter core engine', () => {
       const diags = lintBloggerDocument(xml, { rules: { inclusions: false } });
       expect(diags.some(d => d.code === 'blogger.unresolved.inclusion')).toBe(false);
     });
+
+    it('ignores dynamic inclusions constructed via expr:name without flagging errors', () => {
+      const xml = `
+        <b:widget id='Blog1' type='Blog'>
+          <b:includable id='main'>
+            <b:include expr:name='data:post.id == 12345 ? "fullPost" : "defaultPost"'/>
+          </b:includable>
+        </b:widget>
+      `;
+      const diags = lintBloggerDocument(xml);
+      const unresolved = diags.filter(d => d.code === 'blogger.unresolved.inclusion');
+      expect(unresolved).toHaveLength(0);
+    });
   });
 });

@@ -7,7 +7,7 @@ const CONTAINER_OR_INCLUDABLE_TAG_REGEX = /<(\/)?b:(widget|defaultmarkup|includa
 const ATTR_ID_REGEX = /\bid\s*=\s*(["'])([\s\S]*?)\1/i;
 const ATTR_TYPE_REGEX = /\btype\s*=\s*(["'])([\s\S]*?)\1/i;
 const INCLUDE_TAG_REGEX = /<b:include\b((?:"[^"]*"|'[^']*'|[^"'/>])*)\/?>/gi;
-const ATTR_NAME_REGEX = /\bname\s*=\s*(["'])([\s\S]*?)\1/i;
+const ATTR_NAME_REGEX = /(?<![\w:])name\s*=\s*(["'])([\s\S]*?)\1/i;
 
 interface ContainerScope {
   readonly tag: 'widget' | 'defaultmarkup';
@@ -139,6 +139,10 @@ export function checkUnresolvedInclusions(
     }
 
     const attrs = match[1] ?? '';
+    if (/\bexpr:name\s*=/i.test(attrs)) {
+      continue;
+    }
+
     const nameMatch = ATTR_NAME_REGEX.exec(attrs);
     if (!nameMatch) {
       continue;

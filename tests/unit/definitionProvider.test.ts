@@ -254,4 +254,17 @@ describe('definition resolver (F12 Go to Definition)', () => {
     const localHeaderPos = xmlLocalPriority.indexOf('<b:includable id=\'header\'>');
     expect(result?.targetSpan.start).toBe(localHeaderPos);
   });
+
+  it('returns undefined for dynamic inclusions using expr:name', () => {
+    const xmlExpr = `
+      <b:widget id='Blog1' type='Blog'>
+        <b:includable id='main'>
+          <b:include expr:name='data:post.format'/>
+        </b:includable>
+      </b:widget>
+    `;
+    const includePos = xmlExpr.indexOf('expr:name');
+    const result = findIncludableDefinition(xmlExpr, includePos + 12);
+    expect(result).toBeUndefined();
+  });
 });
