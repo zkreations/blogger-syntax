@@ -206,6 +206,17 @@ describe('linter core engine', () => {
       const dataOpDiag = diags.find(d => d.code === 'blogger.syntax.data-tag-contains-operators');
       expect(dataOpDiag).toBeDefined();
     });
+
+    it('detects direct invocation of parameterized messages', () => {
+      const xml = `
+        <data:messages.numberOfComments/>
+        <data:messages.byAuthor/>
+        <b:eval expr='data:messages.authorSaid'/>
+      `;
+      const diags = lintBloggerDocument(xml);
+      const paramDiags = diags.filter(d => d.code === 'blogger.syntax.parameterized-message-direct-invocation');
+      expect(paramDiags).toHaveLength(3);
+    });
   });
 
   describe('quota & formatting rules', () => {
@@ -329,6 +340,20 @@ describe('linter core engine', () => {
         const invalidObjResult = analyzeExpressionBudget(invalidObj);
         expect(invalidObjResult.isValid).toBe(false);
         expect(invalidObjResult.status).toBe('EXCEEDED');
+      });
+
+      it('detects directive tag nesting exceeding 50 levels', () => {
+        let deepXml = '';
+        for (let i = 0; i < 52; i++) {
+          deepXml += `<b:with value='1' var='v${i}'>`;
+        }
+        for (let i = 0; i < 52; i++) {
+          deepXml += `</b:with>`;
+        }
+        const diags = lintBloggerDocument(deepXml);
+        const nestingDiags = diags.filter(d => d.code === 'blogger.quota.nesting-limit');
+        expect(nestingDiags.length).toBeGreaterThanOrEqual(1);
+        expect(nestingDiags[0]?.message).toContain('Directive tag nesting exceeds Blogger compiler ceiling');
       });
     });
   });
