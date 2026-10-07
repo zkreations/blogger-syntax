@@ -13,7 +13,6 @@ import {
   getSystemMessageSuggestions,
 } from '../data/messagesCatalog.js';
 import {
-  bloggerOperatorsCatalog,
   getFunctionalOperatorSuggestions,
   getOperatorSuggestions,
 } from '../data/operatorsData.js';
@@ -22,8 +21,14 @@ import { getPropertyMembers } from '../data/typeMembers.js';
 import { getWidgetDescriptor } from '../data/widgetDescriptors.js';
 import { blogWidgetProperties, singlePostProperties } from '../data/widgetsData.js';
 import { getWidgetSettingsSuggestions } from '../data/widgetSettingsData.js';
-import { resolveLambdaContextAtCursor } from '../parser/exprParser.js';
+import {
+  extractLeftOperandAtCursor,
+  extractPrecedingExpressionForMember,
+  inferExpressionType,
+  resolveLambdaContextAtCursor,
+} from '../parser/exprParser.js';
 import { getNearestUnclosedTag } from '../parser/tagTreeTracker.js';
+import { getTypeModifiers } from '../types/typeSystem.js';
 import {
 
   normalizeDocUrls,
@@ -65,7 +70,6 @@ const ATTR_VALUE_REGEX = /\b([\w:-]+)\s*=\s*["']([^"']*)$/;
 const TAG_CONTEXT_REGEX = /<([\w:-]+)(?:\s[^>]*)?$/;
 const DATA_PREFIX_REGEX = /(?:^|[^\w:.])(data:[[\]\w.]*)$/;
 const TAG_PREFIX_REGEX = /(?:^|[^\w:])(?:(<\/|<)([\w:-]*)|(b:[\w-]*|data:?|Variable\w*|Group\w*))$/i;
-const OPERATOR_TRIGGER_REGEX = /(?:data:[\w.[\]]*[\w\]]|[a-zA-Z_]\w*(?:\.\w+)*|\d+(?:\.\d+)?|"[^"]*"|'[^']*'|[)\]}])\s+([a-zA-Z_!=+\-*/?:%]*)$/;
 const OPERAND_START_TRIGGER_REGEX = /(?:^|[=?:,(+\-*/%]|\b(?:and|or|not|eq|neq|lt|lte|gt|gte|to|in|contains)\b)\s*([a-zA-Z_!=]*)$/;
 
 export function navigatePropertyPath(
@@ -239,6 +243,7 @@ export class BloggerPathResolver {
   public resolveExpressionContext(
     expressionText: string,
     localVariables?: Record<string, BloggerProperty>,
+    isLoopContext: boolean = false,
   ): BloggerResolveResult | undefined {
     // 1. Data path context (data: or data:path. or data:path.partial)
     const dataMatch = DATA_PREFIX_REGEX.exec(expressionText);
@@ -331,32 +336,45 @@ export class BloggerPathResolver {
       }
     }
 
+    // 3.5. Compound parenthesized expression member navigation (e.g. (data:post.body snippet { length: 150 }). )
+    const memberExpr = extractPrecedingExpressionForMember(expressionText);
+    if (memberExpr) {
+      const inferred = inferExpressionType(memberExpr.operand, localVariables);
+      const modifiers = getTypeModifiers(inferred.type, inferred.itemChildren);
+      if (modifiers) {
+        const suggestions: BloggerSuggestion[] = Object.values(modifiers)
+          .filter(prop => !memberExpr.partialMember || prop.name.startsWith(memberExpr.partialMember))
+          .map(prop => ({
+            name: prop.name,
+            type: prop.type,
+            description: prop.description,
+            example: `(${memberExpr.operand}).${prop.name}`,
+            kind: 'property' as const,
+            deprecated: prop.deprecated,
+            docUrl: prop.docUrl,
+          }));
+        if (suggestions.length > 0) {
+          return {
+            suggestions,
+            replacementLength: memberExpr.partialMember.length,
+          };
+        }
+      }
+    }
+
     // 4. Infix operator position (<operand> <space> [partialOp])
-    const opMatch = OPERATOR_TRIGGER_REGEX.exec(expressionText);
-    if (opMatch) {
-      const fullOpMatch = opMatch[0];
-      const typedOp = opMatch[1] ?? '';
-      const operand = fullOpMatch.slice(0, fullOpMatch.length - typedOp.length).trim();
-
-      const isCol
-        = /\b(?:posts|labels|comments|feedLinks|links)\b/i.test(operand)
-          || operand.endsWith(')')
-          || operand.endsWith(']');
-
-      const allOps = getOperatorSuggestions(false);
-      const sorted = isCol
-        ? [...allOps].sort((a, b) => {
-            const aCol = bloggerOperatorsCatalog[a.name]?.isCollectionOperator ? 0 : 1;
-            const bCol = bloggerOperatorsCatalog[b.name]?.isCollectionOperator ? 0 : 1;
-            return aCol - bCol;
-          })
+    const opInfo = extractLeftOperandAtCursor(expressionText);
+    if (opInfo) {
+      const inferred = inferExpressionType(opInfo.operand, localVariables);
+      const leftType = inferred.type;
+      const allOps = getOperatorSuggestions(leftType, isLoopContext);
+      const filtered = opInfo.partialOp
+        ? allOps.filter(op => op.name.startsWith(opInfo.partialOp))
         : allOps;
-
-      const filtered = typedOp ? sorted.filter(op => op.name.startsWith(typedOp)) : sorted;
       if (filtered.length > 0) {
         return {
           suggestions: filtered,
-          replacementLength: typedOp.length,
+          replacementLength: opInfo.partialOp.length,
         };
       }
     }
@@ -539,7 +557,11 @@ export class BloggerPathResolver {
 
       if (isExpressionAttribute(attrName, tagName)) {
         const localVariables = resolveLocalVariables(options?.localVariables);
-        return this.resolveExpressionContext(typedText, localVariables);
+        return this.resolveExpressionContext(
+          typedText,
+          localVariables,
+          attrName === 'values' && tagName === 'b:loop',
+        );
       }
     }
 

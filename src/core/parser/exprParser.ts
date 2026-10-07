@@ -8,6 +8,7 @@ import {
   WIDGET_DATA_DICTIONARIES,
 } from '../data/widgetsData.js';
 import { navigatePropertyPath } from '../resolver/pathResolver.js';
+import { getTypeModifiers } from '../types/typeSystem.js';
 
 export interface ActiveLambdaContext {
   readonly paramName: string;
@@ -220,7 +221,7 @@ export function resolveLambdaContextAtCursor(
   const activeScopes: Record<string, BloggerProperty> = {};
   for (const lambda of openLambdas) {
     const beforeLambda = prefix.slice(0, lambda.openParenIndex).trimEnd();
-    const opMatch = /\b(?:filter|where|map|select|count|any|all|none)\s*$/i.exec(beforeLambda);
+    const opMatch = /\b(?:filter|where|map|select|count|first|any|all|none)\s*$/i.exec(beforeLambda);
     const beforeOp = opMatch ? beforeLambda.slice(0, opMatch.index).trimEnd() : beforeLambda;
 
     const operandMatch = /(?:data:[\w.[\]]+|[a-z_]\w*(?:\.\w+)*|\([^)]+\))\s*$/i.exec(beforeOp);
@@ -349,7 +350,7 @@ export function resolveLambdaHoverAtPosition(
     if (closedAt === -1 || character <= closedAt) {
       enclosingLambda = lambda;
       const beforeLambda = lineText.slice(0, lambda.openParenIndex).trimEnd();
-      const opMatch = /\b(?:filter|where|map|select|count|any|all|none)\s*$/i.exec(beforeLambda);
+      const opMatch = /\b(?:filter|where|map|select|count|first|any|all|none)\s*$/i.exec(beforeLambda);
       const beforeOp = opMatch ? beforeLambda.slice(0, opMatch.index).trimEnd() : beforeLambda;
       const operandMatch = /(?:data:[\w.[\]]+|[a-z_]\w*(?:\.\w+)*|\([^)]+\))\s*$/i.exec(beforeOp);
       const colExpr = operandMatch ? operandMatch[0].trim() : beforeOp;
@@ -430,6 +431,173 @@ export function detectActiveLambdaAtCursor(
   };
 }
 
+function unwrapOuterParens(str: string): string {
+  let s = str.trim();
+  while (s.startsWith('(') && s.endsWith(')')) {
+    let depth = 0;
+    let matched = true;
+    for (let i = 0; i < s.length - 1; i++) {
+      if (s[i] === '(')
+        depth++;
+      else if (s[i] === ')')
+        depth--;
+      if (depth === 0) {
+        matched = false;
+        break;
+      }
+    }
+    if (matched && depth === 1) {
+      s = s.slice(1, -1).trim();
+    }
+    else {
+      break;
+    }
+  }
+  return s;
+}
+
+function findTopLevelOperator(
+  str: string,
+  opRegex: RegExp,
+): { index: number; op: string } | undefined {
+  let depth = 0;
+  let inDouble = false;
+  let inSingle = false;
+
+  for (let i = 0; i < str.length; i++) {
+    const ch = str[i];
+    if (ch === '"' && !inSingle) {
+      inDouble = !inDouble;
+    }
+    else if (ch === '\'' && !inDouble) {
+      inSingle = !inSingle;
+    }
+    else if (!inDouble && !inSingle) {
+      if (ch === '(' || ch === '[' || ch === '{') {
+        depth++;
+      }
+      else if (ch === ')' || ch === ']' || ch === '}') {
+        depth--;
+      }
+      else if (depth === 0) {
+        if (i > 0 && /[\w.:]/.test(str[i - 1]!)) {
+          continue;
+        }
+        const sub = str.slice(i);
+        const match = opRegex.exec(sub);
+        if (match && match.index === 0) {
+          const opStr = match[0];
+          if (/\w/.test(opStr.slice(-1))) {
+            const nextChar = str[i + opStr.length];
+            if (nextChar && /\w/.test(nextChar)) {
+              continue;
+            }
+          }
+          return { index: i, op: opStr };
+        }
+      }
+    }
+  }
+  return undefined;
+}
+
+function findEffectiveOperand(beforeOp: string): string {
+  let depth = 0;
+  let inDouble = false;
+  let inSingle = false;
+
+  for (let i = beforeOp.length - 1; i >= 0; i--) {
+    const ch = beforeOp[i];
+    if (ch === '"' && !inSingle) {
+      inDouble = !inDouble;
+    }
+    else if (ch === '\'' && !inDouble) {
+      inSingle = !inSingle;
+    }
+    else if (!inDouble && !inSingle) {
+      if (ch === ')' || ch === ']' || ch === '}') {
+        depth++;
+      }
+      else if (ch === '(' || ch === '[' || ch === '{') {
+        if (depth === 0) {
+          return beforeOp.slice(i + 1).trim();
+        }
+        depth--;
+      }
+      else if (depth === 0) {
+        if (ch === ',' || ch === '?') {
+          return beforeOp.slice(i + 1).trim();
+        }
+        if (ch === ':' && i > 0 && beforeOp[i - 1] !== '?') {
+          return beforeOp.slice(i + 1).trim();
+        }
+        const sub = beforeOp.slice(0, i + 1);
+        const logMatch = /\s+(?:and|or|&&|\|\|)\s*$/i.exec(sub);
+        if (logMatch) {
+          return beforeOp.slice(i + 1).trim();
+        }
+      }
+    }
+  }
+  return beforeOp.trim();
+}
+
+export function extractLeftOperandAtCursor(
+  expressionText: string,
+): { operand: string; partialOp: string } | undefined {
+  const opMatch = /(?:data:[\w.[\]]*[\w\]]|[a-zA-Z_]\w*(?:\.\w+)*|\d+(?:\.\d+)?|"[^"]*"|'[^']*'|[)\]}])\s+([a-zA-Z_!=+\-*/?:%]*)$/.exec(expressionText);
+  if (!opMatch) {
+    return undefined;
+  }
+  const typedOp = opMatch[1] ?? '';
+  const beforeOp = expressionText.slice(0, expressionText.length - (typedOp.length ? typedOp.length : 0)).trimEnd();
+  if (!beforeOp) {
+    return undefined;
+  }
+
+  const operand = findEffectiveOperand(beforeOp);
+  return {
+    operand,
+    partialOp: typedOp,
+  };
+}
+
+export function extractPrecedingExpressionForMember(
+  expressionText: string,
+): { operand: string; partialMember: string } | undefined {
+  const memberMatch = /\)\.(\w*)$/.exec(expressionText);
+  if (!memberMatch) {
+    return undefined;
+  }
+  const partialMember = memberMatch[1] ?? '';
+  const closingParenIdx = expressionText.length - (partialMember.length + 2);
+
+  let depth = 0;
+  let openParenIdx = -1;
+  for (let i = closingParenIdx; i >= 0; i--) {
+    if (expressionText[i] === ')') {
+      depth++;
+    }
+    else if (expressionText[i] === '(') {
+      depth--;
+      if (depth === 0) {
+        openParenIdx = i;
+        break;
+      }
+    }
+  }
+
+  if (openParenIdx < 0) {
+    return undefined;
+  }
+
+  const innerExpr = expressionText.slice(openParenIdx + 1, closingParenIdx).trim();
+  return {
+    operand: innerExpr,
+    partialMember,
+  };
+}
+
 /**
  * Infers the data type resulting from evaluating an expression.
  */
@@ -437,31 +605,51 @@ export function inferExpressionType(
   expr: string,
   localVariables?: Record<string, BloggerProperty>,
 ): InferredExprResult {
-  const trimmed = expr.trim();
+  let trimmed = expr.trim();
   if (!trimmed) {
-    return { type: 'string' };
+    return { type: 'unknown' };
   }
 
-  // 1. Numeric Range: "1 to 10" or "start to end"
-  if (/\s+to\s+/i.test(trimmed)) {
+  // Parenthesized member access: (expr).modifier
+  const parenMemberMatch = /^\((.+)\)\.([a-z_]\w*)$/i.exec(trimmed);
+  if (parenMemberMatch && parenMemberMatch[1] && parenMemberMatch[2]) {
+    const inner = parenMemberMatch[1].trim();
+    const modName = parenMemberMatch[2];
+    const innerRes = inferExpressionType(inner, localVariables);
+    const modifiers = getTypeModifiers(innerRes.type, innerRes.itemChildren);
+    if (modifiers && modifiers[modName]) {
+      const prop = modifiers[modName]!;
+      return {
+        type: prop.type,
+        targetProperty: prop,
+        children: prop.children,
+      };
+    }
+  }
+
+  // Strip matched outer parentheses
+  trimmed = unwrapOuterParens(trimmed);
+
+  // 1. Top-level comparisons and logical/membership predicates -> boolean
+  if (
+    findTopLevelOperator(trimmed, /^(?:in|contains|and|or|not|eq|neq|lt|lte|gt|gte)\b/i)
+    || findTopLevelOperator(trimmed, /^(?:==|!=|<=|>=|<|>)/)
+    || findTopLevelOperator(trimmed, /^(?:any|all|none)\s*\(/i)
+  ) {
+    return { type: 'boolean' };
+  }
+
+  // 2. Numeric Range: "1 to 10" or "start to end"
+  if (findTopLevelOperator(trimmed, /^to\b/i)) {
     return {
       type: 'array',
       itemChildren: undefined,
     };
   }
 
-  // 2. Count operation: "... count (...)" -> number
-  if (/\bcount\s*\(/i.test(trimmed)) {
+  // 3. Count operation: "... count (...)" -> number
+  if (findTopLevelOperator(trimmed, /^count\s*\(/i)) {
     return { type: 'number' };
-  }
-
-  // 3. Boolean predicates: "... any (...)", "... all (...)", "... none (...)", "in", "contains", comparisons and logical
-  if (
-    /\b(?:any|all|none)\s*\(/i.test(trimmed)
-    || /\b(?:in|contains|and|or|not|eq|neq|lt|lte|gt|gte)\b/i.test(trimmed)
-    || /==|!=/.test(trimmed)
-  ) {
-    return { type: 'boolean' };
   }
 
   // 4. Collection pipeline (filter / where / take / limit / skip / offset)
@@ -474,6 +662,23 @@ export function inferExpressionType(
       targetProperty: source.targetProperty,
       children: source.targetProperty?.children,
       itemChildren: source.itemChildren,
+    };
+  }
+
+  const mapKeywordMatch = /\s+(?:map|select)\s*\(/i.exec(trimmed);
+  if (mapKeywordMatch && mapKeywordMatch.index > 0) {
+    return { type: 'array' };
+  }
+
+  const firstLambdaMatch = /\s+first\s*\(/i.exec(trimmed);
+  if (firstLambdaMatch && firstLambdaMatch.index > 0) {
+    const sourceExpr = trimmed.slice(0, firstLambdaMatch.index).trim();
+    const source = inferExpressionType(sourceExpr, localVariables);
+    const elementProp = getArrayElementProperty(source.targetProperty);
+    return {
+      type: elementProp?.type ?? 'object',
+      targetProperty: elementProp,
+      children: elementProp?.children,
     };
   }
 
@@ -502,10 +707,22 @@ export function inferExpressionType(
     };
   }
 
-  // 6. Ternary operation: "cond ? branchA : branchB"
+  // 6. Elvis operator: "a ?: b"
+  if (trimmed.includes('?:')) {
+    const elvisIdx = trimmed.indexOf('?:');
+    const leftBranch = trimmed.slice(0, elvisIdx).trim();
+    const rightBranch = trimmed.slice(elvisIdx + 2).trim();
+    const leftRes = inferExpressionType(leftBranch, localVariables);
+    if (leftRes.type !== 'unknown') {
+      return leftRes;
+    }
+    return inferExpressionType(rightBranch, localVariables);
+  }
+
+  // 7. Ternary operation: "cond ? branchA : branchB"
   const questionIdx = trimmed.indexOf('?');
   const colonIdx = trimmed.lastIndexOf(':');
-  if (questionIdx > 0 && colonIdx > questionIdx) {
+  if (questionIdx > 0 && colonIdx > questionIdx && trimmed[questionIdx + 1] !== ':') {
     const branchA = trimmed.slice(questionIdx + 1, colonIdx).trim();
     if ((branchA.startsWith('"') && branchA.endsWith('"')) || (branchA.startsWith('\'') && branchA.endsWith('\''))) {
       return { type: 'string' };
@@ -519,7 +736,7 @@ export function inferExpressionType(
     return inferExpressionType(branchA, localVariables);
   }
 
-  // 7. String concatenation or string literal
+  // 8. String concatenation or string literal
   if ((trimmed.startsWith('"') && trimmed.endsWith('"')) || (trimmed.startsWith('\'') && trimmed.endsWith('\''))) {
     return { type: 'string' };
   }
@@ -529,16 +746,50 @@ export function inferExpressionType(
   if (trimmed === 'true' || trimmed === 'false') {
     return { type: 'boolean' };
   }
+  if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+    return { type: 'array' };
+  }
+  if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+    return { type: 'object' };
+  }
 
-  // 8. Truncation and images
-  if (/\bsnippet\s*[({]/i.test(trimmed)) {
+  // 9. Text transforms, dates, images, and URL operators
+  if (/\bsnippet\s*[({]/i.test(trimmed) || /\bsnippet\b/i.test(trimmed)) {
+    return { type: 'string' };
+  }
+  if (/\bformat\s*[( ]/i.test(trimmed) || /\s+format\s+["']/i.test(trimmed)) {
+    return { type: 'string' };
+  }
+  if (/\bsourceSet\s*[([]/i.test(trimmed)) {
     return { type: 'string' };
   }
   if (/\bresizeImage\s*[( ]/i.test(trimmed)) {
     return { type: 'image' };
   }
+  if (/\s+(?:path|params|appendParams|fragment)\s+/i.test(trimmed) || /\b(?:path|params|appendParams|fragment)\s*\(/i.test(trimmed)) {
+    return { type: 'url' };
+  }
 
-  // 9. Direct collection or property path
+  // 10. Binary arithmetic (+, -, *, /, %)
+  const plusMatch = findTopLevelOperator(trimmed, /^\+/);
+  if (plusMatch) {
+    const leftPart = trimmed.slice(0, plusMatch.index).trim();
+    const rightPart = trimmed.slice(plusMatch.index + 1).trim();
+    const leftRes = inferExpressionType(leftPart, localVariables);
+    const rightRes = inferExpressionType(rightPart, localVariables);
+    if (leftRes.type === 'number' && rightRes.type === 'number') {
+      return { type: 'number' };
+    }
+    if (leftRes.type !== 'unknown' || rightRes.type !== 'unknown') {
+      return { type: 'string' };
+    }
+  }
+
+  if (findTopLevelOperator(trimmed, /^[-*/%]/)) {
+    return { type: 'number' };
+  }
+
+  // 11. Direct collection or property path
   const targetProp = resolveCollectionProperty(trimmed, localVariables);
   if (targetProp) {
     return {
@@ -549,5 +800,5 @@ export function inferExpressionType(
     };
   }
 
-  return { type: 'object' };
+  return { type: 'unknown' };
 }

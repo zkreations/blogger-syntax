@@ -1,4 +1,5 @@
 import type { BloggerDataType, BloggerSuggestion } from '../models/types.js';
+import { getCompatibleOperatorNames } from '../types/typeSystem.js';
 
 export interface BloggerOperatorDefinition {
   readonly name: string;
@@ -82,10 +83,10 @@ export const bloggerOperatorsCatalog: Record<string, BloggerOperatorDefinition> 
     isCollectionOperator: true,
     supportsFunctional: false,
     returnType: 'element',
-    signature: 'collection.first or collection first',
-    signatureInfix: 'collection.first or collection first',
-    description: 'Returns the first element of a collection, or null if empty.',
-    example: 'data:posts.first',
+    signature: 'collection first (item => boolean)',
+    signatureInfix: 'collection first (item => boolean)',
+    description: 'Returns the first element of a collection matching a predicate, or null if empty.',
+    example: 'data:posts first (p => p.isFeatured)',
     docUrl: 'https://bloggercode.orbiona.com/2016/04/operators-lambdas.html',
   },
   'any': {
@@ -579,14 +580,28 @@ const XML_ESCAPED_OPERATORS = new Set(['<', '<=', '>', '>=', '&&', '||', '!']);
 /**
  * Returns infix operator suggestions.
  * Suggests standard operators including == and != alongside word aliases (eq, neq, and, or, lt, lte, gt, gte).
- * Excludes only raw symbols that require XML entity escaping (<, <=, >, >=, &&, ||, !).
+ * Excludes raw symbols that require XML entity escaping (<, <=, >, >=, &&, ||, !).
+ * If a BloggerDataType is provided, filters strictly by compatible operators according to Horatio.
  */
-export function getOperatorSuggestions(isCollectionContext: boolean = false): readonly BloggerSuggestion[] {
+export function getOperatorSuggestions(
+  context?: boolean | BloggerDataType,
+  isLoopContext: boolean = false,
+): readonly BloggerSuggestion[] {
+  let allowedNames: Set<string> | undefined;
+
+  if (typeof context === 'string') {
+    allowedNames = getCompatibleOperatorNames(context, isLoopContext);
+  }
+
   return Object.values(bloggerOperatorsCatalog)
     .filter((op) => {
       if (XML_ESCAPED_OPERATORS.has(op.name)) {
         return false;
       }
+      if (allowedNames) {
+        return allowedNames.has(op.name);
+      }
+      const isCollectionContext = typeof context === 'boolean' ? context : false;
       return !isCollectionContext || op.isCollectionOperator;
     })
     .map(op => ({

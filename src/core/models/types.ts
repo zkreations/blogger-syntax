@@ -8,7 +8,8 @@ export type BloggerDataType
     | 'locale'
     | 'message'
     | 'object'
-    | 'array';
+    | 'array'
+    | 'unknown';
 
 export interface BloggerProperty {
   readonly name: string;

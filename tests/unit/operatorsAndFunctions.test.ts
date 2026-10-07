@@ -336,6 +336,16 @@ describe('operators - Catalog Integrity, Dual Syntax & Autocompletion', () => {
       expect(hover?.hover.description).toContain('Filters a collection');
     });
 
+    it('returns operator hover card when hovering over first', () => {
+      const line = '<b:eval expr="data:posts first (p => p.isFeatured)" />';
+      const charIndex = line.indexOf('first');
+      const hover = resolver.resolveHoverAtPosition(line, charIndex);
+      expect(hover).toBeDefined();
+      expect(hover?.hover.category).toBe('operator');
+      expect(hover?.hover.title).toBe('Operator: first');
+      expect(hover?.hover.description).toContain('collection first (item => boolean)');
+    });
+
     it('returns operator hover card when hovering over snippet in functional syntax', () => {
       const line = '<b:eval expr="snippet(data:post.body, { length: 150 })" />';
       const hover = resolver.resolveHoverAtPosition(line, 17);
