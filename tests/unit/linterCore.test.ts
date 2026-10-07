@@ -120,6 +120,26 @@ describe('linter core engine', () => {
       expect(closingDiag?.message).toContain('strictly a self-closing branch delimiter');
     });
 
+    it('detects prohibited closing tags on strictly self-closing directives', () => {
+      const xml = `
+        <b:eval expr='data:post.title'></b:eval>
+        <b:include name='post'></b:include>
+        <b:attr name='id' value='1'></b:attr>
+        <b:class name='active'></b:class>
+        <b:message name='home'><b:param name='x' value='1'></b:param></b:message>
+        <b:template-script name='indie'></b:template-script>
+      `;
+      const diags = lintBloggerDocument(xml);
+      const closingDiags = diags.filter(d => d.code === 'blogger.hallucination.closing-tag');
+      expect(closingDiags).toHaveLength(6);
+      expect(closingDiags.some(d => d.message.includes('</b:eval>'))).toBe(true);
+      expect(closingDiags.some(d => d.message.includes('</b:include>'))).toBe(true);
+      expect(closingDiags.some(d => d.message.includes('</b:attr>'))).toBe(true);
+      expect(closingDiags.some(d => d.message.includes('</b:class>'))).toBe(true);
+      expect(closingDiags.some(d => d.message.includes('</b:param>'))).toBe(true);
+      expect(closingDiags.some(d => d.message.includes('</b:template-script>'))).toBe(true);
+    });
+
     it('detects inverted attributes on directives', () => {
       const xml = `
         <b:switch expr='data:view.type'/>
