@@ -111,8 +111,8 @@ describe('plan 1: Data Model Integrity & Canonical Specifications', () => {
 
     it('should include v3 attributes and clean snippet for b:section, excluding deprecated ones', () => {
       const section = bloggerTags['b:section'];
-      expect(section).toBeDefined();
-      expect(section?.snippetBody).toContain('tag=');
+      expect(section?.snippetBody).toBe('b:section id="$1">\n\t$0\n</b:section>');
+      expect(section?.snippetBody).not.toContain('tag=');
       expect(section?.snippetBody).not.toContain('maxwidgets=');
 
       const attrs = section?.attributes ?? {};

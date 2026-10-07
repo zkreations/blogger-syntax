@@ -1,14 +1,11 @@
 import type { BloggerTagDefinition } from '../models/types.js';
-import { bloggerDescriptions } from './descriptions.js';
 import { bloggerDefaultMarkupTypes, bloggerWidgetTypes } from './widgetTypes.js';
-
-const descriptionsChoices = bloggerDescriptions.join(',');
 
 export const bloggerTags: Record<string, BloggerTagDefinition> = {
   'b:attr': {
     name: 'b:attr',
     description: 'Adds an attribute with its corresponding value to the parent node.',
-    snippetBody: 'b:attr name="${1:name}" value="${2:value}"/>$0',
+    snippetBody: 'b:attr name="$1" value="$2"/>$0',
     docUrl: 'https://bloggercode.orbiona.com/2018/02/tag-b-attr.html',
     attributes: {
       name: { name: 'name', type: 'string', required: true, description: 'The name of the attribute to set on parent node.' },
@@ -19,7 +16,7 @@ export const bloggerTags: Record<string, BloggerTagDefinition> = {
   'b:class': {
     name: 'b:class',
     description: 'Adds or appends CSS classes to the parent node.',
-    snippetBody: 'b:class name="${1:className}"/>$0',
+    snippetBody: 'b:class name="$1"/>$0',
     docUrl: 'https://bloggercode.orbiona.com/2018/01/tag-b-class.html',
     attributes: {
       name: { name: 'name', type: 'string', required: true, description: 'CSS class name or list of classes to append.' },
@@ -38,13 +35,13 @@ export const bloggerTags: Record<string, BloggerTagDefinition> = {
   'b:defaultmarkups': {
     name: 'b:defaultmarkups',
     description: 'Configures default markup includes for template widgets.',
-    snippetBody: 'b:defaultmarkups>\n\t<b:defaultmarkup type="${1:Blog}">\n\t\t$0\n\t</b:defaultmarkup>\n</b:defaultmarkups>',
+    snippetBody: 'b:defaultmarkups>\n\t$0\n</b:defaultmarkups>',
     docUrl: 'https://bloggercode.orbiona.com/2017/05/tag-b-defaultmarkups.html',
   },
   'b:defaultmarkup': {
     name: 'b:defaultmarkup',
     description: 'Configures default template includes for a specific widget type.',
-    snippetBody: 'b:defaultmarkup type="${1:Blog}">\n\t$0\n</b:defaultmarkup>',
+    snippetBody: 'b:defaultmarkup type="$1">\n\t$0\n</b:defaultmarkup>',
     docUrl: 'https://bloggercode.orbiona.com/2017/05/tag-b-defaultmarkups.html',
     attributes: {
       type: { name: 'type', type: 'string', required: true, description: 'Widget type to define default markup for.', values: bloggerDefaultMarkupTypes },
@@ -59,7 +56,7 @@ export const bloggerTags: Record<string, BloggerTagDefinition> = {
   'b:eval': {
     name: 'b:eval',
     description: 'Evaluates a Blogger expression and explicitly outputs the result.',
-    snippetBody: 'b:eval expr="${1:expression}"/>$0',
+    snippetBody: 'b:eval expr="$1"/>$0',
     docUrl: [
       'https://support.google.com/blogger/answer/46995#zippy=%2Cevaluated-expressions-beval',
       'https://bloggercode.orbiona.com/2016/03/tag-b-eval.html',
@@ -71,7 +68,7 @@ export const bloggerTags: Record<string, BloggerTagDefinition> = {
   'b:if': {
     name: 'b:if',
     description: 'Renders child content if the condition evaluates to true.',
-    snippetBody: 'b:if cond="${1:condition}">\n\t$0\n</b:if>',
+    snippetBody: 'b:if cond="$1">\n\t$0\n</b:if>',
     docUrl: [
       'https://support.google.com/blogger/answer/46995#zippy=%2Cif-elseif-else-bif',
       'https://bloggercode.orbiona.com/2016/03/tag-b-if-b-else-b-elseif.html',
@@ -83,7 +80,7 @@ export const bloggerTags: Record<string, BloggerTagDefinition> = {
   'b:elseif': {
     name: 'b:elseif',
     description: 'Alternative condition branch inside a b:if block.',
-    snippetBody: 'b:elseif cond="${1:condition}"/>$0',
+    snippetBody: 'b:elseif cond="$1"/>$0',
     docUrl: [
       'https://support.google.com/blogger/answer/46995#zippy=%2Cif-elseif-else-bif',
       'https://bloggercode.orbiona.com/2016/03/tag-b-if-b-else-b-elseif.html',
@@ -104,7 +101,7 @@ export const bloggerTags: Record<string, BloggerTagDefinition> = {
   'b:includable': {
     name: 'b:includable',
     description: 'Defines a reusable template section / macro that can be called by b:include.',
-    snippetBody: 'b:includable id="${1:main}" var="${2:this}">\n\t$0\n</b:includable>',
+    snippetBody: 'b:includable id="$1">\n\t$0\n</b:includable>',
     docUrl: [
       'https://support.google.com/blogger/answer/46995#zippy=%2Cincludes-binclude',
       'https://bloggercode.orbiona.com/2016/03/tag-b-includable-b-include.html',
@@ -117,7 +114,7 @@ export const bloggerTags: Record<string, BloggerTagDefinition> = {
   'b:include': {
     name: 'b:include',
     description: 'Executes and renders a b:includable section by name.',
-    snippetBody: 'b:include name="${1:main}" data="${2:data}"/>$0',
+    snippetBody: 'b:include name="$1"/>$0',
     docUrl: [
       'https://support.google.com/blogger/answer/46995#zippy=%2Cincludes-binclude',
       'https://bloggercode.orbiona.com/2016/03/tag-b-includable-b-include.html',
@@ -131,7 +128,7 @@ export const bloggerTags: Record<string, BloggerTagDefinition> = {
   'b:loop': {
     name: 'b:loop',
     description: 'Iterates through an array expression.',
-    snippetBody: 'b:loop values="${1:data:posts}" var="${2:post}">\n\t$0\n</b:loop>',
+    snippetBody: 'b:loop values="$1" var="$2">\n\t$0\n</b:loop>',
     docUrl: [
       'https://support.google.com/blogger/answer/46995#zippy=%2Cloops-bloop',
       'https://bloggercode.orbiona.com/2016/03/tag-b-loop.html',
@@ -146,7 +143,7 @@ export const bloggerTags: Record<string, BloggerTagDefinition> = {
   'b:message': {
     name: 'b:message',
     description: 'Renders a localized message from the Blogger message dictionary.',
-    snippetBody: 'b:message name="${1:messages.readMore}">\n\t<b:param name="${2:name}" value="${3:value}"/>\n</b:message>$0',
+    snippetBody: 'b:message name="$1"/>$0',
     docUrl: 'https://bloggercode.orbiona.com/2018/02/tag-b-message-b-param.html',
     attributes: {
       name: { name: 'name', type: 'string', required: true, description: 'Name key of the message to render.' },
@@ -155,7 +152,7 @@ export const bloggerTags: Record<string, BloggerTagDefinition> = {
   'b:param': {
     name: 'b:param',
     description: 'Passes a parameter value to a parent b:message tag.',
-    snippetBody: 'b:param name="${1:name}" value="${2:value}"/>$0',
+    snippetBody: 'b:param name="$1" value="$2"/>$0',
     docUrl: 'https://bloggercode.orbiona.com/2018/02/tag-b-message-b-param.html',
     attributes: {
       name: { name: 'name', type: 'string', required: true, description: 'Parameter name identifier matching the placeholder in the message.' },
@@ -165,7 +162,7 @@ export const bloggerTags: Record<string, BloggerTagDefinition> = {
   'b:section': {
     name: 'b:section',
     description: 'Defines a layout section that can contain b:widget tags.',
-    snippetBody: 'b:section id="${1:main}" tag="${2:main}">\n\t$0\n</b:section>',
+    snippetBody: 'b:section id="$1">\n\t$0\n</b:section>',
     docUrl: [
       'https://support.google.com/blogger/answer/46888',
       'https://bloggercode.orbiona.com/2016/03/tag-b-section.html',
@@ -198,7 +195,7 @@ export const bloggerTags: Record<string, BloggerTagDefinition> = {
   'b:template-script': {
     name: 'b:template-script',
     description: 'Declares and asynchronously initializes Blogger platform scripts in Layouts v3.',
-    snippetBody: 'b:template-script name="${1:indie}"/>$0',
+    snippetBody: 'b:template-script name="$1"/>$0',
     docUrl: 'https://bloggercode.orbiona.com/2018/02/tag-b-template-script.html',
     attributes: {
       name: { name: 'name', type: 'string', required: true, description: 'Registered platform script identifier.' },
@@ -207,7 +204,7 @@ export const bloggerTags: Record<string, BloggerTagDefinition> = {
   'b:switch': {
     name: 'b:switch',
     description: 'Evaluates an expression and switches between b:case branches.',
-    snippetBody: 'b:switch var="${1:data:blog.pageType}">\n\t<b:case value="${2:item}"/>\n\t\t$0\n\t<b:default/>\n</b:switch>',
+    snippetBody: 'b:switch var="$1">\n\t$0\n</b:switch>',
     docUrl: [
       'https://support.google.com/blogger/answer/46995#zippy=%2Cswitches-bswitch',
       'https://bloggercode.orbiona.com/2016/03/tag-b-switch-b-case-b-default.html',
@@ -219,7 +216,7 @@ export const bloggerTags: Record<string, BloggerTagDefinition> = {
   'b:case': {
     name: 'b:case',
     description: 'Branch inside a b:switch statement matching a specific value.',
-    snippetBody: 'b:case value="${1:value}"/>$0',
+    snippetBody: 'b:case value="$1"/>$0',
     docUrl: [
       'https://support.google.com/blogger/answer/46995#zippy=%2Cswitches-bswitch',
       'https://bloggercode.orbiona.com/2016/03/tag-b-switch-b-case-b-default.html',
@@ -240,7 +237,7 @@ export const bloggerTags: Record<string, BloggerTagDefinition> = {
   'b:tag': {
     name: 'b:tag',
     description: 'Dynamically generates any HTML tag by name.',
-    snippetBody: 'b:tag name="${1:div}">\n\t$0\n</b:tag>',
+    snippetBody: 'b:tag name="$1">\n\t$0\n</b:tag>',
     docUrl: 'https://bloggercode.orbiona.com/2018/02/tags-b-tag.html',
     attributes: {
       name: { name: 'name', type: 'string', required: true, description: 'Name of HTML tag to generate.' },
@@ -250,7 +247,7 @@ export const bloggerTags: Record<string, BloggerTagDefinition> = {
   'b:widget': {
     name: 'b:widget',
     description: 'Defines a Blogger widget component.',
-    snippetBody: 'b:widget id="${1:Blog1}" type="${2:Blog}" title="${3:Blog Posts}" locked="${4:false}" version="2">\n\t$0\n</b:widget>',
+    snippetBody: 'b:widget id="$1" type="$2" title="$3">\n\t$0\n</b:widget>',
     docUrl: [
       'https://support.google.com/blogger/answer/46888',
       'https://bloggercode.orbiona.com/2016/03/tag-b-widget.html',
@@ -268,13 +265,13 @@ export const bloggerTags: Record<string, BloggerTagDefinition> = {
   'b:widget-settings': {
     name: 'b:widget-settings',
     description: 'Configuration container for a widget settings list.',
-    snippetBody: 'b:widget-settings>\n\t<b:widget-setting name="${1:name}">\n\t\t$0\n\t</b:widget-setting>\n</b:widget-settings>',
+    snippetBody: 'b:widget-settings>\n\t$0\n</b:widget-settings>',
     docUrl: 'https://bloggercode.orbiona.com/2018/02/tags-b-widget-settings.html',
   },
   'b:widget-setting': {
     name: 'b:widget-setting',
     description: 'Single setting key-value pair for a widget.',
-    snippetBody: 'b:widget-setting name="${1:name}">\n\t$0\n</b:widget-setting>',
+    snippetBody: 'b:widget-setting name="$1">\n\t$0\n</b:widget-setting>',
     docUrl: 'https://bloggercode.orbiona.com/2018/02/tags-b-widget-settings.html',
     attributes: {
       name: { name: 'name', type: 'string', required: true, description: 'Setting name identifier.' },
@@ -283,7 +280,7 @@ export const bloggerTags: Record<string, BloggerTagDefinition> = {
   'b:with': {
     name: 'b:with',
     description: 'Assigns an expression value to a local alias variable scope.',
-    snippetBody: 'b:with value="${1:expression}" var="${2:alias}">\n\t$0\n</b:with>',
+    snippetBody: 'b:with value="$1" var="$2">\n\t$0\n</b:with>',
     docUrl: [
       'https://support.google.com/blogger/answer/46995#zippy=%2Cvariable-alias-bwith',
       'https://bloggercode.orbiona.com/2016/03/tag-b-with.html',
@@ -296,7 +293,7 @@ export const bloggerTags: Record<string, BloggerTagDefinition> = {
   'Group': {
     name: 'Group',
     description: 'Groups variables and creates a section in the Blogger Template Designer.',
-    snippetBody: `Group description="\${1|${descriptionsChoices}|}" selector="\${2:selector}">\n\t$0\n</Group>`,
+    snippetBody: 'Group description="$1">\n\t$0\n</Group>',
     docUrl: 'https://bloggercode.orbiona.com/2014/06/tag-b-skin-b-template-skin.html',
     attributes: {
       description: { name: 'description', type: 'string', required: true, description: 'Variable group description in Template Designer.' },
@@ -306,7 +303,7 @@ export const bloggerTags: Record<string, BloggerTagDefinition> = {
   'Variable': {
     name: 'Variable',
     description: 'Creates customization options for the Blogger Template Designer.',
-    snippetBody: `Variable name="\${1:name}" description="\${2|${descriptionsChoices}|}" type="\${3|color,font,length,background,string,url|}" default="\${4:default}" value="\${5:value}"/>$0`,
+    snippetBody: 'Variable name="$1" description="$2" type="$3" default="$4" value="$5"/>$0',
     docUrl: 'https://bloggercode.orbiona.com/2014/06/tag-b-skin-b-template-skin.html',
     attributes: {
       name: { name: 'name', type: 'string', required: true, description: 'Unique variable identifier name.' },

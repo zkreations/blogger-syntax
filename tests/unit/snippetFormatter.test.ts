@@ -30,4 +30,14 @@ describe('cleanSnippetBody', () => {
     const input = '<b:eval expr="${1:expression}"/>$0';
     expect(cleanSnippetBody(input)).toBe('<b:eval expr="expression"/>');
   });
+
+  it('should clean minimal snippets with empty tabstops', () => {
+    const input = 'b:attr name="$1" value="$2"/>$0';
+    expect(cleanSnippetBody(input)).toBe('<b:attr name="" value=""/>');
+  });
+
+  it('should clean minimal container snippets with empty tabstops', () => {
+    const input = 'b:widget id="$1" type="$2" title="$3">\n\t$0\n</b:widget>';
+    expect(cleanSnippetBody(input)).toBe('<b:widget id="" type="" title="">\n\t\n</b:widget>');
+  });
 });

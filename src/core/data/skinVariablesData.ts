@@ -1,7 +1,4 @@
 import type { BloggerTagAttribute, BloggerTagDefinition } from '../models/types.js';
-import { bloggerDescriptions } from './descriptions.js';
-
-const descriptionsChoices = bloggerDescriptions.join(',');
 
 export const bloggerSkinVariableTypes = [
   'color',
@@ -31,7 +28,7 @@ export const bloggerSkinVariableTypeDetails: Record<BloggerSkinVariableType, Blo
     description: 'Defines a color skin variable for Blogger Template Designer CSS.',
     docUrl: 'https://bloggercode.orbiona.com/2016/09/skin-type-color.html',
     example: '<Variable name="text.color" description="Text Color" type="color" default="#333333" value="#333333" hideEditor="false"/>',
-    snippetBody: `Variable name="\${1:name}" description="\${2|${descriptionsChoices}|}" type="color" default="\${3:#000000}" value="\${4:#000000}" hideEditor="\${5|false,true|}"/>$0`,
+    snippetBody: 'Variable name="$1" description="$2" type="color" default="$3" value="$4"/>$0',
     attributes: {
       name: { name: 'name', type: 'string', required: true, description: 'Unique variable identifier name. Letters, numbers, and dots are allowed.' },
       description: { name: 'description', type: 'string', required: true, description: 'Variable label shown in Template Designer.' },
@@ -47,7 +44,7 @@ export const bloggerSkinVariableTypeDetails: Record<BloggerSkinVariableType, Blo
     description: 'Defines a font skin variable with font family, size, and styling options.',
     docUrl: 'https://bloggercode.orbiona.com/2016/09/skin-type-font.html',
     example: '<Variable name="body.font" description="Body Font" type="font" family="Arial, sans-serif" size="14px" default="normal normal 14px Arial, sans-serif" value="normal normal 14px Arial, sans-serif" hideEditor="false"/>',
-    snippetBody: `Variable name="\${1:name}" description="\${2|${descriptionsChoices}|}" type="font" family="\${3:Arial, sans-serif}" size="\${4:14px}" default="\${5:default}" value="\${6:value}" hideEditor="\${7|false,true|}"/>$0`,
+    snippetBody: 'Variable name="$1" description="$2" type="font" default="$3" value="$4"/>$0',
     attributes: {
       name: { name: 'name', type: 'string', required: true, description: 'Unique variable identifier name. Letters, numbers, and dots are allowed.' },
       description: { name: 'description', type: 'string', required: true, description: 'Variable label shown in Template Designer.' },
@@ -65,7 +62,7 @@ export const bloggerSkinVariableTypeDetails: Record<BloggerSkinVariableType, Blo
     description: 'Defines a length / dimension skin variable with optional min and max boundaries.',
     docUrl: 'https://bloggercode.orbiona.com/2016/09/skin-type-length.html',
     example: '<Variable name="content.width" description="Content Width" type="length" min="600px" max="1200px" default="960px" value="960px" hideEditor="false"/>',
-    snippetBody: `Variable name="\${1:name}" description="\${2|${descriptionsChoices}|}" type="length" min="\${3:10px}" max="\${4:100px}" default="\${5:20px}" value="\${6:20px}" hideEditor="\${7|false,true|}"/>$0`,
+    snippetBody: 'Variable name="$1" description="$2" type="length" default="$3" value="$4"/>$0',
     attributes: {
       name: { name: 'name', type: 'string', required: true, description: 'Unique variable identifier name. Letters, numbers, and dots are allowed.' },
       description: { name: 'description', type: 'string', required: true, description: 'Variable label shown in Template Designer.' },
@@ -83,7 +80,7 @@ export const bloggerSkinVariableTypeDetails: Record<BloggerSkinVariableType, Blo
     description: 'Defines a background skin variable containing color, image url, alignment, or positioning.',
     docUrl: 'https://bloggercode.orbiona.com/2016/09/skin-type-background.html',
     example: '<Variable name="body.background" description="Body Background" type="background" color="#ffffff" default="$(color) url(https://...) repeat fixed top left" value="$(color) url(https://...) repeat fixed top left"/>',
-    snippetBody: `Variable name="\${1:name}" description="\${2|${descriptionsChoices}|}" type="background" color="\${3:#ffffff}" default="\${4:value}" value="\${5:value}"/>$0`,
+    snippetBody: 'Variable name="$1" description="$2" type="background" default="$3" value="$4"/>$0',
     attributes: {
       name: { name: 'name', type: 'string', required: true, description: 'Unique variable identifier name. Letters, numbers, and dots are allowed.' },
       description: { name: 'description', type: 'string', required: true, description: 'Variable label shown in Template Designer.' },
@@ -99,7 +96,7 @@ export const bloggerSkinVariableTypeDetails: Record<BloggerSkinVariableType, Blo
     description: 'Defines a string skin variable for text or custom CSS values. Note: Distinct from runtime data:string.',
     docUrl: 'https://bloggercode.orbiona.com/2016/09/skin-type-string.html',
     example: '<Variable name="custom.text" description="Custom Text" type="string" default="Sample text" value="Sample text"/>',
-    snippetBody: `Variable name="\${1:name}" description="\${2|${descriptionsChoices}|}" type="string" default="\${3:default}" value="\${4:value}"/>$0`,
+    snippetBody: 'Variable name="$1" description="$2" type="string" default="$3" value="$4"/>$0',
     attributes: {
       name: { name: 'name', type: 'string', required: true, description: 'Unique variable identifier name. Letters, numbers, and dots are allowed.' },
       description: { name: 'description', type: 'string', required: true, description: 'Variable label shown in Template Designer.' },
@@ -114,7 +111,7 @@ export const bloggerSkinVariableTypeDetails: Record<BloggerSkinVariableType, Blo
     description: 'Defines a URL skin variable containing an image or resource URL. Note: Distinct from runtime data:url.',
     docUrl: 'https://bloggercode.orbiona.com/2016/09/skin-type-url.html',
     example: '<Variable name="header.image" description="Header Image" type="url" default="url(https://...)" value="url(https://...)"/>',
-    snippetBody: `Variable name="\${1:name}" description="\${2|${descriptionsChoices}|}" type="url" default="\${3:url(https://...)}" value="\${4:url(https://...)}"/>$0`,
+    snippetBody: 'Variable name="$1" description="$2" type="url" default="$3" value="$4"/>$0',
     attributes: {
       name: { name: 'name', type: 'string', required: true, description: 'Unique variable identifier name. Letters, numbers, and dots are allowed.' },
       description: { name: 'description', type: 'string', required: true, description: 'Variable label shown in Template Designer.' },
