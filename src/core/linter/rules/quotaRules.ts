@@ -596,13 +596,22 @@ export function checkQuotasAndFormatting(
         continue;
       }
 
-      // 1. Check token quota (> 40 tokens)
+      // 1. Check token quota
       const tokenCount = countExpressionTokens(attrVal);
-      if (tokenCount > 40) {
+      if (tokenCount > COMPILER_QUOTA_LIMIT) {
         const fullRange = createRange(lineOffsets, attrValOffset, attrValOffset + attrVal.length);
         diagnostics.push({
           code: 'blogger.quota.token-limit',
-          message: `Expression exceeds Blogger compiler token limit (currently ${tokenCount} tokens, maximum is 40). Break it down into intermediate variables using <b:with> to avoid server compilation rejection.`,
+          message: `Expression exceeds Blogger compiler token limit (currently ${tokenCount} tokens, maximum is ${COMPILER_QUOTA_LIMIT}). Break it down into intermediate variables using <b:with> to avoid server compilation rejection.`,
+          severity: 'error',
+          range: fullRange,
+        });
+      }
+      else if (tokenCount >= COMPILER_QUOTA_WARNING) {
+        const fullRange = createRange(lineOffsets, attrValOffset, attrValOffset + attrVal.length);
+        diagnostics.push({
+          code: 'blogger.quota.token-limit',
+          message: `Expression approaches Blogger compiler token limit (currently ${tokenCount} tokens, maximum is ${COMPILER_QUOTA_LIMIT}). Consider decomposing with <b:with> for safety.`,
           severity: 'warning',
           range: fullRange,
         });

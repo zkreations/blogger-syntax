@@ -274,14 +274,48 @@ describe('linter core engine', () => {
   });
 
   describe('quota & formatting rules', () => {
-    it('warns when an expression exceeds the 40-token compiler quota', () => {
+    it('reports an error when an expression exceeds the 40-token compiler quota (41+ tokens)', () => {
       const longExpr = Array.from({ length: 21 }, (_, i) => i + 1).join(' + ');
       const xml = `<b:eval expr='${longExpr}'/>`;
       const diags = lintBloggerDocument(xml);
 
       const quotaDiag = diags.find(d => d.code === 'blogger.quota.token-limit');
       expect(quotaDiag).toBeDefined();
+      expect(quotaDiag?.severity).toBe('error');
       expect(quotaDiag?.message).toContain('maximum is 40');
+      expect(quotaDiag?.message).toContain('currently 41 tokens');
+    });
+
+    it('warns when an expression is within the warning threshold (36 to 40 tokens)', () => {
+      // 36 tokens: [1, 2, ..., 35] -> 1 (bracket) + 35 (numbers) = 36 tokens
+      const warnExpr36 = `[${Array.from({ length: 35 }, (_, i) => i + 1).join(', ')}]`;
+      const xml36 = `<b:eval expr='${warnExpr36}'/>`;
+      const diags36 = lintBloggerDocument(xml36);
+
+      const quotaDiag36 = diags36.find(d => d.code === 'blogger.quota.token-limit');
+      expect(quotaDiag36).toBeDefined();
+      expect(quotaDiag36?.severity).toBe('warning');
+      expect(quotaDiag36?.message).toContain('currently 36 tokens');
+
+      // 40 tokens: [1, 2, ..., 39] -> 1 (bracket) + 39 (numbers) = 40 tokens
+      const warnExpr40 = `[${Array.from({ length: 39 }, (_, i) => i + 1).join(', ')}]`;
+      const xml40 = `<b:eval expr='${warnExpr40}'/>`;
+      const diags40 = lintBloggerDocument(xml40);
+
+      const quotaDiag40 = diags40.find(d => d.code === 'blogger.quota.token-limit');
+      expect(quotaDiag40).toBeDefined();
+      expect(quotaDiag40?.severity).toBe('warning');
+      expect(quotaDiag40?.message).toContain('currently 40 tokens');
+    });
+
+    it('does not report any quota diagnostic when expression is within safe limit (<= 35 tokens)', () => {
+      // 35 tokens: [1, 2, ..., 34] -> 1 + 34 = 35 tokens
+      const safeExpr = `[${Array.from({ length: 34 }, (_, i) => i + 1).join(', ')}]`;
+      const xml = `<b:eval expr='${safeExpr}'/>`;
+      const diags = lintBloggerDocument(xml);
+
+      const quotaDiag = diags.find(d => d.code === 'blogger.quota.token-limit');
+      expect(quotaDiag).toBeUndefined();
     });
 
     it('warns on unspaced colons in object literals to prevent XML QName collision', () => {
