@@ -28,6 +28,7 @@ export interface ExpressionBudgetResult {
 
 export const COMPILER_QUOTA_LIMIT = 40;
 export const COMPILER_QUOTA_WARNING = 36;
+export const COMPILER_NESTING_LIMIT = 50;
 
 const RELATIONAL_KEYWORDS = new Set(['eq', 'neq', 'lt', 'gt', 'lte', 'gte']);
 const LOGICAL_KEYWORDS = new Set(['and', 'or', 'not']);
@@ -532,6 +533,47 @@ export function findUnspacedObjectColons(
   return diagnostics;
 }
 
+export function checkDirectiveNesting(
+  maskedText: string,
+  lineOffsets: readonly number[],
+): BloggerDiagnostic[] {
+  const diagnostics: BloggerDiagnostic[] = [];
+  const directiveStack: { tag: string; start: number }[] = [];
+  const tagScanner = /<\/?b:([a-z_][\w:-]*)\b([^>]*?)(\/?)>/gi;
+
+  for (const match of maskedText.matchAll(tagScanner)) {
+    const rawMatch = match[0];
+    const tagName = `b:${match[1]!.toLowerCase()}`;
+    const isClosing = rawMatch.startsWith('</');
+    const isSelfClosing = match[3] === '/' || rawMatch.endsWith('/>');
+    const matchStart = match.index ?? 0;
+    const matchEnd = matchStart + rawMatch.length;
+
+    if (isClosing) {
+      for (let i = directiveStack.length - 1; i >= 0; i--) {
+        if (directiveStack[i]!.tag === tagName) {
+          directiveStack.splice(i, directiveStack.length - i);
+          break;
+        }
+      }
+    }
+    else if (!isSelfClosing) {
+      directiveStack.push({ tag: tagName, start: matchStart });
+      if (directiveStack.length > COMPILER_NESTING_LIMIT) {
+        const range = createRange(lineOffsets, matchStart, matchEnd);
+        diagnostics.push({
+          code: 'blogger.quota.nesting-limit',
+          message: `Directive tag nesting exceeds Blogger compiler ceiling (currently ${directiveStack.length} levels, maximum is ${COMPILER_NESTING_LIMIT}). Deep nesting will cause fatal compilation failure.`,
+          severity: 'error',
+          range,
+        });
+      }
+    }
+  }
+
+  return diagnostics;
+}
+
 export function checkQuotasAndFormatting(
   _text: string,
   maskedText: string,
@@ -570,6 +612,9 @@ export function checkQuotasAndFormatting(
       diagnostics.push(...findUnspacedObjectColons(attrVal, attrValOffset, lineOffsets));
     }
   }
+
+  // 3. Check directive nesting depth limit (> 50 levels)
+  diagnostics.push(...checkDirectiveNesting(maskedText, lineOffsets));
 
   return diagnostics;
 }
