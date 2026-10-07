@@ -100,6 +100,48 @@ describe('definition resolver (F12 Go to Definition)', () => {
     expect(result).toBeUndefined();
   });
 
+  it('falls back to <b:defaultmarkup type="Common"> when includable is not declared in widget or typed markup', () => {
+    const xmlWithCommon = `
+      <b:defaultmarkups>
+        <b:defaultmarkup type='Common'>
+          <b:includable id='universalHeader'>
+            <header>Universal</header>
+          </b:includable>
+        </b:defaultmarkup>
+      </b:defaultmarkups>
+      <b:widget id='Blog1' type='Blog'>
+        <b:includable id='main'>
+          <b:include name='universalHeader'/>
+        </b:includable>
+      </b:widget>
+    `;
+    const includeIndex = xmlWithCommon.indexOf('name=\'universalHeader\'');
+    const result = findIncludableDefinition(xmlWithCommon, includeIndex + 8);
+
+    expect(result).toBeDefined();
+    expect(result?.targetId).toBe('universalHeader');
+    const expectedPos = xmlWithCommon.indexOf('<b:includable id=\'universalHeader\'');
+    expect(result?.targetSpan.start).toBe(expectedPos);
+  });
+
+  it('ignores definitions commented out via <b:comment>', () => {
+    const xmlWithComment = `
+      <b:comment>
+        <b:widget id='Ghost' type='Blog'>
+          <b:includable id='ghostSub'>Ghost</b:includable>
+        </b:widget>
+      </b:comment>
+      <b:widget id='Real' type='Blog'>
+        <b:includable id='main'>
+          <b:include name='ghostSub'/>
+        </b:includable>
+      </b:widget>
+    `;
+    const includeIndex = xmlWithComment.indexOf('name=\'ghostSub\'');
+    const result = findIncludableDefinition(xmlWithComment, includeIndex + 8);
+    expect(result).toBeUndefined();
+  });
+
   it('integrates with VS Code BloggerDefinitionProvider returning LocationLinks', () => {
     const doc = new MockTextDocument(xml) as any;
     const provider = new BloggerDefinitionProvider();
