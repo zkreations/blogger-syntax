@@ -921,7 +921,7 @@ export class BloggerPathResolver {
       };
     }
 
-    for (const match of lineText.matchAll(/==|!=|\b(?:filter|where|map|select|count|first|last|any|all|none|take|limit|skip|offset|to|in|contains|format|params|appendParams|path|fragment|and|or|not|eq|neq|lt|lte|gt|gte|snippet|resizeImage|sourceSet)\b/g)) {
+    for (const match of lineText.matchAll(/==|!=|\b(?:filter|where|map|select|count|first|any|all|none|take|limit|skip|offset|to|in|contains|format|params|appendParams|path|fragment|and|or|not|eq|neq|lt|lte|gt|gte|snippet|resizeImage|sourceSet)\b/g)) {
       const opName = match[0];
       if (!opName || match.index === undefined) {
         continue;
