@@ -1,10 +1,12 @@
 import type { BloggerDiagnostic, LinterOptions } from './linterTypes.js';
 import { computeLineOffsets, maskComments } from './linterUtils.js';
+import { checkDirectiveAttributes } from './rules/attributeRules.js';
 import { checkContextAvailability } from './rules/contextRules.js';
 import { checkDeprecations } from './rules/deprecationRules.js';
 import { checkHallucinations } from './rules/hallucinationRules.js';
 import { checkDuplicateIncludables, checkUnresolvedInclusions } from './rules/inclusionRules.js';
 import { checkQuotasAndFormatting } from './rules/quotaRules.js';
+import { checkDocumentStructure } from './rules/structureRules.js';
 
 /**
  * Validates a Blogger XML document text against canonical rules,
@@ -47,6 +49,14 @@ export function lintBloggerDocument(
 
   if (rules?.inclusions !== false) {
     diagnostics.push(...checkUnresolvedInclusions(documentText, maskedText, lineOffsets));
+  }
+
+  if (rules?.attributes !== false) {
+    diagnostics.push(...checkDirectiveAttributes(documentText, maskedText, lineOffsets));
+  }
+
+  if (rules?.structure !== false) {
+    diagnostics.push(...checkDocumentStructure(documentText, maskedText, lineOffsets));
   }
 
   return diagnostics;

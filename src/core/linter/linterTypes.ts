@@ -33,6 +33,8 @@ export interface LinterRuleOptions {
   readonly context?: boolean | undefined;
   readonly duplicates?: boolean | undefined;
   readonly inclusions?: boolean | undefined;
+  readonly attributes?: boolean | undefined;
+  readonly structure?: boolean | undefined;
 }
 
 export interface LinterOptions {

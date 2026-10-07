@@ -1,0 +1,405 @@
+import type { BloggerDiagnostic } from '../linterTypes.js';
+import { isStrictlySelfClosingTag } from '../../parser/tagTreeTracker.js';
+import { createRange } from '../linterUtils.js';
+
+interface XmlToken {
+  readonly tagName: string;
+  readonly isClosing: boolean;
+  readonly isSelfClosing: boolean;
+  readonly tagContent: string;
+  readonly tagContentOffset: number;
+  readonly tagStart: number;
+  readonly tagEnd: number;
+}
+
+function scanAllXmlTokens(text: string): XmlToken[] {
+  const tokens: XmlToken[] = [];
+  const len = text.length;
+  let i = 0;
+
+  while (i < len) {
+    const openIndex = text.indexOf('<', i);
+    if (openIndex === -1) {
+      break;
+    }
+
+    const nextChar = text[openIndex + 1];
+    if (!nextChar || nextChar === '!' || nextChar === '?') {
+      i = openIndex + 1;
+      continue;
+    }
+
+    const isClosing = nextChar === '/';
+    const nameStart = isClosing ? openIndex + 2 : openIndex + 1;
+
+    let nameEnd = nameStart;
+    while (nameEnd < len && /[\w:-]/.test(text[nameEnd]!)) {
+      nameEnd++;
+    }
+
+    if (nameEnd === nameStart) {
+      i = openIndex + 1;
+      continue;
+    }
+
+    const tagName = text.slice(nameStart, nameEnd);
+    const tagContentOffset = nameEnd;
+
+    let inQuote: '"' | '\'' | null = null;
+    let tagEnd = -1;
+    let j = nameEnd;
+
+    while (j < len) {
+      const c = text[j];
+      if (inQuote) {
+        if (c === inQuote) {
+          inQuote = null;
+        }
+      }
+      else {
+        if (c === '"' || c === '\'') {
+          inQuote = c;
+        }
+        else if (c === '>') {
+          tagEnd = j;
+          break;
+        }
+      }
+      j++;
+    }
+
+    if (tagEnd === -1) {
+      break;
+    }
+
+    const tagContent = text.slice(tagContentOffset, tagEnd);
+    const trimmedContent = tagContent.trimEnd();
+    const hasSlash = trimmedContent.endsWith('/');
+    const isSelfClosing = !isClosing && (hasSlash || isStrictlySelfClosingTag(tagName));
+
+    tokens.push({
+      tagName,
+      isClosing,
+      isSelfClosing,
+      tagContent,
+      tagContentOffset,
+      tagStart: openIndex,
+      tagEnd: tagEnd + 1,
+    });
+
+    i = tagEnd + 1;
+  }
+
+  return tokens;
+}
+
+const ATTR_ID_REGEX = /\bid\s*=\s*(["'])([\s\S]*?)\1/i;
+const ATTR_TYPE_REGEX = /\btype\s*=\s*(["'])([\s\S]*?)\1/i;
+
+interface StackElement {
+  readonly tagName: string;
+  readonly lowerTagName: string;
+  readonly id?: string | undefined;
+  readonly type?: string | undefined;
+  readonly start: number;
+  readonly end: number;
+  hasMainIncludable?: boolean | undefined;
+}
+
+export function checkDocumentStructure(
+  documentText: string,
+  maskedText: string,
+  lineOffsets: readonly number[],
+): BloggerDiagnostic[] {
+  const diagnostics: BloggerDiagnostic[] = [];
+  const tokens = scanAllXmlTokens(maskedText);
+
+  // 1. Detect if this document is a full template
+  const isFullDocument = (
+    /<html\b/i.test(maskedText)
+    || /<body\b/i.test(maskedText)
+    || /<head\b/i.test(maskedText)
+    || /<!DOCTYPE\b/i.test(documentText)
+  );
+
+  let skinFound = false;
+  let sectionFound = false;
+  let headToken: XmlToken | undefined;
+  let bodyToken: XmlToken | undefined;
+
+  const sectionIds = new Map<string, { start: number; end: number }>();
+  const widgetIds = new Map<string, { start: number; end: number }>();
+
+  const stack: StackElement[] = [];
+
+  for (const token of tokens) {
+    const tagName = token.tagName;
+    const lower = tagName.toLowerCase();
+
+    if (lower === 'head' && !token.isClosing) {
+      headToken = token;
+    }
+    else if (lower === 'body' && !token.isClosing) {
+      bodyToken = token;
+    }
+    else if (lower === 'b:skin' && !token.isClosing) {
+      skinFound = true;
+    }
+    else if (lower === 'b:section' && !token.isClosing) {
+      sectionFound = true;
+    }
+
+    if (token.isClosing) {
+      for (let i = stack.length - 1; i >= 0; i--) {
+        if (stack[i]!.lowerTagName === lower) {
+          const closingEl = stack[i]!;
+
+          // Check if <b:widget> had an includable id='main'
+          if (closingEl.lowerTagName === 'b:widget' && !closingEl.hasMainIncludable) {
+            const range = createRange(lineOffsets, closingEl.start, closingEl.end);
+            const wIdStr = closingEl.id ? ` "${closingEl.id}"` : '';
+            diagnostics.push({
+              code: 'blogger.structure.missing-main-includable',
+              message: `<b:widget${wIdStr}> must declare a primary <b:includable id='main'> subroutine.`,
+              severity: 'error',
+              range,
+            });
+          }
+
+          stack.splice(i);
+          break;
+        }
+      }
+      continue;
+    }
+
+    // Opening or self-closing tag
+    const parent = stack[stack.length - 1];
+    const parentLower = parent?.lowerTagName;
+
+    const idMatch = ATTR_ID_REGEX.exec(token.tagContent);
+    const idVal = idMatch ? idMatch[2]?.trim() : undefined;
+    const typeMatch = ATTR_TYPE_REGEX.exec(token.tagContent);
+    const typeVal = typeMatch ? typeMatch[2]?.trim() : undefined;
+
+    const currentRange = createRange(lineOffsets, token.tagStart, token.tagEnd);
+
+    // Global ID uniqueness checks
+    if (idVal) {
+      if (lower === 'b:section') {
+        if (sectionIds.has(idVal)) {
+          diagnostics.push({
+            code: 'blogger.duplicate.section-id',
+            message: `Duplicate section ID "${idVal}". Section IDs must be globally unique across the template.`,
+            severity: 'error',
+            range: currentRange,
+          });
+        }
+        else {
+          sectionIds.set(idVal, { start: token.tagStart, end: token.tagEnd });
+        }
+
+        if (widgetIds.has(idVal)) {
+          diagnostics.push({
+            code: 'blogger.collision.id',
+            message: `ID "${idVal}" is used by both a <b:section> and a <b:widget>. Section and widget IDs must not collide.`,
+            severity: 'error',
+            range: currentRange,
+          });
+        }
+      }
+      else if (lower === 'b:widget') {
+        if (widgetIds.has(idVal)) {
+          diagnostics.push({
+            code: 'blogger.duplicate.widget-id',
+            message: `Duplicate widget ID "${idVal}". Widget IDs must be globally unique across the template.`,
+            severity: 'error',
+            range: currentRange,
+          });
+        }
+        else {
+          widgetIds.set(idVal, { start: token.tagStart, end: token.tagEnd });
+        }
+
+        if (sectionIds.has(idVal)) {
+          diagnostics.push({
+            code: 'blogger.collision.id',
+            message: `ID "${idVal}" is used by both a <b:section> and a <b:widget>. Section and widget IDs must not collide.`,
+            severity: 'error',
+            range: currentRange,
+          });
+        }
+      }
+    }
+
+    // Hierarchy & Containment Rules
+    if (lower === 'b:section') {
+      const inHead = stack.some(s => s.lowerTagName === 'head');
+      if (inHead) {
+        diagnostics.push({
+          code: 'blogger.structure.section-in-head',
+          message: `<b:section> cannot be placed inside <head>; layout containers belong in <body>.`,
+          severity: 'error',
+          range: currentRange,
+        });
+      }
+
+      if (parentLower === 'b:section') {
+        diagnostics.push({
+          code: 'blogger.structure.nested-section',
+          message: `<b:section> cannot nest inside another <b:section>. Sections must be sibling elements.`,
+          severity: 'error',
+          range: currentRange,
+        });
+      }
+      else if (parentLower === 'b:widget') {
+        diagnostics.push({
+          code: 'blogger.structure.nested-section',
+          message: `<b:section> cannot nest inside a <b:widget>.`,
+          severity: 'error',
+          range: currentRange,
+        });
+      }
+    }
+    else if (lower === 'b:widget') {
+      if (parentLower !== 'b:section') {
+        diagnostics.push({
+          code: 'blogger.structure.orphan-widget',
+          message: `<b:widget> must reside directly inside a <b:section> container.`,
+          severity: 'error',
+          range: currentRange,
+        });
+      }
+      if (parentLower === 'b:widget') {
+        diagnostics.push({
+          code: 'blogger.structure.nested-widget',
+          message: `<b:widget> cannot nest inside another <b:widget>.`,
+          severity: 'error',
+          range: currentRange,
+        });
+      }
+    }
+    else if (parentLower === 'b:section') {
+      // Direct child of b:section must strictly be b:widget
+      if (lower !== 'b:widget') {
+        diagnostics.push({
+          code: 'blogger.structure.invalid-section-child',
+          message: `<b:section> permits only <b:widget> elements as direct children. Direct <${tagName}> markup is forbidden.`,
+          severity: 'error',
+          range: currentRange,
+        });
+      }
+    }
+    else if (parentLower === 'b:widget') {
+      // Direct child of b:widget must strictly be b:includable or b:widget-settings
+      if (lower !== 'b:includable' && lower !== 'b:widget-settings') {
+        diagnostics.push({
+          code: 'blogger.structure.invalid-widget-child',
+          message: `<b:widget> does not permit direct <${tagName}> content outside <b:includable>. Wrap layout markup in <b:includable id='main'>.`,
+          severity: 'error',
+          range: currentRange,
+        });
+      }
+    }
+
+    if (lower === 'b:includable' && parentLower === 'b:widget') {
+      if (idVal === 'main' && parent) {
+        parent.hasMainIncludable = true;
+      }
+    }
+
+    if (lower === 'b:defaultmarkups') {
+      if (stack.some(s => s.lowerTagName === 'b:section' || s.lowerTagName === 'b:widget')) {
+        diagnostics.push({
+          code: 'blogger.structure.invalid-defaultmarkups-parent',
+          message: `<b:defaultmarkups> cannot be placed inside <b:section> or <b:widget>.`,
+          severity: 'error',
+          range: currentRange,
+        });
+      }
+    }
+    else if (lower === 'b:defaultmarkup') {
+      if (parentLower !== 'b:defaultmarkups') {
+        diagnostics.push({
+          code: 'blogger.structure.invalid-defaultmarkup-parent',
+          message: `<b:defaultmarkup> must reside directly inside <b:defaultmarkups>.`,
+          severity: 'error',
+          range: currentRange,
+        });
+      }
+    }
+    else if (lower === 'b:widget-setting') {
+      if (parentLower !== 'b:widget-settings') {
+        diagnostics.push({
+          code: 'blogger.structure.invalid-setting-parent',
+          message: `<b:widget-setting> must reside directly inside <b:widget-settings>.`,
+          severity: 'error',
+          range: currentRange,
+        });
+      }
+    }
+    else if (lower === 'b:param') {
+      if (parentLower !== 'b:message') {
+        diagnostics.push({
+          code: 'blogger.structure.invalid-param-parent',
+          message: `<b:param> must reside directly inside a <b:message> container.`,
+          severity: 'error',
+          range: currentRange,
+        });
+      }
+    }
+    else if (lower === 'variable' || lower === 'group') {
+      const inSkin = stack.some(s => s.lowerTagName === 'b:skin');
+      if (!inSkin) {
+        diagnostics.push({
+          code: 'blogger.structure.invalid-skin-child',
+          message: `<${tagName}> must reside inside a <b:skin> container.`,
+          severity: 'error',
+          range: currentRange,
+        });
+      }
+    }
+
+    if (!token.isSelfClosing) {
+      stack.push({
+        tagName,
+        lowerTagName: lower,
+        id: idVal,
+        type: typeVal,
+        start: token.tagStart,
+        end: token.tagEnd,
+      });
+    }
+  }
+
+  // 2. Validate full template mandatory invariants
+  if (isFullDocument) {
+    if (!skinFound) {
+      const targetRange = headToken
+        ? createRange(lineOffsets, headToken.tagStart, headToken.tagEnd)
+        : createRange(lineOffsets, 0, Math.min(50, maskedText.length));
+
+      diagnostics.push({
+        code: 'blogger.structure.missing-skin',
+        message: 'A Blogger theme must contain a <b:skin> stylesheet block within <head> (e.g. <b:skin><![CDATA[]]></b:skin>).',
+        severity: 'error',
+        range: targetRange,
+      });
+    }
+
+    if (!sectionFound) {
+      const targetRange = bodyToken
+        ? createRange(lineOffsets, bodyToken.tagStart, bodyToken.tagEnd)
+        : createRange(lineOffsets, 0, Math.min(50, maskedText.length));
+
+      diagnostics.push({
+        code: 'blogger.structure.missing-section',
+        message: 'A Blogger theme must contain at least one <b:section> layout container inside <body>.',
+        severity: 'error',
+        range: targetRange,
+      });
+    }
+  }
+
+  return diagnostics;
+}
