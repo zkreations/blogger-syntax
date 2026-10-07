@@ -527,4 +527,167 @@ describe('linter core engine', () => {
       expect(diagsWithoutHallucinations.some(d => d.code.startsWith('blogger.hallucination'))).toBe(false);
     });
   });
+
+  describe('duplicate includable ID rules', () => {
+    it('detects duplicate <b:includable id="..."> in the same <b:widget>', () => {
+      const xml = `
+        <b:widget id='Blog1' type='Blog'>
+          <b:includable id='main'><div>First</div></b:includable>
+          <b:includable id='main'><div>Duplicate</div></b:includable>
+        </b:widget>
+      `;
+      const diags = lintBloggerDocument(xml);
+      const dup = diags.find(d => d.code === 'blogger.duplicate.includable-id');
+      expect(dup).toBeDefined();
+      expect(dup?.severity).toBe('error');
+      expect(dup?.message).toContain('Duplicate includable ID "main" in widget "Blog1"');
+    });
+
+    it('detects duplicate <b:includable id="..."> in the same <b:defaultmarkup>', () => {
+      const xml = `
+        <b:defaultmarkups>
+          <b:defaultmarkup type='Common'>
+            <b:includable id='test'><div>1</div></b:includable>
+            <b:includable id='test'><div>2 (Duplicate)</div></b:includable>
+          </b:defaultmarkup>
+        </b:defaultmarkups>
+      `;
+      const diags = lintBloggerDocument(xml);
+      const dup = diags.find(d => d.code === 'blogger.duplicate.includable-id');
+      expect(dup).toBeDefined();
+      expect(dup?.severity).toBe('error');
+      expect(dup?.message).toContain('Duplicate includable ID "test" in defaultmarkup "Common"');
+    });
+
+    it('permits identical IDs across separate <b:defaultmarkups> blocks (valid cascade override)', () => {
+      const xml = `
+        <b:defaultmarkups>
+          <b:defaultmarkup type='Common'>
+            <b:includable id='test'><div>Original</div></b:includable>
+          </b:defaultmarkup>
+        </b:defaultmarkups>
+        <b:defaultmarkups>
+          <b:defaultmarkup type='Common'>
+            <b:includable id='test'><div>Override</div></b:includable>
+          </b:defaultmarkup>
+        </b:defaultmarkups>
+      `;
+      const diags = lintBloggerDocument(xml);
+      const dup = diags.filter(d => d.code === 'blogger.duplicate.includable-id');
+      expect(dup).toHaveLength(0);
+    });
+
+    it('permits identical IDs in different <b:widget> blocks (isolated scopes)', () => {
+      const xml = `
+        <b:widget id='Blog1' type='Blog'>
+          <b:includable id='main'><div>Blog</div></b:includable>
+        </b:widget>
+        <b:widget id='Header1' type='Header'>
+          <b:includable id='main'><div>Header</div></b:includable>
+        </b:widget>
+      `;
+      const diags = lintBloggerDocument(xml);
+      const dup = diags.filter(d => d.code === 'blogger.duplicate.includable-id');
+      expect(dup).toHaveLength(0);
+    });
+
+    it('allows selectively disabling duplicate rules via options', () => {
+      const xml = `
+        <b:widget id='Blog1' type='Blog'>
+          <b:includable id='main'><div>1</div></b:includable>
+          <b:includable id='main'><div>2</div></b:includable>
+        </b:widget>
+      `;
+      const diags = lintBloggerDocument(xml, { rules: { duplicates: false } });
+      expect(diags.some(d => d.code === 'blogger.duplicate.includable-id')).toBe(false);
+    });
+  });
+
+  describe('unresolved inclusions rules', () => {
+    it('detects unresolved <b:include name="..."> not in template and not on server', () => {
+      const xml = `
+        <b:widget id='Blog1' type='Blog'>
+          <b:includable id='main'>
+            <b:include name='ghostSubroutine'/>
+          </b:includable>
+        </b:widget>
+      `;
+      const diags = lintBloggerDocument(xml);
+      const unresolved = diags.find(d => d.code === 'blogger.unresolved.inclusion');
+      expect(unresolved).toBeDefined();
+      expect(unresolved?.severity).toBe('error');
+      expect(unresolved?.message).toContain('Unresolved inclusion "ghostSubroutine"');
+    });
+
+    it('allows universal server inclusions without error', () => {
+      const xml = `
+        <head>
+          <b:include data='blog' name='all-head-content'/>
+          <b:include data='blog' name='google-analytics'/>
+          <b:include name='urlParamsAsFormInput'/>
+        </head>
+      `;
+      const diags = lintBloggerDocument(xml);
+      const unresolved = diags.filter(d => d.code === 'blogger.unresolved.inclusion');
+      expect(unresolved).toHaveLength(0);
+    });
+
+    it('allows common server inclusions without error', () => {
+      const xml = `
+        <b:widget id='Blog1' type='Blog'>
+          <b:includable id='main'>
+            <b:include name='widget-title'/>
+            <b:include name='responsiveImageStyle'/>
+            <b:include data='post' name='postMetadataJSON'/>
+          </b:includable>
+        </b:widget>
+      `;
+      const diags = lintBloggerDocument(xml);
+      const unresolved = diags.filter(d => d.code === 'blogger.unresolved.inclusion');
+      expect(unresolved).toHaveLength(0);
+    });
+
+    it('allows super.* native platform invocations without error', () => {
+      const xml = `
+        <b:defaultmarkup type='Common'>
+          <b:includable id='main'>
+            <b:include name='super.main'/>
+          </b:includable>
+        </b:defaultmarkup>
+      `;
+      const diags = lintBloggerDocument(xml);
+      const unresolved = diags.filter(d => d.code === 'blogger.unresolved.inclusion');
+      expect(unresolved).toHaveLength(0);
+    });
+
+    it('allows template-defined subroutines without error', () => {
+      const xml = `
+        <b:defaultmarkups>
+          <b:defaultmarkup type='Common'>
+            <b:includable id='customHelper'><div>Helper</div></b:includable>
+          </b:defaultmarkup>
+        </b:defaultmarkups>
+        <b:widget id='Blog1' type='Blog'>
+          <b:includable id='main'>
+            <b:include name='customHelper'/>
+          </b:includable>
+        </b:widget>
+      `;
+      const diags = lintBloggerDocument(xml);
+      const unresolved = diags.filter(d => d.code === 'blogger.unresolved.inclusion');
+      expect(unresolved).toHaveLength(0);
+    });
+
+    it('allows selectively disabling inclusion validation rules via options', () => {
+      const xml = `
+        <b:widget id='Blog1' type='Blog'>
+          <b:includable id='main'>
+            <b:include name='ghostSubroutine'/>
+          </b:includable>
+        </b:widget>
+      `;
+      const diags = lintBloggerDocument(xml, { rules: { inclusions: false } });
+      expect(diags.some(d => d.code === 'blogger.unresolved.inclusion')).toBe(false);
+    });
+  });
 });

@@ -31,6 +31,8 @@ export interface LinterRuleOptions {
   readonly hallucinations?: boolean | undefined;
   readonly quotas?: boolean | undefined;
   readonly context?: boolean | undefined;
+  readonly duplicates?: boolean | undefined;
+  readonly inclusions?: boolean | undefined;
 }
 
 export interface LinterOptions {

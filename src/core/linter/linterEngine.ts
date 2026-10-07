@@ -3,6 +3,7 @@ import { computeLineOffsets, maskComments } from './linterUtils.js';
 import { checkContextAvailability } from './rules/contextRules.js';
 import { checkDeprecations } from './rules/deprecationRules.js';
 import { checkHallucinations } from './rules/hallucinationRules.js';
+import { checkDuplicateIncludables, checkUnresolvedInclusions } from './rules/inclusionRules.js';
 import { checkQuotasAndFormatting } from './rules/quotaRules.js';
 
 /**
@@ -38,6 +39,14 @@ export function lintBloggerDocument(
 
   if (rules?.context !== false) {
     diagnostics.push(...checkContextAvailability(documentText, maskedText, lineOffsets));
+  }
+
+  if (rules?.duplicates !== false) {
+    diagnostics.push(...checkDuplicateIncludables(documentText, maskedText, lineOffsets));
+  }
+
+  if (rules?.inclusions !== false) {
+    diagnostics.push(...checkUnresolvedInclusions(documentText, maskedText, lineOffsets));
   }
 
   return diagnostics;

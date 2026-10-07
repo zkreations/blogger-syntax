@@ -158,4 +158,100 @@ describe('definition resolver (F12 Go to Definition)', () => {
     expect(loc.targetRange).toBeDefined();
     expect(loc.targetSelectionRange).toBeDefined();
   });
+
+  it('resolves <b:include name="test"/> to the latest definition when overridden across multiple <b:defaultmarkups> blocks', () => {
+    const xmlOverride = `
+      <b:defaultmarkups>
+        <b:defaultmarkup type='Common'>
+          <b:includable id="test">
+            <!-- Esto es una prueba -->
+          </b:includable>
+        </b:defaultmarkup>
+      </b:defaultmarkups>
+
+      <b:include name="test"/>
+
+      <b:defaultmarkups>
+        <b:defaultmarkup type='Common'>
+          <b:includable id="test">
+            <!-- Sobreescritura -->
+          </b:includable>
+        </b:defaultmarkup>
+      </b:defaultmarkups>
+    `;
+
+    const includePos = xmlOverride.indexOf('name="test"');
+    const result = findIncludableDefinition(xmlOverride, includePos + 7);
+
+    expect(result).toBeDefined();
+    expect(result?.targetId).toBe('test');
+
+    const lastIncludablePos = xmlOverride.lastIndexOf('<b:includable id="test"');
+    expect(result?.targetSpan.start).toBe(lastIncludablePos);
+  });
+
+  it('resolves typed defaultmarkup overrides across separate <b:defaultmarkups> blocks for matching widgets', () => {
+    const xmlTypedOverride = `
+      <b:defaultmarkups>
+        <b:defaultmarkup type='Blog'>
+          <b:includable id="postHelper">
+            <div>Old Helper</div>
+          </b:includable>
+        </b:defaultmarkup>
+      </b:defaultmarkups>
+
+      <b:widget id='Blog1' type='Blog'>
+        <b:includable id='main'>
+          <b:include name="postHelper"/>
+        </b:includable>
+      </b:widget>
+
+      <b:defaultmarkups>
+        <b:defaultmarkup type='Blog'>
+          <b:includable id="postHelper">
+            <div>New Helper (Override)</div>
+          </b:includable>
+        </b:defaultmarkup>
+      </b:defaultmarkups>
+    `;
+
+    const includePos = xmlTypedOverride.indexOf('name="postHelper"');
+    const result = findIncludableDefinition(xmlTypedOverride, includePos + 7);
+
+    expect(result).toBeDefined();
+    expect(result?.targetId).toBe('postHelper');
+
+    const expectedPos = xmlTypedOverride.lastIndexOf('<b:includable id="postHelper"');
+    expect(result?.targetSpan.start).toBe(expectedPos);
+  });
+
+  it('preserves local widget includable priority over subsequent <b:defaultmarkups> blocks', () => {
+    const xmlLocalPriority = `
+      <b:widget id='Blog1' type='Blog'>
+        <b:includable id='header'>
+          <div>Widget Local Header</div>
+        </b:includable>
+        <b:includable id='main'>
+          <b:include name="header"/>
+        </b:includable>
+      </b:widget>
+
+      <b:defaultmarkups>
+        <b:defaultmarkup type='Blog'>
+          <b:includable id="header">
+            <div>Defaultmarkup Header</div>
+          </b:includable>
+        </b:defaultmarkup>
+      </b:defaultmarkups>
+    `;
+
+    const includePos = xmlLocalPriority.indexOf('name="header"');
+    const result = findIncludableDefinition(xmlLocalPriority, includePos + 7);
+
+    expect(result).toBeDefined();
+    expect(result?.targetId).toBe('header');
+
+    const localHeaderPos = xmlLocalPriority.indexOf('<b:includable id=\'header\'>');
+    expect(result?.targetSpan.start).toBe(localHeaderPos);
+  });
 });

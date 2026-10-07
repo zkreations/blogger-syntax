@@ -246,29 +246,53 @@ export function findIncludableDefinition(
 
   let bestCandidate: IncludableCandidate | undefined;
 
-  // Priority 1: In the same widget
+  // Priority 1: In the same widget (last definition wins)
   if (enclosingWidgetId) {
-    bestCandidate = matchingCandidates.find(c => c.parentWidgetId === enclosingWidgetId);
+    for (let i = matchingCandidates.length - 1; i >= 0; i--) {
+      const c = matchingCandidates[i];
+      if (c && c.parentWidgetId === enclosingWidgetId) {
+        bestCandidate = c;
+        break;
+      }
+    }
   }
 
-  // Priority 2: In defaultmarkup matching widget's type or enclosing markup type
+  // Priority 2: In defaultmarkup matching widget's type or enclosing markup type (last definition wins)
   if (!bestCandidate && (enclosingWidgetType || enclosingMarkupType)) {
     const targetType = enclosingWidgetType || enclosingMarkupType;
-    bestCandidate = matchingCandidates.find(
-      c => c.parentMarkupType && c.parentMarkupType.toLowerCase() === targetType?.toLowerCase(),
-    );
+    for (let i = matchingCandidates.length - 1; i >= 0; i--) {
+      const c = matchingCandidates[i];
+      if (c && c.parentMarkupType && c.parentMarkupType.toLowerCase() === targetType?.toLowerCase()) {
+        bestCandidate = c;
+        break;
+      }
+    }
   }
 
-  // Priority 3: In defaultmarkup of type 'Common' (universal subroutines)
+  // Priority 3: In defaultmarkup of type 'Common' or 'All' (universal subroutines; last definition wins)
   if (!bestCandidate) {
-    bestCandidate = matchingCandidates.find(
-      c => c.parentMarkupType && c.parentMarkupType.toLowerCase() === 'common',
-    );
+    for (let i = matchingCandidates.length - 1; i >= 0; i--) {
+      const c = matchingCandidates[i];
+      if (
+        c
+        && c.parentMarkupType
+        && (c.parentMarkupType.toLowerCase() === 'common' || c.parentMarkupType.toLowerCase() === 'all')
+      ) {
+        bestCandidate = c;
+        break;
+      }
+    }
   }
 
-  // Priority 4: Fallback to the first matching candidate in the document
+  // Priority 4: Fallback to the last matching candidate in the document (excluding private includables of other widgets)
   if (!bestCandidate) {
-    bestCandidate = matchingCandidates[0];
+    for (let i = matchingCandidates.length - 1; i >= 0; i--) {
+      const c = matchingCandidates[i];
+      if (c && (!enclosingWidgetId || !c.parentWidgetId || c.parentWidgetId === enclosingWidgetId)) {
+        bestCandidate = c;
+        break;
+      }
+    }
   }
 
   if (!bestCandidate) {
