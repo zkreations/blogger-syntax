@@ -176,6 +176,23 @@ describe('linter core engine', () => {
       expect(mapDiag?.quickFixes?.[0]?.newText).toBe(' map (');
     });
 
+    it('does not falsely detect JS methods, operators, or messages inside string literals in expressions', () => {
+      const xml = `
+        <b:eval expr='data:post.title contains "test.filter(something)"'/>
+        <b:eval expr='data:post.body contains "foo.map(x)"'/>
+        <b:eval expr='data:post.body contains "test.slice(1)"'/>
+        <b:eval expr='data:post.snippet contains "=== TITLE ==="'/>
+        <b:eval expr='data:post.body contains "data:messages.byAuthor"'/>
+      `;
+      const diags = lintBloggerDocument(xml);
+      const falseDiags = diags.filter(d =>
+        d.code === 'blogger.hallucination.js-method'
+        || d.code === 'blogger.hallucination.js-operator'
+        || d.code === 'blogger.syntax.parameterized-message-direct-invocation',
+      );
+      expect(falseDiags).toEqual([]);
+    });
+
     it('detects prohibited JS strict equality and logical operators', () => {
       const xml = `
         <b:eval expr='data:a === data:b'/>

@@ -25,3 +25,13 @@ export function maskCommentsAndCdata(text: string): string {
   return masked;
 }
 
+/**
+ * Masks contents of string literals ("...", '...', &quot;...&quot;, &apos;...&apos;)
+ * with whitespace, preserving total character length and token offsets.
+ */
+export function maskStringLiterals(text: string): string {
+  return text.replace(
+    /"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|&quot;[\s\S]*?&quot;|&apos;[\s\S]*?&apos;/g,
+    match => ' '.repeat(match.length),
+  );
+}
