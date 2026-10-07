@@ -86,4 +86,22 @@ describe('includable subroutines completion', () => {
     expect(names).not.toContain('super.defaultSection');
     expect(names.some(n => n.startsWith('super.'))).toBe(false);
   });
+
+  it('should include subroutines defined in Common defaultmarkup for any widget', () => {
+    const xmlWithCommon = `
+<b:defaultmarkup type="Common">
+  <b:includable id="universalNav">
+    <nav>Nav</nav>
+  </b:includable>
+</b:defaultmarkup>
+<b:widget id="Blog1" type="Blog">
+  <b:includable id="main">
+    <b:include name=""
+  </b:includable>
+</b:widget>
+    `;
+    const offset = xmlWithCommon.indexOf('<b:include name=""') + '<b:include name="'.length;
+    const includables = tracker.getAvailableIncludables('common-test.xml', 1, xmlWithCommon, offset);
+    expect(includables.defaultMarkups).toContain('universalNav');
+  });
 });
