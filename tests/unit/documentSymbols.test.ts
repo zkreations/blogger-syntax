@@ -104,6 +104,20 @@ describe('document symbol indexer (Outline & Breadcrumbs)', () => {
     expect(widget?.children[0]?.name).toBe('realInc');
   });
 
+  it('ignores directives commented out via <b:comment>', () => {
+    const xmlComment = `
+      <b:comment>
+        <b:section id='ghostSec'>
+          <b:widget id='ghostWidget' type='Blog'/>
+        </b:section>
+      </b:comment>
+      <b:section id='realSec'/>
+    `;
+    const symbols = indexDocumentSymbols(xmlComment);
+    expect(symbols).toHaveLength(1);
+    expect(symbols[0]?.name).toBe('realSec');
+  });
+
   it('integrates with VS Code BloggerDocumentSymbolProvider mapping correct SymbolKinds', () => {
     const doc = new MockTextDocument(xml) as any;
     const provider = new BloggerDocumentSymbolProvider();
