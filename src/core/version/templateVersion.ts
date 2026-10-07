@@ -8,7 +8,6 @@ export interface TemplateVersionResult {
 }
 
 const EXPLICIT_ATTR_REGEX = /\bb:(?:layoutsVersion|version)\s*=\s*["']([123])["']/i;
-const EXPLICIT_TAG_REGEX = /<b:layoutsVersion>\s*([123])\s*<\/b:layoutsVersion>/i;
 
 const V3_MARKERS: { name: string; regex: RegExp }[] = [
   { name: 'b:defaultmarkups', regex: /<b:defaultmarkups\b/i },
@@ -23,7 +22,7 @@ const V1_MARKERS: { name: string; regex: RegExp }[] = [
 ];
 
 export function detectTemplateVersion(text: string): TemplateVersionResult {
-  // 1. Check for explicit layout version attribute on <html> or <b:layoutsVersion>
+  // 1. Check for explicit layout version attribute on <html>
   const attrMatch = EXPLICIT_ATTR_REGEX.exec(text);
   if (attrMatch?.[1]) {
     const v = Number.parseInt(attrMatch[1], 10) as BloggerLayoutVersion;
@@ -31,17 +30,6 @@ export function detectTemplateVersion(text: string): TemplateVersionResult {
       version: v,
       confidence: 'explicit',
       detectedFeatures: [`Explicit attribute b:layoutsVersion="${v}"`],
-      summary: `Blogger Layouts v${v} (Explicit)`,
-    };
-  }
-
-  const tagMatch = EXPLICIT_TAG_REGEX.exec(text);
-  if (tagMatch?.[1]) {
-    const v = Number.parseInt(tagMatch[1], 10) as BloggerLayoutVersion;
-    return {
-      version: v,
-      confidence: 'explicit',
-      detectedFeatures: [`Explicit tag <b:layoutsVersion>${v}</b:layoutsVersion>`],
       summary: `Blogger Layouts v${v} (Explicit)`,
     };
   }
