@@ -282,8 +282,13 @@ export class BloggerPathResolver {
     return resolveWidgetTypesSuggestions();
   }
 
-  public resolveDefaultMarkupTypes(): readonly BloggerSuggestion[] {
-    return resolveDefaultMarkupTypesSuggestions();
+  public resolveDefaultMarkupTypes(excludedTypes?: readonly string[]): readonly BloggerSuggestion[] {
+    const all = resolveDefaultMarkupTypesSuggestions();
+    if (!excludedTypes || excludedTypes.length === 0) {
+      return all;
+    }
+    const excludedSet = new Set(excludedTypes.map(t => t.trim().toLowerCase()));
+    return all.filter(s => !excludedSet.has(s.name.toLowerCase()));
   }
 
   public resolveSkinVariableTypes(): readonly BloggerSuggestion[] {
@@ -720,8 +725,25 @@ export class BloggerPathResolver {
         if (tagName === 'b:defaultmarkup') {
           const lastCommaIndex = typedText.lastIndexOf(',');
           const prefixToReplace = lastCommaIndex >= 0 ? typedText.slice(lastCommaIndex + 1).trimStart() : typedText;
+
+          const definedBefore = lastCommaIndex >= 0
+            ? typedText.slice(0, lastCommaIndex).split(',').map(s => s.trim()).filter(s => s.length > 0)
+            : [];
+
+          let definedAfter: string[] = [];
+          if (options?.lineSuffix) {
+            const quoteIdx = options.lineSuffix.search(/["']/);
+            const insideQuotes = quoteIdx >= 0 ? options.lineSuffix.slice(0, quoteIdx) : options.lineSuffix;
+            const firstComma = insideQuotes.indexOf(',');
+            if (firstComma >= 0) {
+              definedAfter = insideQuotes.slice(firstComma + 1).split(',').map(s => s.trim()).filter(s => s.length > 0);
+            }
+          }
+
+          const excludedTypes = [...definedBefore, ...definedAfter];
+
           return {
-            suggestions: this.resolveDefaultMarkupTypes(),
+            suggestions: this.resolveDefaultMarkupTypes(excludedTypes),
             replacementLength: prefixToReplace.length,
           };
         }

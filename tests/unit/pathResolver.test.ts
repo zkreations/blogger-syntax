@@ -474,6 +474,40 @@ describe('bloggerPathResolver', () => {
       expect(result!.suggestions.length).toBe(27);
     });
 
+    it('should exclude previously defined types when suggesting after comma in b:defaultmarkup type', () => {
+      const result = resolver.resolveFromLinePrefix('<b:defaultmarkup type="Blog,');
+      expect(result).toBeDefined();
+      expect(result!.replacementLength).toBe(0);
+      expect(result!.suggestions.length).toBe(26);
+      const names = result!.suggestions.map(s => s.name);
+      expect(names).not.toContain('Blog');
+      expect(names).toContain('Common');
+      expect(names).toContain('All');
+      expect(names).toContain('PopularPosts');
+    });
+
+    it('should exclude multiple previously defined types and support partial prefix', () => {
+      const result = resolver.resolveFromLinePrefix('<b:defaultmarkup type="Blog, PopularPosts, Fea');
+      expect(result).toBeDefined();
+      expect(result!.replacementLength).toBe(3);
+      expect(result!.suggestions.length).toBe(25);
+      const names = result!.suggestions.map(s => s.name);
+      expect(names).not.toContain('Blog');
+      expect(names).not.toContain('PopularPosts');
+      expect(names).toContain('FeaturedPost');
+    });
+
+    it('should exclude types specified after cursor when lineSuffix is provided', () => {
+      const result = resolver.resolveFromLinePrefix('<b:defaultmarkup type="Blog, ', {
+        lineSuffix: ',FeaturedPost">',
+      });
+      expect(result).toBeDefined();
+      expect(result!.suggestions.length).toBe(25);
+      const names = result!.suggestions.map(s => s.name);
+      expect(names).not.toContain('Blog');
+      expect(names).not.toContain('FeaturedPost');
+    });
+
     it('should resolve widget types for multi-line b:widget tag', () => {
       const result = resolver.resolveFromLinePrefix('<b:widget\n  id="Blog1"\n  type="');
       expect(result).toBeDefined();
