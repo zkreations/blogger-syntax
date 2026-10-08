@@ -570,12 +570,6 @@ export const viewProperties: Record<string, BloggerProperty> = {
 };
 
 export const widgetMetaProperties: Record<string, BloggerProperty> = {
-  id: {
-    name: 'id',
-    type: 'string',
-    description: 'Unique widget ID (e.g. "ReportAbuse1", "Blog1").',
-    docUrl: 'https://bloggercode.orbiona.com/1978/02/data-widgets-id.html',
-  },
   instanceId: {
     name: 'instanceId',
     type: 'string',

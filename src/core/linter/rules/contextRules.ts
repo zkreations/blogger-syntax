@@ -5,10 +5,9 @@ import { maskStringLiterals } from '../../utils/textUtils.js';
 import { createRange } from '../linterUtils.js';
 
 const UNIVERSAL_WIDGET_PROPERTIES = new Set([
-  'id',
-  'type',
-  'sectionId',
   'instanceId',
+  'sectionId',
+  'type',
   'version',
 ]);
 
@@ -19,17 +18,73 @@ const GLOBAL_DATA_ROOTS = new Set([
   'widgets',
   'messages',
   'template',
-  'widget',
 ]);
 
 const DATA_CALL_REGEX = /\bdata:([a-zA-Z_]\w*(?:\.[a-zA-Z_]\w*)*)/g;
+const WIDGET_DATA_CALL_REGEX = /\bdata:widget\b((?:\.[a-zA-Z_]\w*)+)?/g;
 
 function isExprAttr(name: string, tagName: string): boolean {
   return (
     isExpressionAttribute(name, tagName)
     || (name === 'data' && tagName === 'b:include')
     || (name === 'value' && tagName === 'b:attr')
+    || name.startsWith('expr:')
+    || name === 'expr'
   );
+}
+
+interface ScopeFrame {
+  readonly tagName: string;
+  readonly isReportAbuseWidget: boolean;
+  readonly localVars: Set<string>;
+}
+
+type WidgetScopeStatus
+  = | { readonly kind: 'valid_includable' }
+    | { readonly kind: 'out_of_scope_directive'; readonly container: string }
+    | { readonly kind: 'out_of_scope_global'; readonly container: string };
+
+function getWidgetScopeStatus(
+  currentTagName: string,
+  scopeStack: readonly ScopeFrame[],
+): WidgetScopeStatus {
+  let includableIndex = -1;
+  for (let i = scopeStack.length - 1; i >= 0; i--) {
+    if (scopeStack[i]!.tagName === 'b:includable') {
+      includableIndex = i;
+      break;
+    }
+  }
+
+  if (includableIndex !== -1) {
+    for (let i = includableIndex - 1; i >= 0; i--) {
+      const ancestor = scopeStack[i]!.tagName;
+      if (ancestor === 'b:widget') {
+        return { kind: 'valid_includable' };
+      }
+      if (ancestor === 'b:defaultmarkup') {
+        const hasDefaultMarkups = scopeStack.slice(0, i).some(f => f.tagName === 'b:defaultmarkups');
+        if (hasDefaultMarkups) {
+          return { kind: 'valid_includable' };
+        }
+      }
+    }
+  }
+
+  const lowerCurrent = currentTagName.toLowerCase();
+  if (lowerCurrent === 'b:widget' || lowerCurrent === 'b:defaultmarkup') {
+    return { kind: 'out_of_scope_directive', container: currentTagName };
+  }
+
+  for (let i = scopeStack.length - 1; i >= 0; i--) {
+    const frameTag = scopeStack[i]!.tagName;
+    if (frameTag === 'b:widget' || frameTag === 'b:defaultmarkup') {
+      return { kind: 'out_of_scope_directive', container: frameTag };
+    }
+  }
+
+  const topContainer = scopeStack[scopeStack.length - 1]?.tagName || 'global';
+  return { kind: 'out_of_scope_global', container: topContainer };
 }
 
 interface HallucinatedPropertyRule {
@@ -155,13 +210,8 @@ export function checkContextAvailability(
     }
   }
 
-  // 3. Check ReportAbuse widget local data scope restrictions
+  // 3. Check data:widget scope delimitations & canonical contract and ReportAbuse restrictions
   const tokens = scanDirectiveTokens(maskedText);
-  interface ScopeFrame {
-    readonly tagName: string;
-    readonly isReportAbuseWidget: boolean;
-    readonly localVars: Set<string>;
-  }
   const scopeStack: ScopeFrame[] = [];
 
   for (const token of tokens) {
@@ -199,6 +249,95 @@ export function checkContextAvailability(
       }
     }
 
+    // 3a. Universal check for data:widget tags (<data:widget.../>)
+    if (lowerTagName === 'data:widget' || lowerTagName.startsWith('data:widget.')) {
+      const widgetStatus = getWidgetScopeStatus(tagName, scopeStack);
+      const tagRange = createRange(lineOffsets, token.tagStart, token.tagEnd);
+
+      if (widgetStatus.kind === 'out_of_scope_directive') {
+        diagnostics.push({
+          code: 'OUT_OF_SCOPE_DIRECTIVE',
+          message: `"${tagName}" is not valid directly within <${widgetStatus.container}> outside <b:includable>. "data:widget" is only accessible within <b:includable> subroutines.`,
+          severity: 'error',
+          range: tagRange,
+        });
+      }
+      else if (widgetStatus.kind === 'out_of_scope_global') {
+        diagnostics.push({
+          code: 'OUT_OF_SCOPE_GLOBAL_ACCESS',
+          message: `"${tagName}" cannot be accessed in global scope (<${widgetStatus.container}>). It is strictly limited to <b:includable> within <b:widget> or <b:defaultmarkup>.`,
+          severity: 'error',
+          range: tagRange,
+        });
+      }
+      else if (lowerTagName.startsWith('data:widget.')) {
+        const fullPath = tagName.slice(5);
+        const segments = fullPath.split('.').slice(1);
+        const prop = segments[0]!;
+        if (!UNIVERSAL_WIDGET_PROPERTIES.has(prop) || segments.length > 1) {
+          diagnostics.push({
+            code: 'blogger.hallucination.data-property',
+            message: `Property "data:${fullPath}" does not exist. Canonical data:widget properties are: ${Array.from(UNIVERSAL_WIDGET_PROPERTIES).join(', ')}.`,
+            severity: 'error',
+            range: tagRange,
+          });
+        }
+      }
+    }
+
+    // 3b. Universal check for data:widget occurrences in expression attributes
+    for (const attr of Object.values(token.attributes)) {
+      if (!attr.value || !isExprAttr(attr.name, tagName)) {
+        continue;
+      }
+
+      const maskedAttrVal = maskStringLiterals(attr.value);
+      WIDGET_DATA_CALL_REGEX.lastIndex = 0;
+
+      for (const match of maskedAttrVal.matchAll(WIDGET_DATA_CALL_REGEX)) {
+        if (match.index === undefined) {
+          continue;
+        }
+
+        const matchedText = match[0];
+        const propPart = match[1];
+        const start = attr.valueStart + match.index;
+        const end = start + matchedText.length;
+        const range = createRange(lineOffsets, start, end);
+        const widgetStatus = getWidgetScopeStatus(tagName, scopeStack);
+
+        if (widgetStatus.kind === 'out_of_scope_directive') {
+          diagnostics.push({
+            code: 'OUT_OF_SCOPE_DIRECTIVE',
+            message: `"${matchedText}" is not valid directly within <${widgetStatus.container}> outside <b:includable>. "data:widget" is only accessible within <b:includable> subroutines.`,
+            severity: 'error',
+            range,
+          });
+        }
+        else if (widgetStatus.kind === 'out_of_scope_global') {
+          diagnostics.push({
+            code: 'OUT_OF_SCOPE_GLOBAL_ACCESS',
+            message: `"${matchedText}" cannot be accessed in global scope (<${widgetStatus.container}>). It is strictly limited to <b:includable> within <b:widget> or <b:defaultmarkup>.`,
+            severity: 'error',
+            range,
+          });
+        }
+        else if (propPart !== undefined) {
+          const segments = propPart.slice(1).split('.');
+          const prop = segments[0]!;
+          if (!UNIVERSAL_WIDGET_PROPERTIES.has(prop) || segments.length > 1) {
+            diagnostics.push({
+              code: 'blogger.hallucination.data-property',
+              message: `Property "${matchedText}" does not exist. Canonical data:widget properties are: ${Array.from(UNIVERSAL_WIDGET_PROPERTIES).join(', ')}.`,
+              severity: 'error',
+              range,
+            });
+          }
+        }
+      }
+    }
+
+    // 3c. ReportAbuse widget local data scope restrictions
     const insideReportAbuse = isReportAbuse || scopeStack.some(f => f.isReportAbuseWidget);
 
     if (insideReportAbuse) {
@@ -212,19 +351,13 @@ export function checkContextAvailability(
         inScopeVars.add(v);
       }
 
-      if (lowerTagName.startsWith('data:')) {
+      if (lowerTagName.startsWith('data:') && !lowerTagName.startsWith('data:widget') && !lowerTagName.startsWith('data:widgets')) {
         const fullPath = tagName.slice(5);
         const segments = fullPath.split('.');
         const root = segments[0]!;
-        const member = segments[1];
 
         let isValid = false;
-        if (root === 'widget') {
-          if (member === undefined || UNIVERSAL_WIDGET_PROPERTIES.has(member)) {
-            isValid = true;
-          }
-        }
-        else if (GLOBAL_DATA_ROOTS.has(root)) {
+        if (GLOBAL_DATA_ROOTS.has(root)) {
           isValid = true;
         }
         else if (inScopeVars.has(root)) {
@@ -235,9 +368,7 @@ export function checkContextAvailability(
           const range = createRange(lineOffsets, token.tagStart, token.tagEnd);
           diagnostics.push({
             code: 'blogger.hallucination.data-property',
-            message: root === 'widget' && member
-              ? `Property "data:widget.${member}" does not exist. Only universal "data:widget.*" properties (${Array.from(UNIVERSAL_WIDGET_PROPERTIES).join(', ')}) are accessible.`
-              : `Property "data:${fullPath}" does not exist. Widget "ReportAbuse" has no local data dictionary; only universal "data:widget.*" properties are accessible.`,
+            message: `Property "data:${fullPath}" does not exist. Widget "ReportAbuse" has no local data dictionary; only universal "data:widget.*" properties are accessible.`,
             severity: 'error',
             range,
           });
@@ -261,15 +392,13 @@ export function checkContextAvailability(
           const fullPath = match[1]!;
           const segments = fullPath.split('.');
           const root = segments[0]!;
-          const member = segments[1];
+
+          if (root === 'widget') {
+            continue;
+          }
 
           let isValid = false;
-          if (root === 'widget') {
-            if (member === undefined || UNIVERSAL_WIDGET_PROPERTIES.has(member)) {
-              isValid = true;
-            }
-          }
-          else if (GLOBAL_DATA_ROOTS.has(root)) {
+          if (GLOBAL_DATA_ROOTS.has(root)) {
             isValid = true;
           }
           else if (inScopeVars.has(root)) {
@@ -283,9 +412,7 @@ export function checkContextAvailability(
 
             diagnostics.push({
               code: 'blogger.hallucination.data-property',
-              message: root === 'widget' && member
-                ? `Property "data:widget.${member}" does not exist. Only universal "data:widget.*" properties (id, type, sectionId, instanceId) are accessible.`
-                : `Property "${matchedText}" does not exist. Widget "ReportAbuse" has no local data dictionary; only universal "data:widget.*" properties are accessible.`,
+              message: `Property "${matchedText}" does not exist. Widget "ReportAbuse" has no local data dictionary; only universal "data:widget.*" properties are accessible.`,
               severity: 'error',
               range,
             });

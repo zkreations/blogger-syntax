@@ -816,12 +816,12 @@ describe('linter contracts & horatio specifications', () => {
         expect(hallocDiags.every(d => d.message.includes('ReportAbuse'))).toBe(true);
       });
 
-      it('allows universal data:widget.* properties (id, type, sectionId, instanceId, version)', () => {
+      it('allows universal data:widget.* properties (type, sectionId, instanceId, version)', () => {
         const xml = `
           <b:section id='main'>
             <b:widget id='ReportAbuse1' type='ReportAbuse'>
               <b:includable id='main'>
-                <data:widget.id/>
+                <data:widget.type/>
                 <b:eval expr='data:widget.type'/>
                 <b:eval expr='data:widget.sectionId'/>
                 <b:eval expr='data:widget.instanceId'/>
@@ -833,6 +833,22 @@ describe('linter contracts & horatio specifications', () => {
         const diags = lintBloggerDocument(xml);
         const hallocDiags = diags.filter(d => d.code === 'blogger.hallucination.data-property');
         expect(hallocDiags).toHaveLength(0);
+      });
+
+      it('rejects data:widget.id as non-canonical property', () => {
+        const xml = `
+          <b:section id='main'>
+            <b:widget id='ReportAbuse1' type='ReportAbuse'>
+              <b:includable id='main'>
+                <data:widget.id/>
+              </b:includable>
+            </b:widget>
+          </b:section>
+        `;
+        const diags = lintBloggerDocument(xml);
+        const hallocDiags = diags.filter(d => d.code === 'blogger.hallucination.data-property');
+        expect(hallocDiags).toHaveLength(1);
+        expect(hallocDiags[0]?.message).toContain('data:widget.id');
       });
 
       it('flags unknown data:widget.* properties inside ReportAbuse', () => {
@@ -953,6 +969,163 @@ describe('linter contracts & horatio specifications', () => {
       const unrec = diags.find(d => d.code === 'blogger.unrecognized.attribute');
       expect(unrec).toBeDefined();
       expect(unrec?.message).toContain('expr:nonExistentAttr');
+    });
+  });
+
+  describe('data:widget lexical scope delimitation and canonical properties contract', () => {
+    it('accepts data:widget and its 4 canonical properties inside <b:includable> descendant of <b:widget>', () => {
+      const xml = `
+        <b:section id='main'>
+          <b:widget id='Blog1' type='Blog'>
+            <b:includable id='main'>
+              <data:widget.instanceId/>
+              <data:widget.sectionId/>
+              <data:widget.type/>
+              <data:widget.version/>
+              <b:eval expr='data:widget.instanceId'/>
+              <b:eval expr='data:widget.type'/>
+              <b:eval expr='data:widget'/>
+            </b:includable>
+          </b:widget>
+        </b:section>
+      `;
+      const diags = lintBloggerDocument(xml);
+      const scopeDiags = diags.filter(d =>
+        d.code === 'OUT_OF_SCOPE_DIRECTIVE'
+        || d.code === 'OUT_OF_SCOPE_GLOBAL_ACCESS'
+        || d.code === 'blogger.hallucination.data-property',
+      );
+      expect(scopeDiags).toHaveLength(0);
+    });
+
+    it('accepts data:widget inside <b:includable> descendant of <b:defaultmarkup> (zero false positives)', () => {
+      const xml = `
+        <b:defaultmarkups>
+          <b:defaultmarkup type='Blog'>
+            <b:includable id='main'>
+              <data:widget.instanceId/>
+              <data:widget.sectionId/>
+              <data:widget.type/>
+              <data:widget.version/>
+              <b:eval expr='data:widget.type'/>
+            </b:includable>
+          </b:defaultmarkup>
+        </b:defaultmarkups>
+      `;
+      const diags = lintBloggerDocument(xml);
+      const scopeDiags = diags.filter(d =>
+        d.code === 'OUT_OF_SCOPE_DIRECTIVE'
+        || d.code === 'OUT_OF_SCOPE_GLOBAL_ACCESS'
+        || d.code === 'blogger.hallucination.data-property',
+      );
+      expect(scopeDiags).toHaveLength(0);
+    });
+
+    it('rejects data:widget.* as direct child of <b:widget> outside <b:includable> with OUT_OF_SCOPE_DIRECTIVE', () => {
+      const xml = `
+        <b:section id='main'>
+          <b:widget id='Blog1' type='Blog'>
+            <data:widget.type/>
+            <b:includable id='main'/>
+          </b:widget>
+        </b:section>
+      `;
+      const diags = lintBloggerDocument(xml);
+      const directiveDiag = diags.find(d => d.code === 'OUT_OF_SCOPE_DIRECTIVE');
+      expect(directiveDiag).toBeDefined();
+      expect(directiveDiag?.message).toContain('b:widget');
+    });
+
+    it('rejects data:widget in attributes of <b:widget> outside <b:includable> with OUT_OF_SCOPE_DIRECTIVE', () => {
+      const xml = `
+        <b:section id='main'>
+          <b:widget id='Blog1' type='Blog' expr:title='data:widget.type'>
+            <b:includable id='main'/>
+          </b:widget>
+        </b:section>
+      `;
+      const diags = lintBloggerDocument(xml);
+      const directiveDiag = diags.find(d => d.code === 'OUT_OF_SCOPE_DIRECTIVE');
+      expect(directiveDiag).toBeDefined();
+      expect(directiveDiag?.message).toContain('data:widget.type');
+    });
+
+    it('rejects data:widget.* as direct child of <b:defaultmarkup> outside <b:includable> with OUT_OF_SCOPE_DIRECTIVE', () => {
+      const xml = `
+        <b:defaultmarkups>
+          <b:defaultmarkup type='Blog'>
+            <data:widget.version/>
+            <b:includable id='main'/>
+          </b:defaultmarkup>
+        </b:defaultmarkups>
+      `;
+      const diags = lintBloggerDocument(xml);
+      const directiveDiag = diags.find(d => d.code === 'OUT_OF_SCOPE_DIRECTIVE');
+      expect(directiveDiag).toBeDefined();
+      expect(directiveDiag?.message).toContain('b:defaultmarkup');
+    });
+
+    it('rejects data:widget.* in global scope (<head>, <body>, <b:section>) with OUT_OF_SCOPE_GLOBAL_ACCESS', () => {
+      const xml = `
+        <head>
+          <data:widget.type/>
+        </head>
+        <body>
+          <b:section id='main'>
+            <data:widget.sectionId/>
+            <b:widget id='Blog1' type='Blog'>
+              <b:includable id='main'/>
+            </b:widget>
+          </b:section>
+          <b:eval expr='data:widget.version'/>
+        </body>
+      `;
+      const diags = lintBloggerDocument(xml);
+      const globalDiags = diags.filter(d => d.code === 'OUT_OF_SCOPE_GLOBAL_ACCESS');
+      expect(globalDiags.length).toBe(3);
+      expect(globalDiags.some(d => d.message.includes('head'))).toBe(true);
+      expect(globalDiags.some(d => d.message.includes('b:section'))).toBe(true);
+      expect(globalDiags.some(d => d.message.includes('body'))).toBe(true);
+    });
+
+    it('rejects non-canonical properties (such as id or custom) on data:widget with blogger.hallucination.data-property', () => {
+      const xml = `
+        <b:section id='main'>
+          <b:widget id='Blog1' type='Blog'>
+            <b:includable id='main'>
+              <data:widget.id/>
+              <b:eval expr='data:widget.customField'/>
+            </b:includable>
+          </b:widget>
+        </b:section>
+      `;
+      const diags = lintBloggerDocument(xml);
+      const hallocDiags = diags.filter(d => d.code === 'blogger.hallucination.data-property');
+      expect(hallocDiags).toHaveLength(2);
+      expect(hallocDiags.some(d => d.message.includes('data:widget.id'))).toBe(true);
+      expect(hallocDiags.some(d => d.message.includes('data:widget.customField'))).toBe(true);
+    });
+
+    it('does not interfere with data:widgets.* collection in layout and global contexts', () => {
+      const xml = `
+        <b:section id='main'>
+          <b:widget id='Blog1' type='Blog'>
+            <b:includable id='main'>
+              <b:eval expr='data:widgets.Blog1.id'/>
+              <b:loop values='data:widgets.Blog' var='w'>
+                <b:eval expr='data:w.id'/>
+              </b:loop>
+            </b:includable>
+          </b:widget>
+        </b:section>
+      `;
+      const diags = lintBloggerDocument(xml);
+      const scopeErrors = diags.filter(d =>
+        d.code === 'OUT_OF_SCOPE_DIRECTIVE'
+        || d.code === 'OUT_OF_SCOPE_GLOBAL_ACCESS'
+        || d.code === 'blogger.hallucination.data-property',
+      );
+      expect(scopeErrors).toHaveLength(0);
     });
   });
 });
