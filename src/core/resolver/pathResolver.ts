@@ -718,9 +718,11 @@ export class BloggerPathResolver {
         }
 
         if (tagName === 'b:defaultmarkup') {
+          const lastCommaIndex = typedText.lastIndexOf(',');
+          const prefixToReplace = lastCommaIndex >= 0 ? typedText.slice(lastCommaIndex + 1).trimStart() : typedText;
           return {
             suggestions: this.resolveDefaultMarkupTypes(),
-            replacementLength: typedText.length,
+            replacementLength: prefixToReplace.length,
           };
         }
       }

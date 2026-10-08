@@ -263,12 +263,18 @@ export function findIncludableDefinition(
 
   // Priority 2: In defaultmarkup matching widget's type or enclosing markup type (last definition wins)
   if (!bestCandidate && (enclosingWidgetType || enclosingMarkupType)) {
-    const targetType = enclosingWidgetType || enclosingMarkupType;
+    const targetTypes = [
+      ...(enclosingWidgetType ? [enclosingWidgetType.toLowerCase()] : []),
+      ...(enclosingMarkupType ? enclosingMarkupType.split(',').map(s => s.trim().toLowerCase()) : []),
+    ];
     for (let i = matchingCandidates.length - 1; i >= 0; i--) {
       const c = matchingCandidates[i];
-      if (c && c.parentMarkupType && c.parentMarkupType.toLowerCase() === targetType?.toLowerCase()) {
-        bestCandidate = c;
-        break;
+      if (c && c.parentMarkupType) {
+        const candidateTypes = c.parentMarkupType.split(',').map(s => s.trim().toLowerCase());
+        if (candidateTypes.some(ct => targetTypes.includes(ct))) {
+          bestCandidate = c;
+          break;
+        }
       }
     }
   }
@@ -277,13 +283,12 @@ export function findIncludableDefinition(
   if (!bestCandidate) {
     for (let i = matchingCandidates.length - 1; i >= 0; i--) {
       const c = matchingCandidates[i];
-      if (
-        c
-        && c.parentMarkupType
-        && (c.parentMarkupType.toLowerCase() === 'common' || c.parentMarkupType.toLowerCase() === 'all')
-      ) {
-        bestCandidate = c;
-        break;
+      if (c && c.parentMarkupType) {
+        const candidateTypes = c.parentMarkupType.split(',').map(s => s.trim().toLowerCase());
+        if (candidateTypes.includes('common') || candidateTypes.includes('all')) {
+          bestCandidate = c;
+          break;
+        }
       }
     }
   }

@@ -350,6 +350,94 @@ describe('linter contracts & horatio specifications', () => {
       const missingAttr = diagsWithOnlyDesc.find(d => d.code.startsWith('blogger.missing.attribute'));
       expect(missingAttr).toBeUndefined();
     });
+
+    it('allows string type <Variable> without default and with empty value', () => {
+      const xml = `
+        <b:skin><![CDATA[
+          <Group description="Admin">
+            <Variable name="a.tools" description="Admin tools" type="string" value=""/>
+          </Group>
+        ]]></b:skin>
+      `;
+      const diags = lintBloggerDocument(xml);
+      const varDiags = diags.filter(d =>
+        d.code.startsWith('blogger.syntax.empty-attribute')
+        || d.code.startsWith('blogger.missing.attribute'),
+      );
+      expect(varDiags).toHaveLength(0);
+    });
+
+    it('flags empty value and missing default on non-string skin variables', () => {
+      const xml = `
+        <b:skin><![CDATA[
+          <Group description="Admin">
+            <Variable name="theme.color" description="Theme color" type="color" value=""/>
+          </Group>
+        ]]></b:skin>
+      `;
+      const diags = lintBloggerDocument(xml);
+      const emptyVal = diags.find(d => d.code === 'blogger.syntax.empty-attribute');
+      const missingDefault = diags.find(d => d.code === 'blogger.missing.attribute' && d.message.includes('"default"'));
+      expect(emptyVal).toBeDefined();
+      expect(missingDefault).toBeDefined();
+    });
+  });
+
+  describe('b:defaultmarkup type validation', () => {
+    it('accepts single valid widget type or Common/All', () => {
+      const xml = `
+        <b:defaultmarkups>
+          <b:defaultmarkup type="Blog"/>
+          <b:defaultmarkup type="Common"/>
+          <b:defaultmarkup type="All"/>
+        </b:defaultmarkups>
+      `;
+      const diags = lintBloggerDocument(xml);
+      const typeDiags = diags.filter(d =>
+        d.code === 'blogger.syntax.invalid-defaultmarkup-type'
+        || d.code === 'blogger.syntax.duplicate-defaultmarkup-type',
+      );
+      expect(typeDiags).toHaveLength(0);
+    });
+
+    it('accepts comma-separated widget types', () => {
+      const xml = `
+        <b:defaultmarkups>
+          <b:defaultmarkup type="Blog,PopularPosts,FeaturedPost"/>
+          <b:defaultmarkup type="Header, HTML"/>
+        </b:defaultmarkups>
+      `;
+      const diags = lintBloggerDocument(xml);
+      const typeDiags = diags.filter(d =>
+        d.code === 'blogger.syntax.invalid-defaultmarkup-type'
+        || d.code === 'blogger.syntax.duplicate-defaultmarkup-type',
+      );
+      expect(typeDiags).toHaveLength(0);
+    });
+
+    it('rejects duplicate types in comma-separated list', () => {
+      const xml = `
+        <b:defaultmarkups>
+          <b:defaultmarkup type="Blog,Blog,FeaturedPost"/>
+        </b:defaultmarkups>
+      `;
+      const diags = lintBloggerDocument(xml);
+      const dupDiag = diags.find(d => d.code === 'blogger.syntax.duplicate-defaultmarkup-type');
+      expect(dupDiag).toBeDefined();
+      expect(dupDiag?.message).toContain('"Blog"');
+    });
+
+    it('rejects invalid types in comma-separated list', () => {
+      const xml = `
+        <b:defaultmarkups>
+          <b:defaultmarkup type="Blog,UnknownWidget,FeaturedPost"/>
+        </b:defaultmarkups>
+      `;
+      const diags = lintBloggerDocument(xml);
+      const invalidDiag = diags.find(d => d.code === 'blogger.syntax.invalid-defaultmarkup-type');
+      expect(invalidDiag).toBeDefined();
+      expect(invalidDiag?.message).toContain('"UnknownWidget"');
+    });
   });
 
   describe('horatio semantic rules: lambdas and parameterized messages', () => {

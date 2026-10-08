@@ -269,6 +269,14 @@ export function checkDirectiveAttributes(
       const config = DIRECTIVE_REQUIREMENTS[matchedConfigKey]!;
 
       for (const req of config.required) {
+        if (lowerTagName === 'variable' && req.toLowerCase() === 'default') {
+          const typeAttr = parsedAttrs.get('type');
+          const typeVal = typeAttr?.value?.trim().toLowerCase();
+          if (typeVal === 'string') {
+            continue;
+          }
+        }
+
         const lowerReq = req.toLowerCase();
         const exprReq = `expr:${lowerReq}`;
         const hasAttr = parsedAttrs.has(lowerReq) || parsedAttrs.has(exprReq);
@@ -325,7 +333,11 @@ export function checkDirectiveAttributes(
     for (const [attrLowerKey, attrInfo] of parsedAttrs) {
       const val = attrInfo.value;
       if (val !== undefined && val.trim() === '') {
-        const isExempt = (lowerTagName === 'b:widget' && attrLowerKey === 'title');
+        const typeAttr = parsedAttrs.get('type');
+        const typeVal = typeAttr?.value?.trim().toLowerCase();
+        const isStringSkinVariable = lowerTagName === 'variable' && typeVal === 'string';
+        const isExempt = (lowerTagName === 'b:widget' && attrLowerKey === 'title')
+          || (isStringSkinVariable && (attrLowerKey === 'value' || attrLowerKey === 'default'));
         if (!isExempt) {
           const valRange = attrInfo.valStart !== undefined && attrInfo.valEnd !== undefined
             ? createRange(lineOffsets, attrInfo.valStart, attrInfo.valEnd)
@@ -480,18 +492,44 @@ export function checkDirectiveAttributes(
     if (lowerTagName === 'b:defaultmarkup') {
       const typeAttr = parsedAttrs.get('type');
       if (typeAttr && typeAttr.value && typeAttr.value.trim() !== '') {
-        const typeVal = typeAttr.value.trim();
-        if (!DEFAULT_MARKUP_TYPES_SET.has(typeVal)) {
-          const range = typeAttr.valStart !== undefined && typeAttr.valEnd !== undefined
-            ? createRange(lineOffsets, typeAttr.valStart, typeAttr.valEnd)
-            : createRange(lineOffsets, typeAttr.attrStart, typeAttr.attrEnd);
+        const rawValue = typeAttr.value;
+        const valStart = typeAttr.valStart ?? typeAttr.attrStart;
+        const seenTypes = new Set<string>();
 
-          diagnostics.push({
-            code: 'blogger.syntax.invalid-defaultmarkup-type',
-            message: `Default markup type "${typeVal}" is invalid. Must be "Common", "All", or a canonical widget type.`,
-            severity: 'error',
-            range,
-          });
+        let currentPos = 0;
+        const items = rawValue.split(',');
+
+        for (const item of items) {
+          const itemTrimmed = item.trim();
+          const leadingWs = item.indexOf(itemTrimmed);
+          const itemStart = valStart + currentPos + (itemTrimmed.length > 0 ? (leadingWs >= 0 ? leadingWs : 0) : 0);
+          const itemEnd = itemStart + (itemTrimmed.length > 0 ? itemTrimmed.length : item.length);
+          const tokenRange = createRange(lineOffsets, itemStart, Math.max(itemStart + 1, itemEnd));
+
+          currentPos += item.length + 1;
+
+          if (itemTrimmed === '' || !DEFAULT_MARKUP_TYPES_SET.has(itemTrimmed)) {
+            diagnostics.push({
+              code: 'blogger.syntax.invalid-defaultmarkup-type',
+              message: `Default markup type "${itemTrimmed}" is invalid. Must be "Common", "All", or a canonical widget type.`,
+              severity: 'error',
+              range: tokenRange,
+            });
+          }
+          else {
+            const canonicalKey = itemTrimmed.toLowerCase();
+            if (seenTypes.has(canonicalKey)) {
+              diagnostics.push({
+                code: 'blogger.syntax.duplicate-defaultmarkup-type',
+                message: `Duplicate default markup type "${itemTrimmed}". Widget types must not be repeated.`,
+                severity: 'error',
+                range: tokenRange,
+              });
+            }
+            else {
+              seenTypes.add(canonicalKey);
+            }
+          }
         }
       }
     }

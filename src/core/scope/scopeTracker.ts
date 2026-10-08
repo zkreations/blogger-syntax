@@ -154,8 +154,13 @@ export class BloggerScopeTracker {
       else if (fullTag === 'b:defaultmarkup') {
         const markupType = extractAttribute(attrString, 'type');
         widgetType = markupType;
-        if (markupType && WIDGET_DATA_DICTIONARIES[markupType]) {
-          Object.assign(variables, WIDGET_DATA_DICTIONARIES[markupType]);
+        if (markupType) {
+          const mTypes = markupType.split(',').map(s => s.trim());
+          for (const mType of mTypes) {
+            if (WIDGET_DATA_DICTIONARIES[mType]) {
+              Object.assign(variables, WIDGET_DATA_DICTIONARIES[mType]);
+            }
+          }
         }
         variables.messages = {
           name: 'messages',
@@ -344,7 +349,14 @@ export class BloggerScopeTracker {
     function collectDefaultMarkups(blocks: readonly BloggerScopeBlock[]) {
       for (const b of blocks) {
         if (b.tag === 'b:defaultmarkup') {
-          if (!enclosingWidget || !b.widgetType || b.widgetType === enclosingWidget.widgetType || b.widgetType === 'Common') {
+          const types = b.widgetType ? b.widgetType.split(',').map(s => s.trim()) : [];
+          const matches = !enclosingWidget
+            || types.length === 0
+            || (enclosingWidget.widgetType ? types.includes(enclosingWidget.widgetType) : false)
+            || types.includes('Common')
+            || types.includes('All');
+
+          if (matches) {
             for (const child of b.children) {
               if (child.tag === 'b:includable' && child.includableId) {
                 defaultMarkupsSet.add(child.includableId);

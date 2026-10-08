@@ -101,7 +101,7 @@ export const bloggerSkinVariableTypeDetails: Record<BloggerSkinVariableType, Blo
       name: { name: 'name', type: 'string', required: true, description: 'Unique variable identifier name. Letters, numbers, and dots are allowed.' },
       description: { name: 'description', type: 'string', required: true, description: 'Variable label shown in Template Designer.' },
       type: { name: 'type', type: 'string', required: true, description: 'Variable type: string(skin) (template skin variable, distinct from runtime data:string).' },
-      default: { name: 'default', type: 'string', required: true, description: 'Default string value.' },
+      default: { name: 'default', type: 'string', required: false, description: 'Default string value.' },
       value: { name: 'value', type: 'string', required: true, description: 'Current string value.' },
     },
   },
