@@ -83,4 +83,44 @@ describe('completionAdapter', () => {
     expect(item.command).toBeDefined();
     expect(item.command?.command).toBe('editor.action.triggerSuggest');
   });
+
+  it('should format label as CompletionItemLabel and generate sortText when categoryBadge and sortPriority are present', () => {
+    const suggestion: BloggerSuggestion = {
+      name: 'resize',
+      type: 'image',
+      description: 'Resizes the image',
+      kind: 'property',
+      categoryBadge: 'Image',
+      sortPriority: 10,
+    };
+
+    const item = createCompletionItem(suggestion);
+    expect(typeof item.label).toBe('object');
+    expect((item.label as vscode.CompletionItemLabel).label).toBe('resize');
+    expect((item.label as vscode.CompletionItemLabel).description).toBe('Image');
+    expect(item.sortText).toBe('10_resize');
+  });
+
+  it('should format detail properly for lambda variables vs template data variables', () => {
+    const lambdaVar: BloggerSuggestion = {
+      name: 'p',
+      type: 'object',
+      kind: 'variable',
+      categoryBadge: 'Lambda',
+      sortPriority: 0,
+    };
+    const templateVar: BloggerSuggestion = {
+      name: 'post',
+      type: 'object',
+      kind: 'variable',
+      categoryBadge: 'Local',
+      sortPriority: 0,
+    };
+
+    const lambdaItem = createCompletionItem(lambdaVar);
+    const templateItem = createCompletionItem(templateVar);
+
+    expect(lambdaItem.detail).toBe('(Blogger Lambda Variable)');
+    expect(templateItem.detail).toBe('(Blogger Data: Object)');
+  });
 });

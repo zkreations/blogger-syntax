@@ -11,6 +11,7 @@ describe('contextualCompletion and Hover', () => {
   const scopeTracker = new BloggerScopeTracker();
   const completionProvider = new BloggerCompletionProvider(pathResolver, scopeTracker);
   const hoverProvider = new BloggerHoverProvider(pathResolver, scopeTracker);
+  const getItemLabel = (item: vscode.CompletionItem): string => typeof item.label === 'string' ? item.label : item.label.label;
 
   describe('b:loop with custom variable name (item)', () => {
     const lines = [
@@ -27,7 +28,7 @@ describe('contextualCompletion and Hover', () => {
       expect(items).toBeDefined();
       expect(items.length).toBeGreaterThan(0);
 
-      const labels = items.map(item => item.label);
+      const labels = items.map(getItemLabel);
       expect(labels).toContain('title');
       expect(labels).toContain('body');
       expect(labels).toContain('snippets');
@@ -46,7 +47,7 @@ describe('contextualCompletion and Hover', () => {
 
       const items = completionProvider.provideCompletionItems(doc, position) as vscode.CompletionItem[];
       expect(items).toBeDefined();
-      const labels = items.map(item => item.label);
+      const labels = items.map(getItemLabel);
       expect(labels).toEqual(['name', 'profileUrl', 'authorPhoto', 'aboutMe']);
     });
 
@@ -62,7 +63,7 @@ describe('contextualCompletion and Hover', () => {
       const items = completionProvider.provideCompletionItems(doc, position) as vscode.CompletionItem[];
       expect(items).toBeDefined();
 
-      const titleItem = items.find(item => item.label === 'title');
+      const titleItem = items.find(item => getItemLabel(item) === 'title');
       expect(titleItem).toBeDefined();
       expect(titleItem?.range).toBeDefined();
       const range = titleItem?.range as vscode.Range;
@@ -103,13 +104,13 @@ describe('contextualCompletion and Hover', () => {
       const posA = new vscode.Position(3, '    <data:a.'.length);
       const itemsA = completionProvider.provideCompletionItems(doc, posA) as vscode.CompletionItem[];
       expect(itemsA).toBeDefined();
-      expect(itemsA.map(i => i.label)).toContain('title');
+      expect(itemsA.map(getItemLabel)).toContain('title');
 
       // Inside inner loop, typing data:b.
       const posB = new vscode.Position(4, '    <data:b.'.length);
       const itemsB = completionProvider.provideCompletionItems(doc, posB) as vscode.CompletionItem[];
       expect(itemsB).toBeDefined();
-      expect(itemsB.map(i => i.label)).toContain('title');
+      expect(itemsB.map(getItemLabel)).toContain('title');
     });
 
     it('should suggest both "a" and "b" at root data: trigger inside nested loop', () => {
@@ -125,7 +126,7 @@ describe('contextualCompletion and Hover', () => {
 
       const items = completionProvider.provideCompletionItems(doc, position) as vscode.CompletionItem[];
       expect(items).toBeDefined();
-      const labels = items.map(i => i.label);
+      const labels = items.map(getItemLabel);
       expect(labels).toContain('a');
       expect(labels).toContain('b');
       expect(labels).toContain('blog');
@@ -144,7 +145,7 @@ describe('contextualCompletion and Hover', () => {
 
       const items = completionProvider.provideCompletionItems(doc, position) as vscode.CompletionItem[];
       expect(items).toBeDefined();
-      const labels = items.map(i => i.label);
+      const labels = items.map(getItemLabel);
       expect(labels).toContain('title');
       expect(labels).toContain('body');
       expect(labels).toContain('snippets');
@@ -161,7 +162,7 @@ describe('contextualCompletion and Hover', () => {
 
       const items = completionProvider.provideCompletionItems(doc, position) as vscode.CompletionItem[];
       expect(items).toBeDefined();
-      const labels = items.map(i => i.label);
+      const labels = items.map(getItemLabel);
       expect(labels).toEqual(['name', 'profileUrl', 'authorPhoto', 'aboutMe']);
     });
   });
@@ -178,7 +179,7 @@ describe('contextualCompletion and Hover', () => {
 
       const items = completionProvider.provideCompletionItems(doc, position) as vscode.CompletionItem[];
       expect(items).toBeDefined();
-      const itemI = items.find(item => item.label === 'i');
+      const itemI = items.find(item => getItemLabel(item) === 'i');
       expect(itemI).toBeDefined();
       expect(itemI?.detail).toBe('(Blogger Data: Number)');
     });
@@ -236,7 +237,7 @@ describe('contextualCompletion and Hover', () => {
       expect(arrayItems).toBeDefined();
       expect(arrayItems.length).toBeGreaterThan(0);
 
-      const arrayLabels = arrayItems.map(item => item.label);
+      const arrayLabels = arrayItems.map(getItemLabel);
       expect(arrayLabels).toContain('first');
       expect(arrayLabels).toContain('last');
       expect(arrayLabels).toContain('size');
@@ -248,7 +249,7 @@ describe('contextualCompletion and Hover', () => {
       const itemResults = completionProvider.provideCompletionItems(doc, itemPosition) as vscode.CompletionItem[];
       expect(itemResults).toBeDefined();
 
-      const itemLabels = itemResults.map(item => item.label);
+      const itemLabels = itemResults.map(getItemLabel);
       expect(itemLabels).toContain('feedType');
       expect(itemLabels).toContain('mimeType');
       expect(itemLabels).toContain('name');
@@ -293,7 +294,7 @@ describe('contextualCompletion and Hover', () => {
       expect(items).toBeDefined();
       expect(items.items.length).toBeGreaterThan(0);
 
-      const labels = items.items.map(item => item.label);
+      const labels = items.items.map(getItemLabel);
       expect(labels).toContain('blog');
       expect(labels).toContain('view');
       expect(labels).toContain('skin');
@@ -316,7 +317,7 @@ describe('contextualCompletion and Hover', () => {
       expect(items).toBeDefined();
       expect(items.items.length).toBeGreaterThan(0);
 
-      const labels = items.items.map(item => item.label);
+      const labels = items.items.map(getItemLabel);
       expect(labels).toContain('posts');
       expect(items.items.every(item => item.kind !== vscode.CompletionItemKind.Operator)).toBe(true);
     });
@@ -333,7 +334,7 @@ describe('contextualCompletion and Hover', () => {
       expect(items).toBeDefined();
       expect(items.items.length).toBeGreaterThan(0);
 
-      const labels = items.items.map(item => item.label);
+      const labels = items.items.map(getItemLabel);
       expect(labels).toContain('blog');
       expect(items.items.every(item => item.kind !== vscode.CompletionItemKind.Operator)).toBe(true);
     });

@@ -142,16 +142,24 @@ export class MockTextDocument {
   }
 }
 
+export interface CompletionItemLabel {
+  label: string;
+  detail?: string;
+  description?: string;
+}
+
 export class CompletionItem {
-  public label: string;
+  public label: string | CompletionItemLabel;
   public kind?: CompletionItemKind | undefined;
   public detail?: string | undefined;
   public documentation?: MarkdownString | string | undefined;
   public range?: Range | undefined;
   public insertText?: string | SnippetString | undefined;
   public command?: { title: string; command: string; arguments?: any[] } | undefined;
+  public sortText?: string | undefined;
+  public filterText?: string | undefined;
 
-  constructor(label: string, kind?: CompletionItemKind | undefined) {
+  constructor(label: string | CompletionItemLabel, kind?: CompletionItemKind | undefined) {
     this.label = label;
     this.kind = kind;
   }

@@ -29,7 +29,11 @@ function formatDetail(suggestion: BloggerSuggestion): string {
     return '(Blogger Tag)';
   }
   if (suggestion.kind === 'variable') {
-    return '(Blogger Lambda Variable)';
+    if (suggestion.categoryBadge === 'Lambda') {
+      return '(Blogger Lambda Variable)';
+    }
+    const typeFormatted = suggestion.type.charAt(0).toUpperCase() + suggestion.type.slice(1);
+    return `(Blogger Data: ${typeFormatted})`;
   }
   if (suggestion.kind === 'operator') {
     return '(Blogger Operator)';
@@ -42,10 +46,17 @@ export function createCompletionItem(
   suggestion: BloggerSuggestion,
   range?: vscode.Range,
 ): vscode.CompletionItem {
+  const label: vscode.CompletionItemLabel | string = suggestion.categoryBadge
+    ? { label: suggestion.name, description: suggestion.categoryBadge }
+    : suggestion.name;
+
   const item = new vscode.CompletionItem(
-    suggestion.name,
+    label,
     mapSuggestionKindToVsCode(suggestion.kind),
   );
+
+  const priority = suggestion.sortPriority ?? 50;
+  item.sortText = `${priority.toString().padStart(2, '0')}_${suggestion.name}`;
 
   item.detail = formatDetail(suggestion);
   item.documentation = buildCompletionDocumentation(suggestion);

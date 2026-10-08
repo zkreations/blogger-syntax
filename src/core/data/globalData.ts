@@ -6,6 +6,38 @@ import {
   WIDGET_DESCRIPTORS_MAP,
 } from './widgetDescriptors.js';
 
+export const sharingPlatformProperties: Record<string, BloggerProperty> = {
+  key: {
+    name: 'key',
+    type: 'string',
+    description: 'Identifier (\'facebook\', \'twitter\', \'pinterest\', \'email\', \'link\').',
+  },
+  name: {
+    name: 'name',
+    type: 'string',
+    description: 'Localized display name (\'Facebook\', \'Twitter\', etc.).',
+  },
+  shareMessage: {
+    name: 'shareMessage',
+    type: 'string',
+    description: 'Localized action label (\'Share to Facebook\').',
+  },
+  target: {
+    name: 'target',
+    type: 'string',
+    description: 'Outbound URL endpoint with pre-encoded sharing parameters.',
+  },
+};
+
+export const sharingProperties: Record<string, BloggerProperty> = {
+  platforms: {
+    name: 'platforms',
+    type: 'array',
+    description: 'List of active social sharing networks.',
+    itemChildren: sharingPlatformProperties,
+  },
+};
+
 export const blogProperties: Record<string, BloggerProperty> = {
   adsenseAutoAds: {
     name: 'adsenseAutoAds',
@@ -214,8 +246,9 @@ export const blogProperties: Record<string, BloggerProperty> = {
   sharing: {
     name: 'sharing',
     type: 'object',
-    description: 'Object containing sharing endpoints and settings.',
+    description: 'Container for social sharing targets and platforms.',
     docUrl: 'https://bloggercode.orbiona.com/1978/11/data-blog-sharing.html',
+    children: sharingProperties,
   },
   title: {
     name: 'title',
@@ -694,9 +727,6 @@ export const bloggerGlobalRoot: Record<string, BloggerProperty> = {
     description: 'Global cross-widget layout registry in Layouts v3. Exposes descriptor objects ({ id, sectionId, title, type }) for visible widgets; does NOT provide access to the full private widget data dictionaries.',
     docUrl: 'https://bloggercode.orbiona.com/1979/12/Ressource-data-widgets.html',
     itemChildren: baseWidgetDescriptorProperties,
-    children: {
-      ...createArrayProperties(baseWidgetDescriptorProperties),
-      ...widgetsMapProperties,
-    },
+    children: widgetsMapProperties,
   },
 };

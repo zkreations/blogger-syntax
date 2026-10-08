@@ -343,19 +343,37 @@ export class BloggerScopeTracker {
     return extractEnclosingMessageName(text, offset);
   }
 
-  private collectVariablesAtOffset(
-    blocks: readonly BloggerScopeBlock[],
+  public getActiveScopedVariables(
+    documentKey: string,
+    version: number,
+    text: string,
     offset: number,
-    target: Record<string, BloggerProperty>,
-  ): void {
-    for (const block of blocks) {
-      if (offset >= block.startOffset && offset <= block.endOffset) {
-        Object.assign(target, block.variables);
-        if (block.children.length > 0) {
-          this.collectVariablesAtOffset(block.children, offset, target);
+  ): {
+    localVariables: Record<string, BloggerProperty>;
+    widgetVariables: Record<string, BloggerProperty>;
+  } {
+    const rootBlocks = this.getScopeBlocks(documentKey, version, text);
+    const localVariables: Record<string, BloggerProperty> = {};
+    const widgetVariables: Record<string, BloggerProperty> = {};
+
+    function traverse(blocks: readonly BloggerScopeBlock[]) {
+      for (const block of blocks) {
+        if (offset >= block.startOffset && offset <= block.endOffset) {
+          if (block.tag === 'b:widget' || block.tag === 'b:defaultmarkup') {
+            Object.assign(widgetVariables, block.variables);
+          }
+          else {
+            Object.assign(localVariables, block.variables);
+          }
+          if (block.children.length > 0) {
+            traverse(block.children);
+          }
         }
       }
     }
+
+    traverse(rootBlocks);
+    return { localVariables, widgetVariables };
   }
 
   public getActiveVariables(
@@ -364,10 +382,8 @@ export class BloggerScopeTracker {
     text: string,
     offset: number,
   ): Record<string, BloggerProperty> {
-    const rootBlocks = this.getScopeBlocks(documentKey, version, text);
-    const activeVariables: Record<string, BloggerProperty> = {};
-    this.collectVariablesAtOffset(rootBlocks, offset, activeVariables);
-    return activeVariables;
+    const { localVariables, widgetVariables } = this.getActiveScopedVariables(documentKey, version, text, offset);
+    return { ...widgetVariables, ...localVariables };
   }
 
   public clearCache(documentKey?: string): void {

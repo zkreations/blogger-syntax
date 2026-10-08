@@ -7,6 +7,7 @@ import { createMockDocument } from '../helpers/mockDocument.js';
 describe('bloggerCompletionProvider', () => {
   const pathResolver = new BloggerPathResolver();
   const provider = new BloggerCompletionProvider(pathResolver);
+  const getLabel = (item: vscode.CompletionItem): string => typeof item.label === 'string' ? item.label : item.label.label;
 
   it('should provide completion items for data: expression with replacement range', () => {
     const text = '<b:eval expr="data:blog.t" />';
@@ -17,7 +18,7 @@ describe('bloggerCompletionProvider', () => {
     expect(items).toBeDefined();
     expect(items.length).toBeGreaterThan(0);
 
-    const titleItem = items.find(item => item.label === 'title');
+    const titleItem = items.find(item => getLabel(item) === 'title');
     expect(titleItem).toBeDefined();
     expect(titleItem?.range).toBeDefined();
     const range = titleItem?.range as vscode.Range;
@@ -32,7 +33,7 @@ describe('bloggerCompletionProvider', () => {
 
     const items = provider.provideCompletionItems(document, position) as vscode.CompletionItem[];
     expect(items).toBeDefined();
-    const ifItem = items.find(item => item.label === 'b:if');
+    const ifItem = items.find(item => getLabel(item) === 'b:if');
     expect(ifItem).toBeDefined();
     expect(ifItem?.kind).toBe(vscode.CompletionItemKind.Snippet);
   });
@@ -45,7 +46,7 @@ describe('bloggerCompletionProvider', () => {
     const items = provider.provideCompletionItems(document, position) as vscode.CompletionItem[];
     expect(items).toBeDefined();
     expect(items.length).toBe(1);
-    const loopItem = items.find(item => item.label === 'b:loop');
+    const loopItem = items.find(item => getLabel(item) === 'b:loop');
     expect(loopItem).toBeDefined();
     expect(loopItem?.insertText).toBe('b:loop>');
   });
@@ -71,7 +72,7 @@ describe('bloggerCompletionProvider', () => {
     const items = provider.provideCompletionItems(multiDoc, position) as vscode.CompletionItem[];
     expect(items).toBeDefined();
     expect(items.length).toBeGreaterThan(0);
-    expect(items.some(item => item.label === 'Blog')).toBe(true);
+    expect(items.some(item => getLabel(item) === 'Blog')).toBe(true);
   });
 
   it('should safely clamp range start character to 0 when replacementLength is large', () => {
@@ -104,7 +105,7 @@ describe('bloggerCompletionProvider', () => {
     expect(result).toBeDefined();
     expect(result.isIncomplete).toBe(true);
 
-    const dataItem = result.items.find(item => item.label === 'data:');
+    const dataItem = result.items.find(item => getLabel(item) === 'data:');
     expect(dataItem).toBeDefined();
     const range = dataItem?.range as vscode.Range;
     expect(range.start.character).toBe(1); // after '<'

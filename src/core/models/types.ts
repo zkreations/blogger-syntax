@@ -36,6 +36,8 @@ export interface BloggerSuggestion {
   readonly attributes?: Record<string, BloggerTagAttribute> | undefined;
   readonly deprecated?: boolean | undefined;
   readonly docUrl?: string | readonly string[] | undefined;
+  readonly categoryBadge?: string | undefined;
+  readonly sortPriority?: number | undefined;
 }
 
 export interface BloggerResolveResult {

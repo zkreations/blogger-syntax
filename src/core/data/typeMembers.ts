@@ -56,20 +56,14 @@ export const IMAGE_MEMBERS: Record<string, BloggerProperty> = Object.freeze({
     description: 'Indicates whether the image is resizable via Blogger image service.',
     docUrl: 'https://bloggercode.orbiona.com/2016/04/data-parameters-isResizable.html',
   },
-  originalWidth: {
-    name: 'originalWidth',
-    type: 'number',
-    description: 'Original unscaled width of the image.',
-    docUrl: 'https://bloggercode.orbiona.com/2018/02/data-parameters-width-height.html',
-  },
-  originalHeight: {
-    name: 'originalHeight',
-    type: 'number',
-    description: 'Original unscaled height of the image.',
-    docUrl: 'https://bloggercode.orbiona.com/2018/02/data-parameters-width-height.html',
-  },
   isYouTube: {
     name: 'isYouTube',
+    type: 'boolean',
+    description: 'Indicates whether the image is a YouTube video thumbnail.',
+    docUrl: 'https://bloggercode.orbiona.com/2018/02/data-parameters-isYouTube-youtubeMaxResDefaultUrl.html',
+  },
+  isYoutube: {
+    name: 'isYoutube',
     type: 'boolean',
     description: 'Indicates whether the image is a YouTube video thumbnail.',
     docUrl: 'https://bloggercode.orbiona.com/2018/02/data-parameters-isYouTube-youtubeMaxResDefaultUrl.html',
@@ -253,7 +247,7 @@ export function getPropertyMembers(property: BloggerProperty): Record<string, Bl
   }
 
   if (property.type === 'image') {
-    const base = { ...STRING_MEMBERS, ...URL_MEMBERS, ...IMAGE_MEMBERS };
+    const base = { ...STRING_MEMBERS, ...IMAGE_MEMBERS };
     return property.children ? { ...base, ...property.children } : base;
   }
 
@@ -271,4 +265,128 @@ export function getPropertyMembers(property: BloggerProperty): Record<string, Bl
   }
 
   return property.children;
+}
+
+export interface CategorizedMember {
+  readonly property: BloggerProperty;
+  readonly originCategory: 'image' | 'url' | 'string' | 'date' | 'locale' | 'array' | 'custom';
+  readonly categoryBadge: string;
+  readonly sortPriority: number;
+}
+
+export function getCategorizedPropertyMembers(
+  property: BloggerProperty,
+): CategorizedMember[] | undefined {
+  if (property.type === 'image') {
+    const result: CategorizedMember[] = [];
+    for (const prop of Object.values(IMAGE_MEMBERS)) {
+      result.push({ property: prop, originCategory: 'image', categoryBadge: 'Image', sortPriority: 0 });
+    }
+    for (const prop of Object.values(STRING_MEMBERS)) {
+      result.push({ property: prop, originCategory: 'string', categoryBadge: 'String', sortPriority: 10 });
+    }
+    if (property.children) {
+      for (const prop of Object.values(property.children)) {
+        if (!result.some(r => r.property.name === prop.name)) {
+          result.push({ property: prop, originCategory: 'custom', categoryBadge: 'Property', sortPriority: 0 });
+        }
+      }
+    }
+    return result;
+  }
+
+  if (property.type === 'url') {
+    const result: CategorizedMember[] = [];
+    for (const prop of Object.values(URL_MEMBERS)) {
+      result.push({ property: prop, originCategory: 'url', categoryBadge: 'URL', sortPriority: 0 });
+    }
+    for (const prop of Object.values(STRING_MEMBERS)) {
+      result.push({ property: prop, originCategory: 'string', categoryBadge: 'String', sortPriority: 10 });
+    }
+    if (property.children) {
+      for (const prop of Object.values(property.children)) {
+        if (!result.some(r => r.property.name === prop.name)) {
+          result.push({ property: prop, originCategory: 'custom', categoryBadge: 'Property', sortPriority: 0 });
+        }
+      }
+    }
+    return result;
+  }
+
+  if (property.type === 'date') {
+    const result: CategorizedMember[] = [];
+    for (const prop of Object.values(DATE_MEMBERS)) {
+      result.push({ property: prop, originCategory: 'date', categoryBadge: 'Date', sortPriority: 0 });
+    }
+    if (property.children) {
+      for (const prop of Object.values(property.children)) {
+        if (!result.some(r => r.property.name === prop.name)) {
+          result.push({ property: prop, originCategory: 'custom', categoryBadge: 'Property', sortPriority: 0 });
+        }
+      }
+    }
+    return result;
+  }
+
+  if (property.type === 'locale') {
+    const result: CategorizedMember[] = [];
+    for (const prop of Object.values(LOCALE_MEMBERS)) {
+      result.push({ property: prop, originCategory: 'locale', categoryBadge: 'Locale', sortPriority: 0 });
+    }
+    if (property.children) {
+      for (const prop of Object.values(property.children)) {
+        if (!result.some(r => r.property.name === prop.name)) {
+          result.push({ property: prop, originCategory: 'custom', categoryBadge: 'Property', sortPriority: 0 });
+        }
+      }
+    }
+    return result;
+  }
+
+  if (property.type === 'array') {
+    const result: CategorizedMember[] = [];
+    const arrayProps = createArrayProperties(property.itemChildren, 'object');
+    const standardArrayKeys = new Set(Object.keys(arrayProps));
+
+    if (property.children) {
+      for (const prop of Object.values(property.children)) {
+        if (!standardArrayKeys.has(prop.name)) {
+          result.push({ property: prop, originCategory: 'custom', categoryBadge: 'Property', sortPriority: 0 });
+        }
+      }
+    }
+
+    const arrayPriority = result.length > 0 ? 10 : 0;
+    for (const prop of Object.values(arrayProps)) {
+      result.push({ property: prop, originCategory: 'array', categoryBadge: 'Array', sortPriority: arrayPriority });
+    }
+
+    return result;
+  }
+
+  if (property.type === 'string') {
+    const result: CategorizedMember[] = [];
+    for (const prop of Object.values(STRING_MEMBERS)) {
+      result.push({ property: prop, originCategory: 'string', categoryBadge: 'String', sortPriority: 0 });
+    }
+    if (property.children) {
+      for (const prop of Object.values(property.children)) {
+        if (!result.some(r => r.property.name === prop.name)) {
+          result.push({ property: prop, originCategory: 'custom', categoryBadge: 'Property', sortPriority: 0 });
+        }
+      }
+    }
+    return result;
+  }
+
+  if (property.children && Object.keys(property.children).length > 0) {
+    return Object.values(property.children).map(prop => ({
+      property: prop,
+      originCategory: 'custom' as const,
+      categoryBadge: 'Property',
+      sortPriority: 0,
+    }));
+  }
+
+  return undefined;
 }

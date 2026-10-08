@@ -18,9 +18,9 @@ import {
   getOperatorSuggestions,
 } from '../data/operatorsData.js';
 import { bloggerTags } from '../data/tagsData.js';
-import { getPropertyMembers } from '../data/typeMembers.js';
+import { getCategorizedPropertyMembers, getPropertyMembers } from '../data/typeMembers.js';
 import { getWidgetDescriptor } from '../data/widgetDescriptors.js';
-import { blogWidgetProperties, singlePostProperties } from '../data/widgetsData.js';
+import { blogWidgetProperties, singlePostProperties, WIDGET_DATA_DICTIONARIES } from '../data/widgetsData.js';
 import { getWidgetSettingsSuggestions } from '../data/widgetSettingsData.js';
 import {
   detectLambdaPreArrowContext,
@@ -32,7 +32,6 @@ import {
   resolveLambdaContextAtCursor,
 } from '../parser/exprParser.js';
 import { getNearestUnclosedTag } from '../parser/tagTreeTracker.js';
-import { getTypeModifiers } from '../types/typeSystem.js';
 import {
 
   normalizeDocUrls,
@@ -205,19 +204,94 @@ export class BloggerPathResolver {
   public resolveDataPath(
     segments: readonly string[],
     localVariables?: Record<string, BloggerProperty>,
+    widgetType?: string,
   ): readonly BloggerSuggestion[] {
     if (segments.length === 0) {
-      const mergedRoots: Record<string, BloggerProperty> = { ...this.rootTree, ...localVariables };
-      return Object.values(mergedRoots).map(prop => this.mapPropertyToSuggestion(prop));
+      const suggestions: BloggerSuggestion[] = [];
+      const widgetDict = widgetType && WIDGET_DATA_DICTIONARIES[widgetType] ? WIDGET_DATA_DICTIONARIES[widgetType] : undefined;
+      const seen = new Set<string>();
+
+      if (localVariables) {
+        for (const [name, prop] of Object.entries(localVariables)) {
+          seen.add(name);
+          const isGlobal = Boolean(this.rootTree[name]);
+          const isWidget = Boolean(widgetDict && widgetDict[name]);
+          if (!isGlobal && !isWidget) {
+            suggestions.push({
+              name: prop.name,
+              type: prop.type,
+              description: prop.description ?? `Template variable \`${prop.name}\`.`,
+              example: `data:${prop.name}`,
+              deprecated: prop.deprecated,
+              docUrl: prop.docUrl,
+              kind: 'variable',
+              categoryBadge: 'Local',
+              sortPriority: 0,
+            });
+          }
+          else if (isWidget) {
+            suggestions.push({
+              name: prop.name,
+              type: prop.type,
+              description: prop.description,
+              example: `data:${prop.name}`,
+              deprecated: prop.deprecated,
+              docUrl: prop.docUrl,
+              kind: 'property',
+              categoryBadge: widgetType ? `Widget: ${widgetType}` : 'Widget',
+              sortPriority: 10,
+            });
+          }
+        }
+      }
+
+      for (const [name, prop] of Object.entries(this.rootTree)) {
+        if (!seen.has(name) || (localVariables && !widgetDict?.[name] && name === 'widget')) {
+          suggestions.push({
+            name: prop.name,
+            type: prop.type,
+            description: prop.description,
+            example: `data:${prop.name}`,
+            deprecated: prop.deprecated,
+            docUrl: prop.docUrl,
+            kind: 'property',
+            detail: `(Blogger Global: ${prop.name})`,
+            categoryBadge: 'Global',
+            sortPriority: 20,
+          });
+        }
+      }
+
+      return suggestions;
     }
 
     const node = this.navigatePath(segments, localVariables);
-    if (!node?.children) {
+    if (!node?.target || !node?.children) {
       return [];
     }
 
     const basePath = segments.join('.');
-    return Object.values(node.children).map(prop => this.mapPropertyToSuggestion(prop, basePath));
+    const categorized = getCategorizedPropertyMembers(node.target);
+    if (categorized && categorized.length > 0) {
+      return categorized.map(m => ({
+        name: m.property.name,
+        type: m.property.type,
+        description: m.property.description,
+        example: m.property.example ?? `data:${basePath}.${m.property.name}`,
+        deprecated: m.property.deprecated,
+        docUrl: m.property.docUrl,
+        kind: 'property',
+        detail: `(Blogger Data: ${m.property.type.charAt(0).toUpperCase() + m.property.type.slice(1)})`,
+        categoryBadge: m.categoryBadge,
+        sortPriority: m.sortPriority,
+      }));
+    }
+
+    return Object.values(node.children).map(prop => ({
+      ...this.mapPropertyToSuggestion(prop, basePath),
+      categoryBadge: 'Property',
+      sortPriority: 0,
+    }));
   }
 
   public resolveDescriptions(): readonly BloggerSuggestion[] {
@@ -249,6 +323,7 @@ export class BloggerPathResolver {
     localVariables?: Record<string, BloggerProperty>,
     isLoopContext: boolean = false,
     lineSuffix?: string,
+    widgetType?: string,
   ): BloggerResolveResult | undefined {
     // 1. Data path context (data: or data:path. or data:path.partial)
     const dataMatch = DATA_PREFIX_REGEX.exec(expressionText);
@@ -258,7 +333,7 @@ export class BloggerPathResolver {
 
       if (rawPath === '') {
         return {
-          suggestions: this.resolveDataPath([], localVariables),
+          suggestions: this.resolveDataPath([], localVariables, widgetType),
           replacementLength: 0,
         };
       }
@@ -267,7 +342,7 @@ export class BloggerPathResolver {
         const normalized = rawPath.slice(0, -1).replace(/\[/g, '.').replace(/\]/g, '');
         const segments = normalized.split('.').filter(Boolean);
         return {
-          suggestions: this.resolveDataPath(segments, localVariables),
+          suggestions: this.resolveDataPath(segments, localVariables, widgetType),
           replacementLength: 0,
         };
       }
@@ -276,7 +351,7 @@ export class BloggerPathResolver {
       const segments = normalized.split('.').filter(Boolean);
       const lastSegment = segments.pop() ?? '';
       return {
-        suggestions: this.resolveDataPath(segments, localVariables),
+        suggestions: this.resolveDataPath(segments, localVariables, widgetType),
         replacementLength: lastSegment.length,
       };
     }
@@ -284,16 +359,31 @@ export class BloggerPathResolver {
     // 2. Lambda context (p => p.member or p => p)
     const lambdaContext = resolveLambdaContextAtCursor(expressionText, expressionText.length, localVariables);
     if (lambdaContext) {
-      if (lambdaContext.isNavigatingMember && lambdaContext.targetProperty?.children) {
-        const suggestions: BloggerSuggestion[] = Object.values(lambdaContext.targetProperty.children).map(prop => ({
-          name: prop.name,
-          type: prop.type,
-          description: prop.description,
-          example: `${lambdaContext.activeParam}.${prop.name}`,
-          kind: 'property' as const,
-          deprecated: prop.deprecated,
-          docUrl: prop.docUrl,
-        }));
+      if (lambdaContext.isNavigatingMember && lambdaContext.targetProperty) {
+        const categorized = getCategorizedPropertyMembers(lambdaContext.targetProperty);
+        const suggestions: BloggerSuggestion[] = categorized && categorized.length > 0
+          ? categorized.map(m => ({
+              name: m.property.name,
+              type: m.property.type,
+              description: m.property.description,
+              example: `${lambdaContext.activeParam}.${m.property.name}`,
+              kind: 'property' as const,
+              deprecated: m.property.deprecated,
+              docUrl: m.property.docUrl,
+              categoryBadge: m.categoryBadge,
+              sortPriority: m.sortPriority,
+            }))
+          : Object.values(lambdaContext.targetProperty.children ?? {}).map(prop => ({
+              name: prop.name,
+              type: prop.type,
+              description: prop.description,
+              example: `${lambdaContext.activeParam}.${prop.name}`,
+              kind: 'property' as const,
+              deprecated: prop.deprecated,
+              docUrl: prop.docUrl,
+              categoryBadge: 'Property',
+              sortPriority: 0,
+            }));
         return {
           suggestions,
           replacementLength: lambdaContext.currentToken.length,
@@ -306,6 +396,8 @@ export class BloggerPathResolver {
           kind: 'variable' as const,
           description: prop.description ?? `Lambda parameter \`${pName}\`.`,
           example: pName,
+          categoryBadge: 'Lambda',
+          sortPriority: 0,
         }));
         const dataPrefixSuggestion: BloggerSuggestion = {
           name: 'data:',
@@ -314,6 +406,8 @@ export class BloggerPathResolver {
           detail: '(Blogger Data Prefix)',
           description: 'Blogger data expression prefix.',
           example: 'data:blog.title',
+          categoryBadge: 'Prefix',
+          sortPriority: 5,
         };
         const suggestions = [...varSuggestions, dataPrefixSuggestion];
         const filtered = lambdaContext.currentToken
@@ -374,22 +468,41 @@ export class BloggerPathResolver {
       const typedMember = bareMemberMatch[2] ?? '';
       const segments = rawChain.split('.').filter(Boolean);
       const resolved = this.resolvePropertyFromPath(segments, localVariables);
-      if (resolved?.children) {
-        const suggestions: BloggerSuggestion[] = Object.values(resolved.children).map(prop => ({
-          name: prop.name,
-          type: prop.type,
-          description: prop.description,
-          example: `${rawChain}.${prop.name}`,
-          kind: 'property' as const,
-          deprecated: prop.deprecated,
-          docUrl: prop.docUrl,
-        }));
-        return {
-          suggestions,
-          replacementLength: typedMember.length,
-        };
-      }
       if (resolved) {
+        const categorized = getCategorizedPropertyMembers(resolved);
+        const suggestions: BloggerSuggestion[] = categorized && categorized.length > 0
+          ? categorized
+              .filter(m => !typedMember || m.property.name.startsWith(typedMember))
+              .map(m => ({
+                name: m.property.name,
+                type: m.property.type,
+                description: m.property.description,
+                example: `${rawChain}.${m.property.name}`,
+                kind: 'property' as const,
+                deprecated: m.property.deprecated,
+                docUrl: m.property.docUrl,
+                categoryBadge: m.categoryBadge,
+                sortPriority: m.sortPriority,
+              }))
+          : Object.values(resolved.children ?? {})
+              .filter(prop => !typedMember || prop.name.startsWith(typedMember))
+              .map(prop => ({
+                name: prop.name,
+                type: prop.type,
+                description: prop.description,
+                example: `${rawChain}.${prop.name}`,
+                kind: 'property' as const,
+                deprecated: prop.deprecated,
+                docUrl: prop.docUrl,
+                categoryBadge: 'Property',
+                sortPriority: 0,
+              }));
+        if (suggestions.length > 0) {
+          return {
+            suggestions,
+            replacementLength: typedMember.length,
+          };
+        }
         return undefined;
       }
     }
@@ -398,18 +511,25 @@ export class BloggerPathResolver {
     const memberExpr = extractPrecedingExpressionForMember(expressionText);
     if (memberExpr) {
       const inferred = inferExpressionType(memberExpr.operand, localVariables);
-      const modifiers = getTypeModifiers(inferred.type, inferred.itemChildren);
-      if (modifiers) {
-        const suggestions: BloggerSuggestion[] = Object.values(modifiers)
-          .filter(prop => !memberExpr.partialMember || prop.name.startsWith(memberExpr.partialMember))
-          .map(prop => ({
-            name: prop.name,
-            type: prop.type,
-            description: prop.description,
-            example: `(${memberExpr.operand}).${prop.name}`,
+      const fakeProp: BloggerProperty = {
+        name: '',
+        type: inferred.type,
+        itemChildren: inferred.itemChildren,
+      };
+      const categorized = getCategorizedPropertyMembers(fakeProp);
+      if (categorized && categorized.length > 0) {
+        const suggestions: BloggerSuggestion[] = categorized
+          .filter(m => !memberExpr.partialMember || m.property.name.startsWith(memberExpr.partialMember))
+          .map(m => ({
+            name: m.property.name,
+            type: m.property.type,
+            description: m.property.description,
+            example: `(${memberExpr.operand}).${m.property.name}`,
             kind: 'property' as const,
-            deprecated: prop.deprecated,
-            docUrl: prop.docUrl,
+            deprecated: m.property.deprecated,
+            docUrl: m.property.docUrl,
+            categoryBadge: m.categoryBadge,
+            sortPriority: m.sortPriority,
           }));
         if (suggestions.length > 0) {
           return {
@@ -470,6 +590,8 @@ export class BloggerPathResolver {
               kind: 'variable' as const,
               description: prop.description ?? `Local variable \`${name}\`.`,
               example: name,
+              categoryBadge: 'Local',
+              sortPriority: 0,
             }))
         : [];
 
@@ -486,10 +608,12 @@ export class BloggerPathResolver {
           detail: '(Blogger Data Prefix)',
           description: 'Blogger data expression prefix.',
           example: 'data:blog.title',
+          categoryBadge: 'Prefix',
+          sortPriority: 5,
         });
       }
 
-      const combined = [...dataPrefixSuggestions, ...varSuggestions, ...filteredOps];
+      const combined = [...varSuggestions, ...dataPrefixSuggestions, ...filteredOps];
       if (combined.length > 0) {
         return {
           suggestions: combined,
@@ -526,9 +650,11 @@ export class BloggerPathResolver {
                 name: inc,
                 type: 'string',
                 kind: 'property',
-                detail: '(Includable Subroutine)',
+                detail: '(Includable Subroutine: Local)',
                 description: 'Template subroutine defined in current widget or template.',
                 example: `<b:include name="${inc}"/>`,
+                categoryBadge: 'Local',
+                sortPriority: 0,
               });
             }
           }
@@ -545,6 +671,8 @@ export class BloggerPathResolver {
                   detail: '(Default Markup Subroutine)',
                   description: 'Template subroutine defined in default markup.',
                   example: `<b:include name="${inc}"/>`,
+                  categoryBadge: 'Default Markup',
+                  sortPriority: 10,
                 });
               }
             }
@@ -638,6 +766,7 @@ export class BloggerPathResolver {
           localVariables,
           attrName === 'values' && tagName === 'b:loop',
           options?.lineSuffix,
+          options?.widgetType,
         );
       }
     }
@@ -653,16 +782,31 @@ export class BloggerPathResolver {
     const localVars = resolveLocalVariables(options?.localVariables);
     const bareLambdaContext = resolveLambdaContextAtCursor(linePrefix, linePrefix.length, localVars);
     if (bareLambdaContext) {
-      if (bareLambdaContext.isNavigatingMember && bareLambdaContext.targetProperty?.children) {
-        const suggestions: BloggerSuggestion[] = Object.values(bareLambdaContext.targetProperty.children).map(prop => ({
-          name: prop.name,
-          type: prop.type,
-          description: prop.description,
-          example: `${bareLambdaContext.activeParam}.${prop.name}`,
-          kind: 'property' as const,
-          deprecated: prop.deprecated,
-          docUrl: prop.docUrl,
-        }));
+      if (bareLambdaContext.isNavigatingMember && bareLambdaContext.targetProperty) {
+        const categorized = getCategorizedPropertyMembers(bareLambdaContext.targetProperty);
+        const suggestions: BloggerSuggestion[] = categorized && categorized.length > 0
+          ? categorized.map(m => ({
+              name: m.property.name,
+              type: m.property.type,
+              description: m.property.description,
+              example: `${bareLambdaContext.activeParam}.${m.property.name}`,
+              kind: 'property' as const,
+              deprecated: m.property.deprecated,
+              docUrl: m.property.docUrl,
+              categoryBadge: m.categoryBadge,
+              sortPriority: m.sortPriority,
+            }))
+          : Object.values(bareLambdaContext.targetProperty.children ?? {}).map(prop => ({
+              name: prop.name,
+              type: prop.type,
+              description: prop.description,
+              example: `${bareLambdaContext.activeParam}.${prop.name}`,
+              kind: 'property' as const,
+              deprecated: prop.deprecated,
+              docUrl: prop.docUrl,
+              categoryBadge: 'Property',
+              sortPriority: 0,
+            }));
         return {
           suggestions,
           replacementLength: bareLambdaContext.currentToken.length,
@@ -675,6 +819,8 @@ export class BloggerPathResolver {
           kind: 'variable' as const,
           description: prop.description ?? `Lambda parameter \`${pName}\`.`,
           example: pName,
+          categoryBadge: 'Lambda',
+          sortPriority: 0,
         }));
         const dataPrefixSuggestion: BloggerSuggestion = {
           name: 'data:',
@@ -683,6 +829,8 @@ export class BloggerPathResolver {
           detail: '(Blogger Data Prefix)',
           description: 'Blogger data expression prefix.',
           example: 'data:blog.title',
+          categoryBadge: 'Prefix',
+          sortPriority: 5,
         };
         const suggestions = [...varSuggestions, dataPrefixSuggestion];
         const filtered = bareLambdaContext.currentToken
@@ -705,7 +853,7 @@ export class BloggerPathResolver {
 
       if (rawPath === '') {
         return {
-          suggestions: this.resolveDataPath([], localVariables),
+          suggestions: this.resolveDataPath([], localVariables, options?.widgetType),
           replacementLength: 0,
         };
       }
@@ -714,7 +862,7 @@ export class BloggerPathResolver {
         const normalized = rawPath.slice(0, -1).replace(/\[/g, '.').replace(/\]/g, '');
         const segments = normalized.split('.').filter(Boolean);
         return {
-          suggestions: this.resolveDataPath(segments, localVariables),
+          suggestions: this.resolveDataPath(segments, localVariables, options?.widgetType),
           replacementLength: 0,
         };
       }
@@ -723,7 +871,7 @@ export class BloggerPathResolver {
       const segments = normalized.split('.').filter(Boolean);
       const lastSegment = segments.pop() ?? '';
       return {
-        suggestions: this.resolveDataPath(segments, localVariables),
+        suggestions: this.resolveDataPath(segments, localVariables, options?.widgetType),
         replacementLength: lastSegment.length,
       };
     }

@@ -292,7 +292,7 @@ describe('typeAwareCompletions - Strict Type Awareness & Operator Filtering', ()
       expect(names).toContain('height');
       expect(names).toContain('isResizable');
       expect(names).toContain('isYouTube');
-      expect(names).toContain('canonical');
+      expect(names).not.toContain('canonical');
       expect(names).toContain('escaped');
     });
 

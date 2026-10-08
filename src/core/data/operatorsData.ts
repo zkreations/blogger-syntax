@@ -624,15 +624,34 @@ export function getOperatorSuggestions(
       const isCollectionContext = typeof context === 'boolean' ? context : false;
       return !isCollectionContext || op.isCollectionOperator;
     })
-    .map(op => ({
-      name: op.name,
-      type: (op.returnType === 'same' || op.returnType === 'element') ? 'object' : op.returnType,
-      kind: 'operator' as const,
-      detail: `(Blogger ${op.isCollectionOperator ? 'Collection ' : ''}Operator)`,
-      description: `${op.description}\n\n**Syntax:** \`${op.signatureInfix}\`${op.supportsFunctional ? `\n\n**Functional Syntax:** \`${op.signatureFunctional}\`` : ''}`,
-      example: op.example,
-      docUrl: op.docUrl,
-    }));
+    .map((op) => {
+      let categoryBadge = 'Operator';
+      let sortPriority = 15;
+      if (op.isLambdaOperator) {
+        categoryBadge = 'Lambda';
+        sortPriority = 0;
+      }
+      else if (['resizeImage', 'sourceSet', 'snippet', 'format', 'params', 'path', 'fragment', 'appendParams'].includes(op.name)) {
+        categoryBadge = 'Transform';
+        sortPriority = 0;
+      }
+      else if (op.isCollectionOperator) {
+        categoryBadge = 'Collection';
+        sortPriority = 5;
+      }
+
+      return {
+        name: op.name,
+        type: (op.returnType === 'same' || op.returnType === 'element') ? 'object' : op.returnType,
+        kind: 'operator' as const,
+        detail: `(Blogger ${op.isCollectionOperator ? 'Collection ' : ''}Operator)`,
+        description: `${op.description}\n\n**Syntax:** \`${op.signatureInfix}\`${op.supportsFunctional ? `\n\n**Functional Syntax:** \`${op.signatureFunctional}\`` : ''}`,
+        example: op.example,
+        docUrl: op.docUrl,
+        categoryBadge,
+        sortPriority,
+      };
+    });
 }
 
 /**
@@ -641,15 +660,20 @@ export function getOperatorSuggestions(
 export function getFunctionalOperatorSuggestions(): readonly BloggerSuggestion[] {
   return Object.values(bloggerOperatorsCatalog)
     .filter(op => op.supportsFunctional && op.functionalSnippet && !XML_ESCAPED_OPERATORS.has(op.name))
-    .map(op => ({
-      name: op.name,
-      type: (op.returnType === 'same' || op.returnType === 'element') ? 'object' : op.returnType,
-      kind: 'operator' as const,
-      isSnippet: true,
-      insertText: op.functionalSnippet!,
-      detail: `(Blogger Operator${op.supportsVariadic ? ', Variadic' : ''})`,
-      description: `${op.description}\n\n**Functional Syntax:** \`${op.signatureFunctional}\`\n\n**Infix Syntax:** \`${op.signatureInfix}\``,
-      example: op.example,
-      docUrl: op.docUrl,
-    }));
+    .map((op) => {
+      const isTransform = ['resizeImage', 'sourceSet', 'snippet', 'format', 'params', 'path', 'fragment', 'appendParams', 'take', 'skip', 'limit', 'offset'].includes(op.name);
+      return {
+        name: op.name,
+        type: (op.returnType === 'same' || op.returnType === 'element') ? 'object' : op.returnType,
+        kind: 'operator' as const,
+        isSnippet: true,
+        insertText: op.functionalSnippet!,
+        detail: `(Blogger Operator${op.supportsVariadic ? ', Variadic' : ''})`,
+        description: `${op.description}\n\n**Functional Syntax:** \`${op.signatureFunctional}\`\n\n**Infix Syntax:** \`${op.signatureInfix}\``,
+        example: op.example,
+        docUrl: op.docUrl,
+        categoryBadge: isTransform ? 'Transform' : 'Operator',
+        sortPriority: isTransform ? 10 : 20,
+      };
+    });
 }

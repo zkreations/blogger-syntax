@@ -46,7 +46,7 @@ export function getTypeModifiers(
     case 'url':
       return { ...STRING_MEMBERS, ...URL_MEMBERS };
     case 'image':
-      return { ...STRING_MEMBERS, ...URL_MEMBERS, ...IMAGE_MEMBERS };
+      return { ...STRING_MEMBERS, ...IMAGE_MEMBERS };
     case 'date':
       return { ...STRING_MEMBERS, ...DATE_MEMBERS };
     case 'locale':

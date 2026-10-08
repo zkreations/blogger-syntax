@@ -102,6 +102,21 @@ function createTagSuggestions(hasOpenBracket: boolean, isClosingTag: boolean): r
         insertText = `<${tag.snippetBody}`;
       }
 
+      let categoryBadge = 'Config';
+      let sortPriority = 30;
+      if (['b:includable', 'b:include', 'b:widget', 'b:section'].includes(tag.name)) {
+        categoryBadge = 'Structure';
+        sortPriority = 0;
+      }
+      else if (['b:if', 'b:elseif', 'b:else', 'b:switch', 'b:case', 'b:default', 'b:loop', 'b:with', 'b:eval'].includes(tag.name)) {
+        categoryBadge = 'Control Flow';
+        sortPriority = 10;
+      }
+      else if (['b:tag', 'b:attr', 'b:class'].includes(tag.name)) {
+        categoryBadge = 'DOM';
+        sortPriority = 20;
+      }
+
       return {
         name: tag.name,
         type: 'string' as BloggerDataType,
@@ -113,6 +128,8 @@ function createTagSuggestions(hasOpenBracket: boolean, isClosingTag: boolean): r
         example: tag.example,
         attributes: tag.attributes,
         docUrl: tag.docUrl,
+        categoryBadge,
+        sortPriority,
       };
     }),
   );

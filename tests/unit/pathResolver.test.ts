@@ -1,3 +1,4 @@
+import type { BloggerProperty } from '../../src/core/models/types.js';
 import { describe, expect, it } from 'vitest';
 import { bloggerDescriptions } from '../../src/core/data/descriptions.js';
 import { BloggerPathResolver } from '../../src/core/resolver/pathResolver.js';
@@ -202,28 +203,32 @@ describe('bloggerPathResolver', () => {
       it('should suggest url members and support url chaining', () => {
         const suggestions = resolver.resolveDataPath(['blog', 'url']);
         expect(suggestions.map(s => s.name)).toEqual([
+          'canonical',
+          'https',
+          'http',
           'escaped',
           'jsEscaped',
           'jsonEscaped',
           'cssEscaped',
           'length',
           'size',
-          'canonical',
-          'https',
-          'http',
         ]);
+        expect(suggestions[0]?.categoryBadge).toBe('URL');
+        expect(suggestions[0]?.sortPriority).toBe(0);
+        expect(suggestions[3]?.categoryBadge).toBe('String');
+        expect(suggestions[3]?.sortPriority).toBe(10);
 
         const chained = resolver.resolveDataPath(['blog', 'url', 'https']);
         expect(chained.map(s => s.name)).toEqual([
+          'canonical',
+          'https',
+          'http',
           'escaped',
           'jsEscaped',
           'jsonEscaped',
           'cssEscaped',
           'length',
           'size',
-          'canonical',
-          'https',
-          'http',
         ]);
       });
     });
@@ -573,6 +578,151 @@ describe('bloggerPathResolver', () => {
       expect(closeTags.find(s => s.name === 'b:eval')).toBeUndefined();
       expect(closeTags.find(s => s.name === 'b:include')).toBeUndefined();
       expect(closeTags.find(s => s.name === 'b:else')).toBeUndefined();
+    });
+  });
+
+  describe('suggestion categorization and ranking', () => {
+    it('should assign priority and badges to root data suggestions (Local=0, Widget=10, Global=20)', () => {
+      const localVars: Record<string, BloggerProperty> = {
+        item: { name: 'item', type: 'object', description: 'Current loop item' },
+        title: { name: 'title', type: 'string', description: 'Widget title' },
+      };
+
+      const suggestions = resolver.resolveDataPath([], localVars, 'Blog');
+      const itemSug = suggestions.find(s => s.name === 'item');
+      expect(itemSug).toBeDefined();
+      expect(itemSug?.categoryBadge).toBe('Local');
+      expect(itemSug?.sortPriority).toBe(0);
+
+      const titleSug = suggestions.find(s => s.name === 'title');
+      expect(titleSug).toBeDefined();
+      expect(titleSug?.categoryBadge).toBe('Widget: Blog');
+      expect(titleSug?.sortPriority).toBe(10);
+
+      const blogSug = suggestions.find(s => s.name === 'blog');
+      expect(blogSug).toBeDefined();
+      expect(blogSug?.categoryBadge).toBe('Global');
+      expect(blogSug?.sortPriority).toBe(20);
+    });
+
+    it('should categorize and rank image property members (Image -> String) strictly without URL members', () => {
+      const localVars: Record<string, BloggerProperty> = {
+        post: {
+          name: 'post',
+          type: 'object',
+          children: {
+            featuredImage: {
+              name: 'featuredImage',
+              type: 'image',
+              description: 'Post featured image',
+            },
+          },
+        },
+      };
+
+      const suggestions = resolver.resolveDataPath(['post', 'featuredImage'], localVars);
+      expect(suggestions.length).toBeGreaterThan(0);
+
+      const isResizable = suggestions.find(s => s.name === 'isResizable');
+      expect(isResizable).toBeDefined();
+      expect(isResizable?.categoryBadge).toBe('Image');
+      expect(isResizable?.sortPriority).toBe(0);
+
+      const isYouTube = suggestions.find(s => s.name === 'isYouTube');
+      expect(isYouTube).toBeDefined();
+      expect(isYouTube?.categoryBadge).toBe('Image');
+
+      const escaped = suggestions.find(s => s.name === 'escaped');
+      expect(escaped).toBeDefined();
+      expect(escaped?.categoryBadge).toBe('String');
+      expect(escaped?.sortPriority).toBe(10);
+
+      // URL modifiers must NOT be available on image data
+      expect(suggestions.find(s => s.name === 'canonical')).toBeUndefined();
+      expect(suggestions.find(s => s.name === 'params')).toBeUndefined();
+      expect(suggestions.find(s => s.name === 'path')).toBeUndefined();
+
+      expect(isResizable!.sortPriority!).toBeLessThan(escaped!.sortPriority!);
+    });
+
+    it('should prioritize custom array properties over array modifiers in data:widgets', () => {
+      const suggestions = resolver.resolveDataPath(['widgets']);
+      expect(suggestions.length).toBeGreaterThan(0);
+
+      const blogEntry = suggestions.find(s => s.name === 'Blog');
+      expect(blogEntry).toBeDefined();
+      expect(blogEntry?.categoryBadge).toBe('Property');
+      expect(blogEntry?.sortPriority).toBe(0);
+
+      const headerEntry = suggestions.find(s => s.name === 'Header');
+      expect(headerEntry).toBeDefined();
+      expect(headerEntry?.categoryBadge).toBe('Property');
+      expect(headerEntry?.sortPriority).toBe(0);
+
+      const firstMod = suggestions.find(s => s.name === 'first');
+      expect(firstMod).toBeDefined();
+      expect(firstMod?.categoryBadge).toBe('Array');
+      expect(firstMod?.sortPriority).toBe(10);
+
+      const sizeMod = suggestions.find(s => s.name === 'size');
+      expect(sizeMod).toBeDefined();
+      expect(sizeMod?.categoryBadge).toBe('Array');
+      expect(sizeMod?.sortPriority).toBe(10);
+
+      expect(blogEntry!.sortPriority!).toBeLessThan(firstMod!.sortPriority!);
+    });
+
+    it('should resolve full sharing properties on data:blog.sharing and nested platforms', () => {
+      const sharingSuggestions = resolver.resolveDataPath(['blog', 'sharing']);
+      expect(sharingSuggestions.length).toBeGreaterThan(0);
+
+      const platforms = sharingSuggestions.find(s => s.name === 'platforms');
+      expect(platforms).toBeDefined();
+      expect(platforms?.type).toBe('array');
+
+      const platformsMembers = resolver.resolveDataPath(['blog', 'sharing', 'platforms']);
+      expect(platformsMembers.length).toBeGreaterThan(0);
+      expect(platformsMembers.some(s => s.name === 'first')).toBe(true);
+
+      const firstItemProps = resolver.resolveDataPath(['blog', 'sharing', 'platforms', 'first']);
+      const itemPropNames = firstItemProps.map(s => s.name);
+      expect(itemPropNames).toContain('key');
+      expect(itemPropNames).toContain('name');
+      expect(itemPropNames).toContain('shareMessage');
+      expect(itemPropNames).toContain('target');
+    });
+
+    it('should categorize includable subroutines with Local over Default Markup', () => {
+      const result = resolver.resolveFromLinePrefix('<b:include name="', {
+        includables: {
+          local: ['postHeader', 'main'],
+          defaultMarkups: ['postHeader', 'shareButtons'],
+        },
+      });
+
+      expect(result).toBeDefined();
+      const localHeader = result!.suggestions.find(s => s.name === 'postHeader');
+      expect(localHeader).toBeDefined();
+      expect(localHeader?.categoryBadge).toBe('Local');
+      expect(localHeader?.sortPriority).toBe(0);
+
+      const defaultShare = result!.suggestions.find(s => s.name === 'shareButtons');
+      expect(defaultShare).toBeDefined();
+      expect(defaultShare?.categoryBadge).toBe('Default Markup');
+      expect(defaultShare?.sortPriority).toBe(10);
+    });
+
+    it('should assign categorization badges to Blogger tags in resolveBloggerTags', () => {
+      const tags = resolver.resolveBloggerTags(true, false);
+      const ifTag = tags.find(t => t.name === 'b:if');
+      expect(ifTag).toBeDefined();
+      expect(ifTag?.categoryBadge).toBe('Control Flow');
+      expect(ifTag?.sortPriority).toBe(10);
+
+      const sectionTag = tags.find(t => t.name === 'b:section');
+      expect(sectionTag).toBeDefined();
+      expect(sectionTag?.categoryBadge).toBe('Structure');
+      expect(sectionTag?.sortPriority).toBe(0);
     });
   });
 });
