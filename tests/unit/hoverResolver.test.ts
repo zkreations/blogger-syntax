@@ -1,8 +1,20 @@
 import { describe, expect, it } from 'vitest';
+import { blogWidgetProperties, singlePostProperties } from '../../src/core/data/widgetsData.js';
 import { BloggerPathResolver } from '../../src/core/resolver/pathResolver.js';
 
 describe('bloggerPathResolver hover resolution', () => {
   const resolver = new BloggerPathResolver();
+  const blogResolverContext = {
+    localVariables: {
+      post: {
+        name: 'post',
+        type: 'object' as const,
+        children: singlePostProperties,
+      },
+      ...blogWidgetProperties,
+    },
+    widgetType: 'Blog',
+  };
 
   describe('data: expressions hover', () => {
     it('should resolve hover on data:blog.title', () => {
@@ -20,10 +32,10 @@ describe('bloggerPathResolver hover resolution', () => {
       expect(result?.range.end).toBe(line.indexOf('data:blog.title') + 'data:blog.title'.length);
     });
 
-    it('should resolve hover on nested property data:post.author.authorPhoto.width', () => {
+    it('should resolve hover on nested property data:post.author.authorPhoto.width inside Blog widget', () => {
       const line = 'width="data:post.author.authorPhoto.width"';
       const charIndex = line.indexOf('authorPhoto');
-      const result = resolver.resolveHoverAtPosition(line, charIndex);
+      const result = resolver.resolveHoverAtPosition(line, charIndex, undefined, blogResolverContext);
 
       expect(result).toBeDefined();
       expect(result?.hover.title).toBe('data:post.author.authorPhoto.width');
@@ -31,14 +43,22 @@ describe('bloggerPathResolver hover resolution', () => {
       expect(result?.hover.docUrls).toContain('https://bloggercode.orbiona.com/1971/03/data-posts-author-authorPhoto-width.html');
     });
 
-    it('should resolve hover on data:posts root collection', () => {
+    it('should resolve hover on data:posts root collection inside Blog widget', () => {
       const line = '<b:loop values="data:posts" var="post">';
       const charIndex = line.indexOf('data:posts') + 5;
-      const result = resolver.resolveHoverAtPosition(line, charIndex);
+      const result = resolver.resolveHoverAtPosition(line, charIndex, undefined, blogResolverContext);
 
       expect(result).toBeDefined();
       expect(result?.hover.title).toBe('data:posts');
       expect(result?.hover.docUrls).toContain('https://bloggercode.orbiona.com/1971/08/data-posts.html');
+    });
+
+    it('should NOT resolve hover on data:posts outside widget context', () => {
+      const line = '<b:loop values="data:posts" var="post">';
+      const charIndex = line.indexOf('data:posts') + 5;
+      const result = resolver.resolveHoverAtPosition(line, charIndex);
+
+      expect(result).toBeUndefined();
     });
 
     it('should resolve hover on data:view.isHomepage', () => {

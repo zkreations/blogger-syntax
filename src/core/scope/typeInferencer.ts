@@ -1,6 +1,6 @@
 import type { BloggerDataType, BloggerProperty } from '../models/types.js';
 import { bloggerGlobalRoot } from '../data/globalData.js';
-import { createArrayProperties, getPropertyMembers } from '../data/typeMembers.js';
+import { createArrayProperties } from '../data/typeMembers.js';
 import {
   commentProperties,
   labelItemProperties,
@@ -33,36 +33,7 @@ export function resolvePropertyFromScope(
   localVariables?: Record<string, BloggerProperty>,
   rootTree: Record<string, BloggerProperty> = bloggerGlobalRoot,
 ): BloggerProperty | undefined {
-  const direct = navigatePropertyPath(segments, localVariables, rootTree)?.target;
-  if (direct) {
-    return direct;
-  }
-
-  const [first, ...rest] = segments;
-  if (first === 'posts') {
-    const postsProp = WIDGET_DATA_DICTIONARIES.Blog?.posts;
-    if (!postsProp) {
-      return undefined;
-    }
-    if (rest.length === 0) {
-      return postsProp;
-    }
-    return navigatePropertyPath(rest, undefined, getPropertyMembers(postsProp))?.target;
-  }
-
-  if (first === 'post') {
-    const postProp: BloggerProperty = {
-      name: 'post',
-      type: 'object',
-      children: singlePostProperties,
-    };
-    if (rest.length === 0) {
-      return postProp;
-    }
-    return navigatePropertyPath(rest, undefined, singlePostProperties)?.target;
-  }
-
-  return undefined;
+  return navigatePropertyPath(segments, localVariables, rootTree)?.target;
 }
 
 /**
@@ -134,6 +105,17 @@ export function inferWithVariables(
 
   if (varName && varName.trim()) {
     const cleanVarName = varName.trim();
+    const parsedLiteral = parseObjectLiteralProperties(valueExpr, localVariables);
+    if (parsedLiteral) {
+      result[cleanVarName] = {
+        name: cleanVarName,
+        type: 'object',
+        description: `Alias variable holding object literal \`${valueExpr}\`.`,
+        children: parsedLiteral,
+      };
+      return result;
+    }
+
     const inferred = inferExpressionType(valueExpr, localVariables);
 
     let resolvedProp = inferred.targetProperty;
@@ -242,28 +224,34 @@ export function parseObjectLiteralProperties(
   return Object.keys(result).length > 0 ? result : undefined;
 }
 
+export type ForwardedIncludeItem = string | { readonly expr: string; readonly localVariables?: Record<string, BloggerProperty> };
+
 /**
  * Infers variable properties defined in a `<b:includable>` tag, either from
  * an explicit forwarded dataset from `<b:include data='...'>` or via semantic conventions.
  */
 export function inferIncludableVariables(
   varName: string | undefined,
-  includeDataExpr: string | string[] | undefined,
+  includeDataExpr: ForwardedIncludeItem | ForwardedIncludeItem[] | undefined,
   localVariables?: Record<string, BloggerProperty>,
   enclosingWidgetType?: string,
   rootTree: Record<string, BloggerProperty> = bloggerGlobalRoot,
 ): Record<string, BloggerProperty> {
   const result: Record<string, BloggerProperty> = {};
-  const exprs = Array.isArray(includeDataExpr)
+  const exprs: ForwardedIncludeItem[] = Array.isArray(includeDataExpr)
     ? includeDataExpr
     : includeDataExpr
       ? [includeDataExpr]
       : [];
 
   if (!varName || !varName.trim()) {
-    for (const expr of exprs) {
+    for (const exprItem of exprs) {
+      const expr = typeof exprItem === 'string' ? exprItem : exprItem.expr;
+      const callSiteVariables = typeof exprItem === 'string'
+        ? localVariables
+        : (exprItem.localVariables ?? localVariables);
       if (expr && expr.trim()) {
-        const parsedLiteral = parseObjectLiteralProperties(expr, localVariables, rootTree);
+        const parsedLiteral = parseObjectLiteralProperties(expr, callSiteVariables, rootTree);
         if (parsedLiteral) {
           Object.assign(result, parsedLiteral);
         }
@@ -282,13 +270,17 @@ export function inferIncludableVariables(
     let docUrl: string | readonly string[] | undefined;
     let hasResolved = false;
 
-    for (const expr of exprs) {
-      const trimmedExpr = expr.trim();
+    for (const exprItem of exprs) {
+      const trimmedExpr = (typeof exprItem === 'string' ? exprItem : exprItem.expr).trim();
+      const callSiteVariables = typeof exprItem === 'string'
+        ? localVariables
+        : (exprItem.localVariables ?? localVariables);
+
       if (!trimmedExpr) {
         continue;
       }
 
-      const parsedLiteral = parseObjectLiteralProperties(trimmedExpr, localVariables, rootTree);
+      const parsedLiteral = parseObjectLiteralProperties(trimmedExpr, callSiteVariables, rootTree);
       if (parsedLiteral) {
         Object.assign(combinedChildren, parsedLiteral);
         hasResolved = true;
@@ -296,7 +288,7 @@ export function inferIncludableVariables(
       }
 
       const segments = extractDataPathSegments(trimmedExpr);
-      const resolvedProp = resolvePropertyFromScope(segments, localVariables, rootTree);
+      const resolvedProp = resolvePropertyFromScope(segments, callSiteVariables, rootTree);
       if (resolvedProp) {
         hasResolved = true;
         resolvedType = resolvedProp.type;
@@ -316,10 +308,11 @@ export function inferIncludableVariables(
     }
 
     if (hasResolved) {
+      const exprStrings = exprs.map(e => typeof e === 'string' ? e : e.expr);
       result[cleanVarName] = {
         name: cleanVarName,
         type: resolvedType,
-        description: `Passed parameter for \`${exprs.join(', ')}\`.`,
+        description: `Passed parameter for \`${exprStrings.join(', ')}\`.`,
         children: Object.keys(combinedChildren).length > 0 ? combinedChildren : undefined,
         itemChildren: combinedItemChildren,
         docUrl,

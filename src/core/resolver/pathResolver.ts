@@ -20,7 +20,7 @@ import {
 import { bloggerTags } from '../data/tagsData.js';
 import { getCategorizedPropertyMembers, getPropertyMembers } from '../data/typeMembers.js';
 import { getWidgetDescriptor } from '../data/widgetDescriptors.js';
-import { blogWidgetProperties, singlePostProperties, WIDGET_DATA_DICTIONARIES } from '../data/widgetsData.js';
+import { WIDGET_DATA_DICTIONARIES } from '../data/widgetsData.js';
 import { getWidgetSettingsSuggestions } from '../data/widgetSettingsData.js';
 import {
   detectLambdaPreArrowContext,
@@ -99,26 +99,6 @@ export function navigatePropertyPath(
 
   let targetProperty: BloggerProperty | undefined
     = localVariables?.[firstSegment] ?? rootTree[firstSegment];
-
-  if (!targetProperty) {
-    if (firstSegment === 'post') {
-      targetProperty = {
-        name: 'post',
-        type: 'object',
-        description: 'Current post object context.',
-        children: singlePostProperties,
-      };
-    }
-    else if (firstSegment === 'posts') {
-      targetProperty = blogWidgetProperties.posts;
-    }
-    else if (firstSegment === 'feedLinks') {
-      targetProperty = blogWidgetProperties.feedLinks;
-    }
-    else {
-      return undefined;
-    }
-  }
 
   if (!targetProperty) {
     return undefined;

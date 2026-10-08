@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { singlePostProperties } from '../../src/core/data/widgetsData.js';
+import { blogWidgetProperties, singlePostProperties } from '../../src/core/data/widgetsData.js';
 import {
   detectLambdaPreArrowContext,
   getArrayElementProperty,
@@ -44,10 +44,15 @@ describe('exprParser - Expression Parsing & Lambda Scopes', () => {
   });
 
   describe('resolveCollectionProperty', () => {
-    it('resolves data:posts from global blog widget', () => {
-      const prop = resolveCollectionProperty('data:posts');
+    it('resolves data:posts when localVariables provides posts (e.g. Blog widget)', () => {
+      const prop = resolveCollectionProperty('data:posts', blogWidgetProperties);
       expect(prop).toBeDefined();
       expect(prop?.type).toBe('array');
+    });
+
+    it('returns undefined for data:posts outside widget context', () => {
+      const prop = resolveCollectionProperty('data:posts');
+      expect(prop).toBeUndefined();
     });
 
     it('resolves collection from lambda parameter scope', () => {
@@ -64,7 +69,7 @@ describe('exprParser - Expression Parsing & Lambda Scopes', () => {
     });
 
     it('strips XML attribute quotes when present', () => {
-      const prop = resolveCollectionProperty('<b:eval expr="data:posts');
+      const prop = resolveCollectionProperty('<b:eval expr="data:posts', blogWidgetProperties);
       expect(prop).toBeDefined();
       expect(prop?.type).toBe('array');
     });
@@ -73,7 +78,7 @@ describe('exprParser - Expression Parsing & Lambda Scopes', () => {
   describe('resolveLambdaContextAtCursor', () => {
     it('detects simple lambda parameter and suggests members on p.', () => {
       const text = '<b:eval expr="data:posts filter (p => p.';
-      const ctx = resolveLambdaContextAtCursor(text, text.length);
+      const ctx = resolveLambdaContextAtCursor(text, text.length, blogWidgetProperties);
       expect(ctx).toBeDefined();
       expect(ctx?.activeParam).toBe('p');
       expect(ctx?.isNavigatingMember).toBe(true);
@@ -84,7 +89,7 @@ describe('exprParser - Expression Parsing & Lambda Scopes', () => {
 
     it('detects partial property token on p.au', () => {
       const text = '<b:eval expr="data:posts filter (p => p.au';
-      const ctx = resolveLambdaContextAtCursor(text, text.length);
+      const ctx = resolveLambdaContextAtCursor(text, text.length, blogWidgetProperties);
       expect(ctx).toBeDefined();
       expect(ctx?.isNavigatingMember).toBe(true);
       expect(ctx?.currentToken).toBe('au');
@@ -93,7 +98,7 @@ describe('exprParser - Expression Parsing & Lambda Scopes', () => {
 
     it('detects nested member navigation on p.author.', () => {
       const text = '<b:eval expr="data:posts filter (p => p.author.';
-      const ctx = resolveLambdaContextAtCursor(text, text.length);
+      const ctx = resolveLambdaContextAtCursor(text, text.length, blogWidgetProperties);
       expect(ctx).toBeDefined();
       expect(ctx?.isNavigatingMember).toBe(true);
       expect(ctx?.typedChain).toEqual(['author']);
@@ -103,7 +108,7 @@ describe('exprParser - Expression Parsing & Lambda Scopes', () => {
 
     it('suggests lambda variable p right after arrow (p => )', () => {
       const text = '<b:eval expr="data:posts filter (p => ';
-      const ctx = resolveLambdaContextAtCursor(text, text.length);
+      const ctx = resolveLambdaContextAtCursor(text, text.length, blogWidgetProperties);
       expect(ctx).toBeDefined();
       expect(ctx?.isNavigatingMember).toBe(false);
       expect(ctx?.currentToken).toBe('');
@@ -112,7 +117,7 @@ describe('exprParser - Expression Parsing & Lambda Scopes', () => {
 
     it('handles nested lambdas: data:posts filter (p => p.labels any (l => l.', () => {
       const text = '<b:eval expr="data:posts filter (p => p.labels any (l => l.';
-      const ctx = resolveLambdaContextAtCursor(text, text.length);
+      const ctx = resolveLambdaContextAtCursor(text, text.length, blogWidgetProperties);
       expect(ctx).toBeDefined();
       expect(ctx?.activeParam).toBe('l');
       expect(ctx?.isNavigatingMember).toBe(true);
@@ -123,7 +128,7 @@ describe('exprParser - Expression Parsing & Lambda Scopes', () => {
 
     it('allows accessing outer lambda parameter p inside inner lambda', () => {
       const text = '<b:eval expr="data:posts filter (p => p.labels any (l => p.';
-      const ctx = resolveLambdaContextAtCursor(text, text.length);
+      const ctx = resolveLambdaContextAtCursor(text, text.length, blogWidgetProperties);
       expect(ctx).toBeDefined();
       expect(ctx?.isNavigatingMember).toBe(true);
       expect(ctx?.targetProperty?.children?.title).toBeDefined();
@@ -131,7 +136,7 @@ describe('exprParser - Expression Parsing & Lambda Scopes', () => {
 
     it('returns undefined if lambda is already closed before cursor', () => {
       const text = '<b:eval expr="data:posts filter (p => p.title != \'\') and ';
-      const ctx = resolveLambdaContextAtCursor(text, text.length);
+      const ctx = resolveLambdaContextAtCursor(text, text.length, blogWidgetProperties);
       expect(ctx).toBeUndefined();
     });
   });
@@ -139,7 +144,7 @@ describe('exprParser - Expression Parsing & Lambda Scopes', () => {
   describe('resolveLambdaHoverAtPosition', () => {
     it('returns hover for lambda parameter variable p', () => {
       const line = '<b:eval expr="data:posts filter (p => p.title)" />';
-      const hover = resolveLambdaHoverAtPosition(line, 33); // on 'p'
+      const hover = resolveLambdaHoverAtPosition(line, 33, blogWidgetProperties); // on 'p'
       expect(hover).toBeDefined();
       expect(hover?.category).toBe('variable');
       expect(hover?.title).toContain('p');
@@ -147,7 +152,7 @@ describe('exprParser - Expression Parsing & Lambda Scopes', () => {
 
     it('returns hover for lambda property access p.title', () => {
       const line = '<b:eval expr="data:posts filter (p => p.title)" />';
-      const hover = resolveLambdaHoverAtPosition(line, 40); // on 'p.title'
+      const hover = resolveLambdaHoverAtPosition(line, 40, blogWidgetProperties); // on 'p.title'
       expect(hover).toBeDefined();
       expect(hover?.category).toBe('data');
       expect(hover?.title).toBe('(property) p.title');
@@ -192,9 +197,12 @@ describe('exprParser - Expression Parsing & Lambda Scopes', () => {
       expect(inferExpressionType('true').type).toBe('boolean');
     });
 
-    it('infers collection data path', () => {
-      const res = inferExpressionType('data:posts');
+    it('infers collection data path in widget context, unknown outside', () => {
+      const res = inferExpressionType('data:posts', blogWidgetProperties);
       expect(res.type).toBe('array');
+
+      const resOutside = inferExpressionType('data:posts');
+      expect(resOutside.type).toBe('unknown');
     });
   });
 

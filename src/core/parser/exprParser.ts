@@ -1,11 +1,9 @@
 import type { BloggerDataType, BloggerProperty } from '../models/types.js';
 import { bloggerGlobalRoot } from '../data/globalData.js';
-import { getPropertyMembers } from '../data/typeMembers.js';
 import {
   commentProperties,
   postLabelItemProperties,
   singlePostProperties,
-  WIDGET_DATA_DICTIONARIES,
 } from '../data/widgetsData.js';
 import { navigatePropertyPath } from '../resolver/pathResolver.js';
 import { getTypeModifiers } from '../types/typeSystem.js';
@@ -130,37 +128,7 @@ export function resolveCollectionProperty(
   }
 
   // Direct navigation
-  const direct = navigatePropertyPath(segments, localVariables, bloggerGlobalRoot)?.target;
-  if (direct) {
-    return direct;
-  }
-
-  // Fallback for posts in Blog widget
-  const [first, ...rest] = segments;
-  if (first === 'posts') {
-    const postsProp = WIDGET_DATA_DICTIONARIES.Blog?.posts;
-    if (!postsProp) {
-      return undefined;
-    }
-    if (rest.length === 0) {
-      return postsProp;
-    }
-    return navigatePropertyPath(rest, undefined, getPropertyMembers(postsProp))?.target;
-  }
-
-  if (first === 'post') {
-    const postProp: BloggerProperty = {
-      name: 'post',
-      type: 'object',
-      children: singlePostProperties,
-    };
-    if (rest.length === 0) {
-      return postProp;
-    }
-    return navigatePropertyPath(rest, undefined, singlePostProperties)?.target;
-  }
-
-  return undefined;
+  return navigatePropertyPath(segments, localVariables, bloggerGlobalRoot)?.target;
 }
 
 /**

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { blogWidgetProperties, singlePostProperties } from '../../src/core/data/widgetsData.js';
 import { BloggerScopeTracker } from '../../src/core/scope/scopeTracker.js';
 import { extractDataPathSegments, inferLoopVariables, inferWithVariables } from '../../src/core/scope/typeInferencer.js';
 
@@ -11,13 +12,16 @@ describe('typeInferencer', () => {
     expect(extractDataPathSegments('data:posts filter (p => p.hasJumpLink)')).toEqual(['posts']);
   });
 
-  it('should infer loop item properties for data:posts', () => {
-    const vars = inferLoopVariables('data:posts', 'item');
+  it('should infer loop item properties for data:posts when in widget context', () => {
+    const vars = inferLoopVariables('data:posts', 'item', undefined, blogWidgetProperties);
     expect(vars.item).toBeDefined();
     expect(vars.item?.type).toBe('object');
     expect(vars.item?.children).toBeDefined();
     expect(vars.item?.children?.title).toBeDefined();
     expect(vars.item?.children?.title?.type).toBe('string');
+
+    const varsOutside = inferLoopVariables('data:posts', 'item');
+    expect(varsOutside.item?.children).toBeUndefined();
   });
 
   it('should infer index variable with number type for b:loop', () => {
@@ -27,21 +31,27 @@ describe('typeInferencer', () => {
   });
 
   it('should infer alias properties for b:with with data:posts.first', () => {
-    const vars = inferWithVariables('data:posts.first', 'alias');
+    const vars = inferWithVariables('data:posts.first', 'alias', blogWidgetProperties);
     expect(vars.alias).toBeDefined();
     expect(vars.alias?.children?.title).toBeDefined();
     expect(vars.alias?.children?.author).toBeDefined();
   });
 
   it('should infer alias properties for b:with with data:post.author', () => {
-    const vars = inferWithVariables('data:post.author', 'author');
+    const vars = inferWithVariables('data:post.author', 'author', {
+      post: {
+        name: 'post',
+        type: 'object',
+        children: singlePostProperties,
+      },
+    });
     expect(vars.author).toBeDefined();
     expect(vars.author?.children?.name).toBeDefined();
     expect(vars.author?.children?.profileUrl).toBeDefined();
   });
 
   it('should infer alias properties and itemChildren for b:with with array data:posts', () => {
-    const vars = inferWithVariables('data:posts', 'myPosts');
+    const vars = inferWithVariables('data:posts', 'myPosts', blogWidgetProperties);
     expect(vars.myPosts).toBeDefined();
     expect(vars.myPosts?.type).toBe('array');
     expect(vars.myPosts?.itemChildren).toBeDefined();
@@ -55,24 +65,27 @@ describe('bloggerScopeTracker', () => {
 
   it('should parse single b:loop scope and locate active variables', () => {
     const code = [
-      '<b:loop values="data:posts" var="item">',
-      '  <data:item.title/>',
-      '</b:loop>',
+      '<b:widget type="Blog" id="Blog1">',
+      '  <b:loop values="data:posts" var="item">',
+      '    <data:item.title/>',
+      '  </b:loop>',
+      '</b:widget>',
     ].join('\n');
 
     const blocks = tracker.parseScopes(code);
     expect(blocks.length).toBe(1);
-    expect(blocks[0]?.tag).toBe('b:loop');
-    expect(blocks[0]?.variables.item).toBeDefined();
+    expect(blocks[0]?.tag).toBe('b:widget');
+    expect(blocks[0]?.children[0]?.tag).toBe('b:loop');
+    expect(blocks[0]?.children[0]?.variables.item).toBeDefined();
 
-    // Inside loop (line 1)
+    // Inside loop (line 2)
     const insideOffset = code.indexOf('<data:item.title/>');
     const insideVars = tracker.getActiveVariables('doc1', 1, code, insideOffset);
     expect(insideVars.item).toBeDefined();
     expect(insideVars.item?.children?.title).toBeDefined();
 
     // Outside loop (after </b:loop>)
-    const outsideOffset = code.length;
+    const outsideOffset = code.indexOf('</b:widget>');
     const outsideVars = tracker.getActiveVariables('doc1', 1, code, outsideOffset);
     expect(outsideVars.item).toBeUndefined();
   });
@@ -111,9 +124,11 @@ describe('bloggerScopeTracker', () => {
 
   it('should parse b:with scopes and aliases correctly', () => {
     const code = [
-      '<b:with value="data:posts.first" var="alias">',
-      '  <data:alias.title/>',
-      '</b:with>',
+      '<b:widget type="Blog" id="Blog1">',
+      '  <b:with value="data:posts.first" var="alias">',
+      '    <data:alias.title/>',
+      '  </b:with>',
+      '</b:widget>',
     ].join('\n');
 
     const insideOffset = code.indexOf('<data:alias.title/>');
@@ -192,9 +207,11 @@ describe('bloggerScopeTracker', () => {
 
   it('should handle attributes containing > operators inside quotes without breaking scope', () => {
     const code = [
-      '<b:loop values="data:posts filter (p => p.id > 10)" var="filteredPost">',
-      '  <data:filteredPost.title/>',
-      '</b:loop>',
+      '<b:widget type="Blog" id="Blog1">',
+      '  <b:loop values="data:posts filter (p => p.id > 10)" var="filteredPost">',
+      '    <data:filteredPost.title/>',
+      '  </b:loop>',
+      '</b:widget>',
     ].join('\n');
 
     const offset = code.indexOf('<data:filteredPost.title/>');

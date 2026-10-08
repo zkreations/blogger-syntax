@@ -15,14 +15,18 @@ describe('contextualCompletion and Hover', () => {
 
   describe('b:loop with custom variable name (item)', () => {
     const lines = [
-      '<b:loop values="data:posts" var="item">',
-      '  <data:item.',
-      '</b:loop>',
+      '<b:widget id="Blog1" type="Blog">',
+      '  <b:includable id="main">',
+      '    <b:loop values="data:posts" var="item">',
+      '      <data:item.',
+      '    </b:loop>',
+      '  </b:includable>',
+      '</b:widget>',
     ];
 
     it('should suggest post properties for data:item. inside loop', () => {
       const doc = createMockDocument(lines, 'file:///loopItem.xml');
-      const position = new vscode.Position(1, '  <data:item.'.length);
+      const position = new vscode.Position(3, '      <data:item.'.length);
 
       const items = completionProvider.provideCompletionItems(doc, position) as vscode.CompletionItem[];
       expect(items).toBeDefined();
@@ -38,12 +42,16 @@ describe('contextualCompletion and Hover', () => {
 
     it('should suggest nested post author properties for data:item.author.', () => {
       const customLines = [
-        '<b:loop values="data:posts" var="item">',
-        '  <data:item.author.',
-        '</b:loop>',
+        '<b:widget id="Blog1" type="Blog">',
+        '  <b:includable id="main">',
+        '    <b:loop values="data:posts" var="item">',
+        '      <data:item.author.',
+        '    </b:loop>',
+        '  </b:includable>',
+        '</b:widget>',
       ];
       const doc = createMockDocument(customLines, 'file:///loopAuthor.xml');
-      const position = new vscode.Position(1, '  <data:item.author.'.length);
+      const position = new vscode.Position(3, '      <data:item.author.'.length);
 
       const items = completionProvider.provideCompletionItems(doc, position) as vscode.CompletionItem[];
       expect(items).toBeDefined();
@@ -53,12 +61,16 @@ describe('contextualCompletion and Hover', () => {
 
     it('should provide correct replacement range when typing mid-word data:item.tit', () => {
       const customLines = [
-        '<b:loop values="data:posts" var="item">',
-        '  <data:item.tit',
-        '</b:loop>',
+        '<b:widget id="Blog1" type="Blog">',
+        '  <b:includable id="main">',
+        '    <b:loop values="data:posts" var="item">',
+        '      <data:item.tit',
+        '    </b:loop>',
+        '  </b:includable>',
+        '</b:widget>',
       ];
       const doc = createMockDocument(customLines, 'file:///loopTit.xml');
-      const position = new vscode.Position(1, '  <data:item.tit'.length);
+      const position = new vscode.Position(3, '      <data:item.tit'.length);
 
       const items = completionProvider.provideCompletionItems(doc, position) as vscode.CompletionItem[];
       expect(items).toBeDefined();
@@ -67,19 +79,36 @@ describe('contextualCompletion and Hover', () => {
       expect(titleItem).toBeDefined();
       expect(titleItem?.range).toBeDefined();
       const range = titleItem?.range as vscode.Range;
-      expect(range.start.character).toBe('  <data:item.'.length);
-      expect(range.end.character).toBe('  <data:item.tit'.length);
+      expect(range.start.character).toBe('      <data:item.'.length);
+      expect(range.end.character).toBe('      <data:item.tit'.length);
     });
 
     it('should NOT suggest post properties for data:item. outside the loop', () => {
       const customLines = [
-        '<b:loop values="data:posts" var="item">',
-        '  <div>In loop</div>',
-        '</b:loop>',
-        '<data:item.',
+        '<b:widget id="Blog1" type="Blog">',
+        '  <b:includable id="main">',
+        '    <b:loop values="data:posts" var="item">',
+        '      <div>In loop</div>',
+        '    </b:loop>',
+        '    <data:item.',
+        '  </b:includable>',
+        '</b:widget>',
       ];
       const doc = createMockDocument(customLines, 'file:///outsideLoop.xml');
-      const position = new vscode.Position(3, '<data:item.'.length);
+      const position = new vscode.Position(5, '    <data:item.'.length);
+
+      const items = completionProvider.provideCompletionItems(doc, position);
+      expect(items).toBeUndefined();
+    });
+
+    it('should NOT suggest widget properties like data:posts. outside widget scope', () => {
+      const outsideLines = [
+        '<b:widget id="Blog1" type="Blog">',
+        '</b:widget>',
+        '<data:posts.',
+      ];
+      const doc = createMockDocument(outsideLines, 'file:///outsideWidget.xml');
+      const position = new vscode.Position(2, '<data:posts.'.length);
 
       const items = completionProvider.provideCompletionItems(doc, position);
       expect(items).toBeUndefined();
@@ -88,26 +117,30 @@ describe('contextualCompletion and Hover', () => {
 
   describe('nested b:loop with multiple variables (a and b)', () => {
     const lines = [
-      '<b:loop values="data:posts" var="a">',
-      '  <data:a.title/>',
-      '  <b:loop values="data:posts" var="b">',
-      '    <data:a.',
-      '    <data:b.',
-      '  </b:loop>',
-      '</b:loop>',
+      '<b:widget id="Blog1" type="Blog">',
+      '  <b:includable id="main">',
+      '    <b:loop values="data:posts" var="a">',
+      '      <data:a.title/>',
+      '      <b:loop values="data:posts" var="b">',
+      '        <data:a.',
+      '        <data:b.',
+      '      </b:loop>',
+      '    </b:loop>',
+      '  </b:includable>',
+      '</b:widget>',
     ];
 
     it('should suggest properties for both "a" and "b" inside nested loop', () => {
       const doc = createMockDocument(lines, 'file:///nestedLoops.xml');
 
       // Inside inner loop, typing data:a.
-      const posA = new vscode.Position(3, '    <data:a.'.length);
+      const posA = new vscode.Position(5, '        <data:a.'.length);
       const itemsA = completionProvider.provideCompletionItems(doc, posA) as vscode.CompletionItem[];
       expect(itemsA).toBeDefined();
       expect(itemsA.map(getItemLabel)).toContain('title');
 
       // Inside inner loop, typing data:b.
-      const posB = new vscode.Position(4, '    <data:b.'.length);
+      const posB = new vscode.Position(6, '        <data:b.'.length);
       const itemsB = completionProvider.provideCompletionItems(doc, posB) as vscode.CompletionItem[];
       expect(itemsB).toBeDefined();
       expect(itemsB.map(getItemLabel)).toContain('title');
@@ -115,14 +148,18 @@ describe('contextualCompletion and Hover', () => {
 
     it('should suggest both "a" and "b" at root data: trigger inside nested loop', () => {
       const customLines = [
-        '<b:loop values="data:posts" var="a">',
-        '  <b:loop values="data:posts" var="b">',
-        '    <data:',
-        '  </b:loop>',
-        '</b:loop>',
+        '<b:widget id="Blog1" type="Blog">',
+        '  <b:includable id="main">',
+        '    <b:loop values="data:posts" var="a">',
+        '      <b:loop values="data:posts" var="b">',
+        '        <data:',
+        '      </b:loop>',
+        '    </b:loop>',
+        '  </b:includable>',
+        '</b:widget>',
       ];
       const doc = createMockDocument(customLines, 'file:///nestedRoot.xml');
-      const position = new vscode.Position(2, '    <data:'.length);
+      const position = new vscode.Position(4, '        <data:'.length);
 
       const items = completionProvider.provideCompletionItems(doc, position) as vscode.CompletionItem[];
       expect(items).toBeDefined();
@@ -136,12 +173,16 @@ describe('contextualCompletion and Hover', () => {
   describe('b:with alias scopes', () => {
     it('should suggest post properties for data:alias. when using b:with with data:posts.first', () => {
       const lines = [
-        '<b:with value="data:posts.first" var="alias">',
-        '  <data:alias.',
-        '</b:with>',
+        '<b:widget id="Blog1" type="Blog">',
+        '  <b:includable id="main">',
+        '    <b:with value="data:posts.first" var="alias">',
+        '      <data:alias.',
+        '    </b:with>',
+        '  </b:includable>',
+        '</b:widget>',
       ];
       const doc = createMockDocument(lines, 'file:///withAlias.xml');
-      const position = new vscode.Position(1, '  <data:alias.'.length);
+      const position = new vscode.Position(3, '      <data:alias.'.length);
 
       const items = completionProvider.provideCompletionItems(doc, position) as vscode.CompletionItem[];
       expect(items).toBeDefined();
@@ -153,17 +194,39 @@ describe('contextualCompletion and Hover', () => {
 
     it('should suggest author properties for data:writer. when using b:with with data:post.author', () => {
       const lines = [
-        '<b:with value="data:post.author" var="writer">',
-        '  <data:writer.',
-        '</b:with>',
+        '<b:widget id="Blog1" type="Blog">',
+        '  <b:includable id="main">',
+        '    <b:loop values="data:posts" var="post">',
+        '      <b:with value="data:post.author" var="writer">',
+        '        <data:writer.',
+        '      </b:with>',
+        '    </b:loop>',
+        '  </b:includable>',
+        '</b:widget>',
       ];
       const doc = createMockDocument(lines, 'file:///withWriter.xml');
-      const position = new vscode.Position(1, '  <data:writer.'.length);
+      const position = new vscode.Position(4, '        <data:writer.'.length);
 
       const items = completionProvider.provideCompletionItems(doc, position) as vscode.CompletionItem[];
       expect(items).toBeDefined();
       const labels = items.map(getItemLabel);
       expect(labels).toEqual(['name', 'profileUrl', 'authorPhoto', 'aboutMe']);
+    });
+
+    it('should suggest object literal properties anywhere using b:with without widget', () => {
+      const lines = [
+        '<b:with value="{ maxItems: 10, label: \'Destacados\' }" var="cfg">',
+        '  <data:cfg.',
+        '</b:with>',
+      ];
+      const doc = createMockDocument(lines, 'file:///withLiteral.xml');
+      const position = new vscode.Position(1, '  <data:cfg.'.length);
+
+      const items = completionProvider.provideCompletionItems(doc, position) as vscode.CompletionItem[];
+      expect(items).toBeDefined();
+      const labels = items.map(getItemLabel);
+      expect(labels).toContain('maxItems');
+      expect(labels).toContain('label');
     });
   });
 
@@ -188,12 +251,16 @@ describe('contextualCompletion and Hover', () => {
   describe('contextual HoverProvider', () => {
     it('should provide hover information for contextual loop variable property (data:item.title)', () => {
       const lines = [
-        '<b:loop values="data:posts" var="item">',
-        '  <data:item.title/>',
-        '</b:loop>',
+        '<b:widget id="Blog1" type="Blog">',
+        '  <b:includable id="main">',
+        '    <b:loop values="data:posts" var="item">',
+        '      <data:item.title/>',
+        '    </b:loop>',
+        '  </b:includable>',
+        '</b:widget>',
       ];
       const doc = createMockDocument(lines, 'file:///hoverLoop.xml');
-      const position = new vscode.Position(1, '  <data:item.tit'.length);
+      const position = new vscode.Position(3, '      <data:item.tit'.length);
 
       const hover = hoverProvider.provideHover(doc, position) as vscode.Hover;
       expect(hover).toBeDefined();
@@ -205,12 +272,18 @@ describe('contextualCompletion and Hover', () => {
 
     it('should provide hover information for contextual with variable (data:writer.name)', () => {
       const lines = [
-        '<b:with value="data:post.author" var="writer">',
-        '  <data:writer.name/>',
-        '</b:with>',
+        '<b:widget id="Blog1" type="Blog">',
+        '  <b:includable id="main">',
+        '    <b:loop values="data:posts" var="post">',
+        '      <b:with value="data:post.author" var="writer">',
+        '        <data:writer.name/>',
+        '      </b:with>',
+        '    </b:loop>',
+        '  </b:includable>',
+        '</b:widget>',
       ];
       const doc = createMockDocument(lines, 'file:///hoverWith.xml');
-      const position = new vscode.Position(1, '  <data:writer.nam'.length);
+      const position = new vscode.Position(4, '        <data:writer.nam'.length);
 
       const hover = hoverProvider.provideHover(doc, position) as vscode.Hover;
       expect(hover).toBeDefined();

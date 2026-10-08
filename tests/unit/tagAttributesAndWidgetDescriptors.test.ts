@@ -1,9 +1,20 @@
 import { describe, expect, it } from 'vitest';
-import { labelWidgetProperties } from '../../src/core/data/widgetsData.js';
+import { blogWidgetProperties, labelWidgetProperties, singlePostProperties } from '../../src/core/data/widgetsData.js';
 import { BloggerPathResolver, parseTagAttributeContext } from '../../src/core/resolver/pathResolver.js';
 
 describe('tag attribute completion & canonical data:widgets descriptors', () => {
   const resolver = new BloggerPathResolver();
+  const blogContext = {
+    localVariables: {
+      post: {
+        name: 'post',
+        type: 'object' as const,
+        children: singlePostProperties,
+      },
+      ...blogWidgetProperties,
+    },
+    widgetType: 'Blog',
+  };
 
   describe('parseTagAttributeContext parser', () => {
     it('should detect open tag when cursor is after tag name space', () => {
@@ -282,7 +293,7 @@ describe('tag attribute completion & canonical data:widgets descriptors', () => 
 
   describe('post labels schema', () => {
     it('should strictly suggest name and url for post.labels.first. and not count or cssSize', () => {
-      const result = resolver.resolveFromLinePrefix('<data:post.labels.first.');
+      const result = resolver.resolveFromLinePrefix('<data:post.labels.first.', blogContext);
       expect(result).toBeDefined();
       const names = result!.suggestions.map(s => s.name);
       expect(names).toEqual(['name', 'url']);
@@ -291,7 +302,7 @@ describe('tag attribute completion & canonical data:widgets descriptors', () => 
     });
 
     it('should strictly suggest name and url for posts.first.labels[0]. and not count or cssSize', () => {
-      const result = resolver.resolveFromLinePrefix('data:posts.first.labels[0].');
+      const result = resolver.resolveFromLinePrefix('data:posts.first.labels[0].', blogContext);
       expect(result).toBeDefined();
       const names = result!.suggestions.map(s => s.name);
       expect(names).toEqual(['name', 'url']);

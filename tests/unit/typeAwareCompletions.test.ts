@@ -1,10 +1,23 @@
 import { describe, expect, it } from 'vitest';
+import { blogWidgetProperties, singlePostProperties } from '../../src/core/data/widgetsData.js';
 import { inferExpressionType } from '../../src/core/parser/exprParser.js';
 import { BloggerPathResolver } from '../../src/core/resolver/pathResolver.js';
 import { computeOperatorReturnType, isTypeAssignable } from '../../src/core/types/typeSystem.js';
 
 describe('typeAwareCompletions - Strict Type Awareness & Operator Filtering', () => {
   const resolver = new BloggerPathResolver();
+  const postContext = {
+    post: {
+      name: 'post',
+      type: 'object' as const,
+      children: singlePostProperties,
+    },
+    ...blogWidgetProperties,
+  };
+  const blogResolverContext = {
+    localVariables: postContext,
+    widgetType: 'Blog',
+  };
 
   describe('typeSystem - Subtyping & Inheritance', () => {
     it('correctly models subtype hierarchy according to Horatio', () => {
@@ -44,36 +57,36 @@ describe('typeAwareCompletions - Strict Type Awareness & Operator Filtering', ()
 
   describe('inferExpressionType - Compound & Chained Expressions', () => {
     it('infers date type for date paths', () => {
-      expect(inferExpressionType('data:post.date').type).toBe('date');
+      expect(inferExpressionType('data:post.date', postContext).type).toBe('date');
     });
 
     it('infers image type for image paths and transforms', () => {
-      expect(inferExpressionType('data:post.featuredImage').type).toBe('image');
-      expect(inferExpressionType('data:post.featuredImage resizeImage 600').type).toBe('image');
+      expect(inferExpressionType('data:post.featuredImage', postContext).type).toBe('image');
+      expect(inferExpressionType('data:post.featuredImage resizeImage 600', postContext).type).toBe('image');
     });
 
     it('infers url type for url paths and operators', () => {
-      expect(inferExpressionType('data:post.url').type).toBe('url');
-      expect(inferExpressionType('data:post.url path "/comments"').type).toBe('url');
+      expect(inferExpressionType('data:post.url', postContext).type).toBe('url');
+      expect(inferExpressionType('data:post.url path "/comments"', postContext).type).toBe('url');
     });
 
     it('infers string type for text snippet and format', () => {
-      expect(inferExpressionType('data:post.body snippet { length: 150 }').type).toBe('string');
-      expect(inferExpressionType('data:post.date format "YYYY"').type).toBe('string');
+      expect(inferExpressionType('data:post.body snippet { length: 150 }', postContext).type).toBe('string');
+      expect(inferExpressionType('data:post.date format "YYYY"', postContext).type).toBe('string');
     });
 
     it('infers array type for pipeline collections', () => {
-      expect(inferExpressionType('data:posts filter (p => p.allowComments)').type).toBe('array');
-      expect(inferExpressionType('data:posts take 5').type).toBe('array');
+      expect(inferExpressionType('data:posts filter (p => p.allowComments)', postContext).type).toBe('array');
+      expect(inferExpressionType('data:posts take 5', postContext).type).toBe('array');
     });
 
     it('infers number type for count pipeline', () => {
-      expect(inferExpressionType('data:posts count (p => p.allowComments)').type).toBe('number');
+      expect(inferExpressionType('data:posts count (p => p.allowComments)', postContext).type).toBe('number');
     });
 
     it('infers parenthesized expressions correctly', () => {
-      expect(inferExpressionType('(data:post.title ?: "Default")').type).toBe('string');
-      expect(inferExpressionType('(data:posts filter (p => p.allowComments))').type).toBe('array');
+      expect(inferExpressionType('(data:post.title ?: "Default")', postContext).type).toBe('string');
+      expect(inferExpressionType('(data:posts filter (p => p.allowComments))', postContext).type).toBe('array');
     });
   });
 
@@ -110,9 +123,15 @@ describe('typeAwareCompletions - Strict Type Awareness & Operator Filtering', ()
       expect(names).not.toContain('%');
     });
 
-    it('suggests strictly collection & lambda operators for array operand', () => {
+    it('does not suggest collection operators for data:posts outside widget context', () => {
       const line = '<b:eval expr="data:posts ';
       const res = resolver.resolveFromLinePrefix(line);
+      expect(res?.suggestions.some(s => s.name === 'filter')).toBeFalsy();
+    });
+
+    it('suggests strictly collection & lambda operators for array operand inside Blog widget', () => {
+      const line = '<b:eval expr="data:posts ';
+      const res = resolver.resolveFromLinePrefix(line, blogResolverContext);
       expect(res).toBeDefined();
 
       const names = res!.suggestions.map(s => s.name);
@@ -148,7 +167,7 @@ describe('typeAwareCompletions - Strict Type Awareness & Operator Filtering', ()
 
     it('suggests strictly date format, comparisons & concatenation for date operand', () => {
       const line = '<b:eval expr="data:post.date ';
-      const res = resolver.resolveFromLinePrefix(line);
+      const res = resolver.resolveFromLinePrefix(line, blogResolverContext);
       expect(res).toBeDefined();
 
       const names = res!.suggestions.map(s => s.name);
@@ -175,7 +194,7 @@ describe('typeAwareCompletions - Strict Type Awareness & Operator Filtering', ()
 
     it('suggests strictly image transforms, url and string ops for image operand', () => {
       const line = '<b:eval expr="data:post.featuredImage ';
-      const res = resolver.resolveFromLinePrefix(line);
+      const res = resolver.resolveFromLinePrefix(line, blogResolverContext);
       expect(res).toBeDefined();
 
       const names = res!.suggestions.map(s => s.name);
@@ -200,7 +219,7 @@ describe('typeAwareCompletions - Strict Type Awareness & Operator Filtering', ()
 
     it('suggests strictly arithmetic & comparison operators for numeric operand', () => {
       const line = '<b:eval expr="data:post.numberOfComments ';
-      const res = resolver.resolveFromLinePrefix(line);
+      const res = resolver.resolveFromLinePrefix(line, blogResolverContext);
       expect(res).toBeDefined();
 
       const names = res!.suggestions.map(s => s.name);

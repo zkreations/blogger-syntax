@@ -1,10 +1,19 @@
 import type { BloggerProperty } from '../../src/core/models/types.js';
 import { describe, expect, it } from 'vitest';
 import { bloggerDescriptions } from '../../src/core/data/descriptions.js';
+import { blogWidgetProperties, singlePostProperties } from '../../src/core/data/widgetsData.js';
 import { BloggerPathResolver } from '../../src/core/resolver/pathResolver.js';
 
 describe('bloggerPathResolver', () => {
   const resolver = new BloggerPathResolver();
+  const postContext: Record<string, BloggerProperty> = {
+    post: {
+      name: 'post',
+      type: 'object',
+      children: singlePostProperties,
+    },
+    ...blogWidgetProperties,
+  };
 
   describe('resolveDataPath', () => {
     it('should resolve root properties for empty path', () => {
@@ -94,8 +103,23 @@ describe('bloggerPathResolver', () => {
       expect(firstNames).not.toContain('messages');
     });
 
-    it('should resolve post properties for ["post"]', () => {
+    it('should return empty array for ["post"] without local variable or loop context', () => {
       const suggestions = resolver.resolveDataPath(['post']);
+      expect(suggestions).toEqual([]);
+    });
+
+    it('should return empty array for ["posts"] without widget context', () => {
+      const suggestions = resolver.resolveDataPath(['posts']);
+      expect(suggestions).toEqual([]);
+    });
+
+    it('should return empty array for ["feedLinks"] without widget context', () => {
+      const suggestions = resolver.resolveDataPath(['feedLinks']);
+      expect(suggestions).toEqual([]);
+    });
+
+    it('should resolve post properties for ["post"] when provided in localVariables', () => {
+      const suggestions = resolver.resolveDataPath(['post'], postContext);
       const names = suggestions.map(s => s.name);
 
       expect(names).toContain('id');
@@ -106,8 +130,8 @@ describe('bloggerPathResolver', () => {
       expect(names).toContain('location');
     });
 
-    it('should resolve post author properties for ["post", "author"]', () => {
-      const suggestions = resolver.resolveDataPath(['post', 'author']);
+    it('should resolve post author properties for ["post", "author"] with context', () => {
+      const suggestions = resolver.resolveDataPath(['post', 'author'], postContext);
       const names = suggestions.map(s => s.name);
 
       expect(names).toContain('name');
@@ -116,22 +140,22 @@ describe('bloggerPathResolver', () => {
       expect(names).toContain('aboutMe');
     });
 
-    it('should resolve post author photo properties for ["post", "author", "authorPhoto"]', () => {
-      const suggestions = resolver.resolveDataPath(['post', 'author', 'authorPhoto']);
+    it('should resolve post author photo properties for ["post", "author", "authorPhoto"] with context', () => {
+      const suggestions = resolver.resolveDataPath(['post', 'author', 'authorPhoto'], postContext);
       const names = suggestions.map(s => s.name);
 
       expect(names).toEqual(['image', 'width', 'height', 'alt']);
     });
 
-    it('should resolve post snippet properties for ["post", "snippets"]', () => {
-      const suggestions = resolver.resolveDataPath(['post', 'snippets']);
+    it('should resolve post snippet properties for ["post", "snippets"] with context', () => {
+      const suggestions = resolver.resolveDataPath(['post', 'snippets'], postContext);
       const names = suggestions.map(s => s.name);
 
       expect(names).toEqual(['short', 'long']);
     });
 
-    it('should resolve post location properties for ["post", "location"]', () => {
-      const suggestions = resolver.resolveDataPath(['post', 'location']);
+    it('should resolve post location properties for ["post", "location"] with context', () => {
+      const suggestions = resolver.resolveDataPath(['post', 'location'], postContext);
       const names = suggestions.map(s => s.name);
 
       expect(names).toEqual(['mapsUrl', 'name']);
@@ -160,7 +184,7 @@ describe('bloggerPathResolver', () => {
       });
 
       it('should suggest image members and support image chaining', () => {
-        const suggestions = resolver.resolveDataPath(['post', 'featuredImage']);
+        const suggestions = resolver.resolveDataPath(['post', 'featuredImage'], postContext);
         const names = suggestions.map(s => s.name);
         expect(names).toContain('width');
         expect(names).toContain('height');
@@ -168,7 +192,7 @@ describe('bloggerPathResolver', () => {
         expect(names).toContain('isYouTube');
         expect(names).toContain('youtubeMaxResDefaultUrl');
 
-        const chained = resolver.resolveDataPath(['post', 'featuredImage', 'youtubeMaxResDefaultUrl']);
+        const chained = resolver.resolveDataPath(['post', 'featuredImage', 'youtubeMaxResDefaultUrl'], postContext);
         expect(chained.map(s => s.name)).toContain('width');
         expect(chained.map(s => s.name)).toContain('height');
       });
@@ -185,7 +209,7 @@ describe('bloggerPathResolver', () => {
       });
 
       it('should suggest date members and chain to string members', () => {
-        const suggestions = resolver.resolveDataPath(['post', 'date']);
+        const suggestions = resolver.resolveDataPath(['post', 'date'], postContext);
         expect(suggestions.map(s => s.name)).toEqual([
           'year',
           'month',
@@ -196,7 +220,7 @@ describe('bloggerPathResolver', () => {
           'iso8601',
         ]);
 
-        const chained = resolver.resolveDataPath(['post', 'date', 'iso8601']);
+        const chained = resolver.resolveDataPath(['post', 'date', 'iso8601'], postContext);
         expect(chained.map(s => s.name)).toEqual(['escaped', 'jsEscaped', 'jsonEscaped', 'cssEscaped', 'length', 'size']);
       });
 
@@ -235,7 +259,7 @@ describe('bloggerPathResolver', () => {
 
     describe('array properties', () => {
       it('should suggest only array modifiers for data:posts and post comments collection', () => {
-        const postsSuggestions = resolver.resolveDataPath(['posts']).map(s => s.name);
+        const postsSuggestions = resolver.resolveDataPath(['posts'], postContext, 'Blog').map(s => s.name);
         expect(postsSuggestions).toContain('size');
         expect(postsSuggestions).toContain('length');
         expect(postsSuggestions).toContain('empty');
@@ -246,17 +270,17 @@ describe('bloggerPathResolver', () => {
         expect(postsSuggestions).not.toContain('title');
         expect(postsSuggestions).not.toContain('body');
 
-        const commentSuggestions = resolver.resolveDataPath(['post', 'comments']).map(s => s.name);
+        const commentSuggestions = resolver.resolveDataPath(['post', 'comments'], postContext).map(s => s.name);
         expect(commentSuggestions).toContain('size');
         expect(commentSuggestions).toContain('first');
         expect(commentSuggestions).not.toContain('body');
 
-        const firstCommentSuggestions = resolver.resolveDataPath(['post', 'comments', 'first']).map(s => s.name);
+        const firstCommentSuggestions = resolver.resolveDataPath(['post', 'comments', 'first'], postContext).map(s => s.name);
         expect(firstCommentSuggestions).toContain('body');
       });
 
-      it('should suggest only array modifiers for data:feedLinks', () => {
-        const feedLinkSuggestions = resolver.resolveDataPath(['feedLinks']).map(s => s.name);
+      it('should suggest only array modifiers for data:feedLinks in Blog widget', () => {
+        const feedLinkSuggestions = resolver.resolveDataPath(['feedLinks'], postContext, 'Blog').map(s => s.name);
         expect(feedLinkSuggestions).toContain('size');
         expect(feedLinkSuggestions).toContain('length');
         expect(feedLinkSuggestions).toContain('empty');
@@ -267,24 +291,24 @@ describe('bloggerPathResolver', () => {
         expect(feedLinkSuggestions).not.toContain('feedType');
         expect(feedLinkSuggestions).not.toContain('mimeType');
 
-        const firstFeedLink = resolver.resolveDataPath(['feedLinks', 'first']).map(s => s.name);
+        const firstFeedLink = resolver.resolveDataPath(['feedLinks', 'first'], postContext, 'Blog').map(s => s.name);
         expect(firstFeedLink).toContain('feedType');
         expect(firstFeedLink).toContain('url');
 
-        const urlSuggestions = resolver.resolveDataPath(['feedLinks', 'first', 'url']).map(s => s.name);
+        const urlSuggestions = resolver.resolveDataPath(['feedLinks', 'first', 'url'], postContext, 'Blog').map(s => s.name);
         expect(urlSuggestions).toContain('canonical');
         expect(urlSuggestions).toContain('https');
         expect(urlSuggestions).toContain('http');
       });
 
       it('should suggest post properties on first and last elements', () => {
-        const firstNames = resolver.resolveDataPath(['posts', 'first']).map(s => s.name);
+        const firstNames = resolver.resolveDataPath(['posts', 'first'], postContext, 'Blog').map(s => s.name);
         expect(firstNames).toContain('title');
         expect(firstNames).toContain('body');
         expect(firstNames).toContain('snippets');
         expect(firstNames).toContain('author');
 
-        const lastNames = resolver.resolveDataPath(['posts', 'last']).map(s => s.name);
+        const lastNames = resolver.resolveDataPath(['posts', 'last'], postContext, 'Blog').map(s => s.name);
         expect(lastNames).toContain('title');
         expect(lastNames).toContain('author');
       });

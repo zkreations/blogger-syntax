@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { skinProperties, widgetsMapProperties } from '../../src/core/data/globalData.js';
 import { bloggerTags } from '../../src/core/data/tagsData.js';
+import { blogWidgetProperties } from '../../src/core/data/widgetsData.js';
 import { BloggerPathResolver } from '../../src/core/resolver/pathResolver.js';
 
 describe('plan 1: Data Model Integrity & Canonical Specifications', () => {
@@ -85,7 +86,7 @@ describe('plan 1: Data Model Integrity & Canonical Specifications', () => {
 
   describe('array property isolation (no item property leakage)', () => {
     it('should not leak post properties onto data:posts array', () => {
-      const postsProps = resolver.resolveDataPath(['posts']).map(s => s.name);
+      const postsProps = resolver.resolveDataPath(['posts'], blogWidgetProperties).map(s => s.name);
       expect(postsProps).not.toContain('title');
       expect(postsProps).not.toContain('body');
       expect(postsProps).not.toContain('author');
@@ -94,10 +95,15 @@ describe('plan 1: Data Model Integrity & Canonical Specifications', () => {
     });
 
     it('should expose item properties on .first and .last', () => {
-      const firstProps = resolver.resolveDataPath(['posts', 'first']).map(s => s.name);
+      const firstProps = resolver.resolveDataPath(['posts', 'first'], blogWidgetProperties).map(s => s.name);
       expect(firstProps).toContain('title');
       expect(firstProps).toContain('body');
       expect(firstProps).toContain('author');
+    });
+
+    it('should return empty suggestions for data:posts outside widget context', () => {
+      const outsideProps = resolver.resolveDataPath(['posts']);
+      expect(outsideProps).toHaveLength(0);
     });
   });
 

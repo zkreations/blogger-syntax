@@ -1,4 +1,5 @@
 import type { BloggerProperty } from '../models/types.js';
+import type { ForwardedIncludeItem } from './typeInferencer.js';
 import { messagesProperties, widgetMetaProperties } from '../data/globalData.js';
 import { WIDGET_DATA_DICTIONARIES } from '../data/widgetsData.js';
 import { maskCommentsAndCdata } from '../utils/textUtils.js';
@@ -28,8 +29,7 @@ export interface BloggerScopeBlock {
   readonly parent?: BloggerScopeBlock | undefined;
 }
 
-const TAG_REGEX = /<(\/)?b:(widget|defaultmarkup|includable|loop|with)\b((?:"[^"]*"|'[^']*'|[^"'/>])*)(\/?)>/gi;
-const INCLUDE_REGEX = /<b:include\b((?:"[^"]*"|'[^']*'|[^"'/>])*)(\/?)>/gi;
+const TAG_REGEX = /<(\/)?b:(widget|defaultmarkup|includable|loop|with|include)\b((?:"[^"]*"|'[^']*'|[^"'/>])*)(\/?)>/gi;
 
 const ATTR_REGEX_MAP: Record<string, RegExp> = {
   values: /\bvalues\s*=\s*(?:"([^"]*)"|'([^']*)')/i,
@@ -81,24 +81,13 @@ export class BloggerScopeTracker {
     let blockCounter = 0;
 
     const sanitizedText = maskCommentsAndCdata(text);
-
-    // Pre-pass: Index <b:include name='...' data='...'/> calls across document
-    const includeInvocations = new Map<string, string[]>();
-    INCLUDE_REGEX.lastIndex = 0;
-    while (true) {
-      const incMatch = INCLUDE_REGEX.exec(sanitizedText);
-      if (incMatch === null) {
-        break;
-      }
-      const attrStr = incMatch[1] ?? '';
-      const name = extractAttribute(attrStr, 'name');
-      const data = extractAttribute(attrStr, 'data');
-      if (name && data) {
-        const existing = includeInvocations.get(name) ?? [];
-        existing.push(data);
-        includeInvocations.set(name, existing);
-      }
-    }
+    const includeInvocations = new Map<string, ForwardedIncludeItem[]>();
+    const includableBlocks: Array<{
+      block: BloggerScopeBlock;
+      varName: string | undefined;
+      activeVarsAtOpen: Record<string, BloggerProperty>;
+      widgetType: string | undefined;
+    }> = [];
 
     TAG_REGEX.lastIndex = 0;
 
@@ -114,6 +103,18 @@ export class BloggerScopeTracker {
       const isSelfClosing = match[4] === '/' || attrString.trimEnd().endsWith('/');
       const tagStartOffset = match.index;
       const tagEndOffset = tagStartOffset + match[0].length;
+
+      if (rawTag === 'include') {
+        const name = extractAttribute(attrString, 'name');
+        const data = extractAttribute(attrString, 'data');
+        if (name && data) {
+          const activeVarsAtOpen = mergeStackVariables(stack);
+          const existing = includeInvocations.get(name) ?? [];
+          existing.push({ expr: data, localVariables: activeVarsAtOpen });
+          includeInvocations.set(name, existing);
+        }
+        continue;
+      }
 
       if (isClosing) {
         for (let i = stack.length - 1; i >= 0; i--) {
@@ -208,6 +209,16 @@ export class BloggerScopeTracker {
         parent,
       };
 
+      if (fullTag === 'b:includable') {
+        const varName = extractAttribute(attrString, 'var');
+        includableBlocks.push({
+          block: newBlock,
+          varName,
+          activeVarsAtOpen,
+          widgetType,
+        });
+      }
+
       if (parent) {
         parent.children.push(newBlock);
       }
@@ -216,6 +227,21 @@ export class BloggerScopeTracker {
       }
 
       stack.push(newBlock);
+    }
+
+    for (const inc of includableBlocks) {
+      if (inc.block.includableId) {
+        const forwardedData = includeInvocations.get(inc.block.includableId);
+        if (forwardedData && forwardedData.length > 0) {
+          const updatedVars = inferIncludableVariables(
+            inc.varName,
+            forwardedData,
+            inc.activeVarsAtOpen,
+            inc.widgetType,
+          );
+          Object.assign(inc.block.variables, updatedVars);
+        }
+      }
     }
 
     return rootBlocks;

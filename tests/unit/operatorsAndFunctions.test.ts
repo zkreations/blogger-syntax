@@ -4,6 +4,7 @@ import {
   getFunctionalOperatorSuggestions,
   getOperatorSuggestions,
 } from '../../src/core/data/operatorsData.js';
+import { blogWidgetProperties } from '../../src/core/data/widgetsData.js';
 import { BloggerPathResolver } from '../../src/core/resolver/pathResolver.js';
 
 describe('operators - Catalog Integrity, Dual Syntax & Autocompletion', () => {
@@ -159,7 +160,7 @@ describe('operators - Catalog Integrity, Dual Syntax & Autocompletion', () => {
   describe('autocompletion in PathResolver', () => {
     it('suggests post members on p. inside lambda', () => {
       const line = '<b:eval expr="data:posts filter (p => p.';
-      const res = resolver.resolveFromLinePrefix(line);
+      const res = resolver.resolveFromLinePrefix(line, { localVariables: blogWidgetProperties, widgetType: 'Blog' });
       expect(res).toBeDefined();
       expect(res?.suggestions.some(s => s.name === 'title')).toBe(true);
       expect(res?.suggestions.some(s => s.name === 'author')).toBe(true);
@@ -169,7 +170,7 @@ describe('operators - Catalog Integrity, Dual Syntax & Autocompletion', () => {
 
     it('suggests label members on l. inside nested lambda', () => {
       const line = '<b:eval expr="data:posts filter (p => p.labels any (l => l.';
-      const res = resolver.resolveFromLinePrefix(line);
+      const res = resolver.resolveFromLinePrefix(line, { localVariables: blogWidgetProperties, widgetType: 'Blog' });
       expect(res).toBeDefined();
       expect(res?.suggestions.some(s => s.name === 'name')).toBe(true);
       expect(res?.suggestions.some(s => s.name === 'url')).toBe(true);
@@ -178,7 +179,7 @@ describe('operators - Catalog Integrity, Dual Syntax & Autocompletion', () => {
 
     it('suggests operators after typing space after collection', () => {
       const line = '<b:eval expr="data:posts ';
-      const res = resolver.resolveFromLinePrefix(line);
+      const res = resolver.resolveFromLinePrefix(line, { localVariables: blogWidgetProperties, widgetType: 'Blog' });
       expect(res).toBeDefined();
       expect(res?.suggestions.some(s => s.name === 'filter')).toBe(true);
       expect(res?.suggestions.some(s => s.name === 'map')).toBe(true);
@@ -188,7 +189,7 @@ describe('operators - Catalog Integrity, Dual Syntax & Autocompletion', () => {
 
     it('suggests matching operator on partial typing like data:posts fil', () => {
       const line = '<b:eval expr="data:posts fil';
-      const res = resolver.resolveFromLinePrefix(line);
+      const res = resolver.resolveFromLinePrefix(line, { localVariables: blogWidgetProperties, widgetType: 'Blog' });
       expect(res).toBeDefined();
       expect(res?.suggestions.some(s => s.name === 'filter')).toBe(true);
       expect(res?.replacementLength).toBe(3);
@@ -310,7 +311,7 @@ describe('operators - Catalog Integrity, Dual Syntax & Autocompletion', () => {
     describe('lambda operators contextual assistance & snippet insertion', () => {
       it('generates lambda snippet with inferred parameter p for data:posts', () => {
         const line = '<b:eval expr="data:posts fi';
-        const res = resolver.resolveFromLinePrefix(line);
+        const res = resolver.resolveFromLinePrefix(line, { localVariables: blogWidgetProperties, widgetType: 'Blog' });
         expect(res).toBeDefined();
 
         const firstSugg = res?.suggestions.find(s => s.name === 'first');
@@ -322,7 +323,7 @@ describe('operators - Catalog Integrity, Dual Syntax & Autocompletion', () => {
 
       it('generates lambda snippet with inferred parameter l for p.labels in nested lambda', () => {
         const line = '<b:eval expr="data:posts filter (p => p.labels an';
-        const res = resolver.resolveFromLinePrefix(line);
+        const res = resolver.resolveFromLinePrefix(line, { localVariables: blogWidgetProperties, widgetType: 'Blog' });
         expect(res).toBeDefined();
 
         const anySugg = res?.suggestions.find(s => s.name === 'any');
@@ -334,7 +335,7 @@ describe('operators - Catalog Integrity, Dual Syntax & Autocompletion', () => {
       it('omits parenthesis snippet if lineSuffix already contains an opening parenthesis', () => {
         const linePrefix = '<b:eval expr="data:posts fi';
         const lineSuffix = ' (p => p.id)"/>';
-        const res = resolver.resolveFromLinePrefix(linePrefix, { lineSuffix });
+        const res = resolver.resolveFromLinePrefix(linePrefix, { lineSuffix, localVariables: blogWidgetProperties, widgetType: 'Blog' });
         expect(res).toBeDefined();
 
         const firstSugg = res?.suggestions.find(s => s.name === 'first');
@@ -468,7 +469,7 @@ describe('operators - Catalog Integrity, Dual Syntax & Autocompletion', () => {
 
     it('returns lambda property hover when hovering over p.title', () => {
       const line = '<b:eval expr="data:posts filter (p => p.title)" />';
-      const hover = resolver.resolveHoverAtPosition(line, 40);
+      const hover = resolver.resolveHoverAtPosition(line, 40, undefined, { localVariables: blogWidgetProperties, widgetType: 'Blog' });
       expect(hover).toBeDefined();
       expect(hover?.hover.title).toBe('(property) p.title');
       expect(hover?.hover.type).toBe('string');
