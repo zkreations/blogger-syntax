@@ -2,7 +2,7 @@ import type { BloggerProperty } from '../models/types.js';
 import type { ForwardedIncludeItem } from './typeInferencer.js';
 import { messagesProperties, widgetMetaProperties } from '../data/globalData.js';
 import { WIDGET_DATA_DICTIONARIES } from '../data/widgetsData.js';
-import { maskCommentsAndCdata } from '../utils/textUtils.js';
+import { scanDirectiveTokens } from '../parser/directiveScanner.js';
 import {
   inferIncludableVariables,
   inferLoopVariables,
@@ -27,31 +27,6 @@ export interface BloggerScopeBlock {
   readonly variables: Record<string, BloggerProperty>;
   readonly children: BloggerScopeBlock[];
   readonly parent?: BloggerScopeBlock | undefined;
-}
-
-const TAG_REGEX = /<(\/)?b:(widget|defaultmarkup|includable|loop|with|include)\b((?:"[^"]*"|'[^']*'|[^"'/>])*)(\/?)>/gi;
-
-const ATTR_REGEX_MAP: Record<string, RegExp> = {
-  values: /\bvalues\s*=\s*(?:"([^"]*)"|'([^']*)')/i,
-  var: /\bvar\s*=\s*(?:"([^"]*)"|'([^']*)')/i,
-  index: /\bindex\s*=\s*(?:"([^"]*)"|'([^']*)')/i,
-  value: /\bvalue\s*=\s*(?:"([^"]*)"|'([^']*)')/i,
-  type: /\btype\s*=\s*(?:"([^"]*)"|'([^']*)')/i,
-  id: /\bid\s*=\s*(?:"([^"]*)"|'([^']*)')/i,
-  name: /\bname\s*=\s*(?:"([^"]*)"|'([^']*)')/i,
-  data: /\bdata\s*=\s*(?:"([^"]*)"|'([^']*)')/i,
-};
-
-function extractAttribute(
-  attrString: string,
-  attrName: 'values' | 'var' | 'index' | 'value' | 'type' | 'id' | 'name' | 'data',
-): string | undefined {
-  const regex = ATTR_REGEX_MAP[attrName];
-  if (!regex) {
-    return undefined;
-  }
-  const match = regex.exec(attrString);
-  return match ? (match[1] ?? match[2]) : undefined;
 }
 
 function mergeStackVariables(stack: readonly BloggerScopeBlock[]): Record<string, BloggerProperty> {
@@ -80,7 +55,7 @@ export class BloggerScopeTracker {
     const stack: BloggerScopeBlock[] = [];
     let blockCounter = 0;
 
-    const sanitizedText = maskCommentsAndCdata(text);
+    const tokens = scanDirectiveTokens(text);
     const includeInvocations = new Map<string, ForwardedIncludeItem[]>();
     const includableBlocks: Array<{
       block: BloggerScopeBlock;
@@ -89,24 +64,25 @@ export class BloggerScopeTracker {
       widgetType: string | undefined;
     }> = [];
 
-    TAG_REGEX.lastIndex = 0;
-
-    while (true) {
-      const match = TAG_REGEX.exec(sanitizedText);
-      if (match === null) {
-        break;
+    for (const token of tokens) {
+      const rawLower = token.tagName.toLowerCase();
+      if (!rawLower.startsWith('b:')) {
+        continue;
       }
-      const isClosing = match[1] === '/';
-      const rawTag = match[2]?.toLowerCase() ?? '';
+      const rawTag = rawLower.slice(2);
+      if (!['widget', 'defaultmarkup', 'includable', 'loop', 'with', 'include'].includes(rawTag)) {
+        continue;
+      }
       const fullTag = `b:${rawTag}` as BloggerScopeTag;
-      const attrString = match[3] ?? '';
-      const isSelfClosing = match[4] === '/' || attrString.trimEnd().endsWith('/');
-      const tagStartOffset = match.index;
-      const tagEndOffset = tagStartOffset + match[0].length;
+      const isClosing = token.isClosing;
+      const isSelfClosing = token.isSelfClosing;
+      const tagStartOffset = token.tagStart;
+      const tagEndOffset = token.tagEnd;
+      const attrs = token.attributes;
 
       if (rawTag === 'include') {
-        const name = extractAttribute(attrString, 'name');
-        const data = extractAttribute(attrString, 'data');
+        const name = attrs.name?.value;
+        const data = attrs.data?.value;
         if (name && data) {
           const activeVarsAtOpen = mergeStackVariables(stack);
           const existing = includeInvocations.get(name) ?? [];
@@ -139,8 +115,8 @@ export class BloggerScopeTracker {
       let includableId: string | undefined;
 
       if (fullTag === 'b:widget') {
-        widgetId = extractAttribute(attrString, 'id');
-        widgetType = extractAttribute(attrString, 'type');
+        widgetId = attrs.id?.value;
+        widgetType = attrs.type?.value;
         if (widgetType && WIDGET_DATA_DICTIONARIES[widgetType]) {
           Object.assign(variables, WIDGET_DATA_DICTIONARIES[widgetType]);
         }
@@ -152,7 +128,7 @@ export class BloggerScopeTracker {
         };
       }
       else if (fullTag === 'b:defaultmarkup') {
-        const markupType = extractAttribute(attrString, 'type');
+        const markupType = attrs.type?.value;
         widgetType = markupType;
         if (markupType) {
           const mTypes = markupType.split(',').map(s => s.trim());
@@ -176,8 +152,8 @@ export class BloggerScopeTracker {
         };
       }
       else if (fullTag === 'b:includable') {
-        includableId = extractAttribute(attrString, 'id');
-        const varName = extractAttribute(attrString, 'var');
+        includableId = attrs.id?.value;
+        const varName = attrs.var?.value;
         const enclosingBlock = findEnclosingWidgetOrMarkup(stack);
         const forwardedData = includableId ? includeInvocations.get(includableId) : undefined;
         widgetType = enclosingBlock?.widgetType;
@@ -189,14 +165,14 @@ export class BloggerScopeTracker {
         );
       }
       else if (fullTag === 'b:loop') {
-        const values = extractAttribute(attrString, 'values') ?? '';
-        const varName = extractAttribute(attrString, 'var');
-        const indexName = extractAttribute(attrString, 'index');
+        const values = attrs.values?.value ?? '';
+        const varName = attrs.var?.value;
+        const indexName = attrs.index?.value;
         variables = inferLoopVariables(values, varName, indexName, activeVarsAtOpen);
       }
       else if (fullTag === 'b:with') {
-        const value = extractAttribute(attrString, 'value') ?? '';
-        const varName = extractAttribute(attrString, 'var');
+        const value = attrs.value?.value ?? '';
+        const varName = attrs.var?.value;
         variables = inferWithVariables(value, varName, activeVarsAtOpen);
       }
 
@@ -215,7 +191,7 @@ export class BloggerScopeTracker {
       };
 
       if (fullTag === 'b:includable') {
-        const varName = extractAttribute(attrString, 'var');
+        const varName = attrs.var?.value;
         includableBlocks.push({
           block: newBlock,
           varName,
@@ -435,20 +411,19 @@ export class BloggerScopeTracker {
 }
 
 export function extractEnclosingMessageName(text: string, offset: number): string | undefined {
-  const sanitizedText = maskCommentsAndCdata(text.slice(0, offset));
-  const tagMsgRegex = /<(\/)?b:message\b((?:"[^"]*"|'[^']*'|[^"'/>])*)(\/?)>/gi;
+  const tokens = scanDirectiveTokens(text.slice(0, offset));
   const stack: string[] = [];
 
-  for (const match of sanitizedText.matchAll(tagMsgRegex)) {
-    const isClosing = match[1] === '/';
-    const attrString = match[2] ?? '';
-    const isSelfClosing = match[3] === '/' || attrString.trimEnd().endsWith('/');
+  for (const token of tokens) {
+    if (token.tagName.toLowerCase() !== 'b:message') {
+      continue;
+    }
 
-    if (isClosing) {
+    if (token.isClosing) {
       stack.pop();
     }
-    else if (!isSelfClosing) {
-      const name = extractAttribute(attrString, 'name');
+    else if (!token.isSelfClosing) {
+      const name = token.attributes.name?.value;
       stack.push(name ?? '');
     }
   }

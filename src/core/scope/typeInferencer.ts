@@ -9,7 +9,7 @@ import {
   WIDGET_DATA_DICTIONARIES,
 } from '../data/widgetsData.js';
 import { getArrayElementProperty, inferExpressionType } from '../parser/exprParser.js';
-import { navigatePropertyPath } from '../resolver/pathResolver.js';
+import { navigatePropertyPath } from '../resolver/propertyHierarchy.js';
 
 const PATH_EXTRACTOR_REGEX = /^(?:data:)?([\w.]+)/;
 

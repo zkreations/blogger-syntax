@@ -244,8 +244,12 @@ export function resolveWidgetTypesSuggestions(): readonly BloggerSuggestion[] {
   return STATIC_WIDGET_TYPES_SUGGESTIONS;
 }
 
-export function resolveDefaultMarkupTypesSuggestions(): readonly BloggerSuggestion[] {
-  return STATIC_DEFAULT_MARKUP_SUGGESTIONS;
+export function resolveDefaultMarkupTypesSuggestions(excludedTypes?: readonly string[]): readonly BloggerSuggestion[] {
+  if (!excludedTypes || excludedTypes.length === 0) {
+    return STATIC_DEFAULT_MARKUP_SUGGESTIONS;
+  }
+  const excludedSet = new Set(excludedTypes.map(t => t.trim().toLowerCase()));
+  return STATIC_DEFAULT_MARKUP_SUGGESTIONS.filter(s => !excludedSet.has(s.name.toLowerCase()));
 }
 
 export function resolveSkinVariableTypesSuggestions(): readonly BloggerSuggestion[] {

@@ -570,6 +570,12 @@ export const viewProperties: Record<string, BloggerProperty> = {
 };
 
 export const widgetMetaProperties: Record<string, BloggerProperty> = {
+  id: {
+    name: 'id',
+    type: 'string',
+    description: 'Unique widget ID (e.g. "ReportAbuse1", "Blog1").',
+    docUrl: 'https://bloggercode.orbiona.com/1978/02/data-widgets-id.html',
+  },
   instanceId: {
     name: 'instanceId',
     type: 'string',
@@ -632,7 +638,7 @@ export const widgetsMapProperties: Record<string, BloggerProperty> = {
   PageList: createWidgetCollectionEntry('PageList', 'Collection of visible PageList gadget descriptors.', 'https://bloggercode.orbiona.com/1979/07/Ressource-PageList.html'),
   PopularPosts: createWidgetCollectionEntry('PopularPosts', 'Collection of visible PopularPosts gadget descriptors.', 'https://bloggercode.orbiona.com/1979/07/Ressource-PopularPosts.html'),
   Profile: createWidgetCollectionEntry('Profile', 'Collection of visible Profile gadget descriptors.', 'https://bloggercode.orbiona.com/1979/07/Ressource-Profile.html'),
-  ReportAbuse: createWidgetCollectionEntry('ReportAbuse', 'Collection of visible ReportAbuse gadget descriptors.', 'https://bloggercode.orbiona.com/1979/07/Ressource-ReportAbuse.html'),
+  ReportAbuse: createWidgetCollectionEntry('ReportAbuse', 'Collection of visible ReportAbuse gadget descriptors.', 'https://bloggercode.orbiona.com/2019/04/widget-reportAbuse.html'),
   Stats: createWidgetCollectionEntry('Stats', 'Collection of visible Stats gadget descriptors.', 'https://bloggercode.orbiona.com/1979/07/Ressource-Stats.html'),
   Subscribe: createWidgetCollectionEntry('Subscribe', 'Collection of visible Subscribe gadget descriptors.', 'https://bloggercode.orbiona.com/1979/07/Ressource-Subscribe.html'),
   Text: createWidgetCollectionEntry('Text', 'Collection of visible Text gadget descriptors.', 'https://bloggercode.orbiona.com/1979/08/Ressource-HTML-Text.html'),

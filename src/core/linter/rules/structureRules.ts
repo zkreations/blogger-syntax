@@ -128,6 +128,7 @@ export function checkDocumentStructure(
 
   const sectionIds = new Map<string, { start: number; end: number }>();
   const widgetIds = new Map<string, { start: number; end: number }>();
+  let reportAbuseCount = 0;
 
   const stack: StackElement[] = [];
 
@@ -217,6 +218,18 @@ export function checkDocumentStructure(
       }
     }
 
+    if (lower === 'b:widget' && typeVal?.toLowerCase() === 'reportabuse') {
+      reportAbuseCount++;
+      if (reportAbuseCount > 1) {
+        diagnostics.push({
+          code: 'blogger.widget.cardinality-exceeded',
+          message: 'Only 1 instance of the "ReportAbuse" widget is permitted per template.',
+          severity: 'error',
+          range: currentRange,
+        });
+      }
+    }
+
     // Hierarchy & Containment Rules
     if (lower === 'b:section') {
       const inHead = stack.some(s => s.lowerTagName === 'head');
@@ -276,8 +289,15 @@ export function checkDocumentStructure(
       }
     }
     else if (parentLower === 'b:widget') {
-      // Direct child of b:widget must strictly be b:includable or b:widget-settings
-      if (lower !== 'b:includable' && lower !== 'b:widget-settings') {
+      if (lower === 'b:widget-settings' && parent?.type?.toLowerCase() === 'reportabuse') {
+        diagnostics.push({
+          code: 'blogger.widget.prohibited-settings',
+          message: '<b:widget-settings> is prohibited in "ReportAbuse" widget as it does not support XML configuration persistence.',
+          severity: 'error',
+          range: currentRange,
+        });
+      }
+      else if (lower !== 'b:includable' && lower !== 'b:widget-settings') {
         diagnostics.push({
           code: 'blogger.structure.invalid-widget-child',
           message: `<b:widget> does not permit direct <${tagName}> content outside <b:includable>. Wrap layout markup in <b:includable id='main'>.`,

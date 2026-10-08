@@ -1,63 +1,45 @@
-import type { BloggerProperty } from '../../core/models/types.js';
 import type { BloggerPathResolver } from '../../core/resolver/pathResolver.js';
+import type { BloggerScopeTracker } from '../../core/scope/scopeTracker.js';
 import * as vscode from 'vscode';
-import { BloggerScopeTracker } from '../../core/scope/scopeTracker.js';
+import { TemplateLanguageService } from '../../core/service/templateLanguageService.js';
 import { buildHoverDocumentation } from '../utils/docBuilder.js';
 import { getDocumentOffset, getDocumentText } from '../utils/documentHelper.js';
 
 export class BloggerHoverProvider implements vscode.HoverProvider {
+  private readonly service: TemplateLanguageService;
+
   constructor(
-    private readonly pathResolver: BloggerPathResolver,
-    private readonly scopeTracker: BloggerScopeTracker = new BloggerScopeTracker(),
-  ) {}
+    serviceOrResolver?: TemplateLanguageService | BloggerPathResolver,
+    scopeTracker?: BloggerScopeTracker,
+  ) {
+    if (serviceOrResolver instanceof TemplateLanguageService) {
+      this.service = serviceOrResolver;
+    }
+    else if (serviceOrResolver) {
+      this.service = new TemplateLanguageService(serviceOrResolver, scopeTracker);
+    }
+    else {
+      this.service = new TemplateLanguageService();
+    }
+  }
 
   public provideHover(
     document: vscode.TextDocument,
     position: vscode.Position,
   ): vscode.ProviderResult<vscode.Hover> {
-    const lineText = document.lineAt(position.line).text;
-
-    const docKey = document.uri ? document.uri.toString() : 'untitled';
-    const version = document.version ?? 0;
     const fullText = getDocumentText(document);
     const offset = getDocumentOffset(document, position);
+    const docKey = document.uri ? document.uri.toString() : 'untitled';
+    const version = document.version ?? 0;
 
-    const getLocalVariables = (): Record<string, BloggerProperty> => {
-      return this.scopeTracker.getActiveVariables(docKey, version, fullText, offset);
-    };
-
-    const widgetType = this.scopeTracker.getEnclosingWidgetType(docKey, version, fullText, offset);
-    const enclosingMessageName = this.scopeTracker.getEnclosingMessageName(fullText, offset);
-
-    const getPrecedingContext = (): string | undefined => {
-      if (position.line === 0) {
-        return undefined;
-      }
-      const startLine = Math.max(0, position.line - 15);
-      const lines: string[] = [];
-      for (let l = startLine; l < position.line; l++) {
-        lines.push(document.lineAt(l).text);
-      }
-      return lines.join('\n');
-    };
-
-    const result = this.pathResolver.resolveHoverAtPosition(
-      lineText,
-      position.character,
-      getPrecedingContext,
-      { localVariables: getLocalVariables, widgetType, enclosingMessageName },
-    );
-
+    const result = this.service.getHover(fullText, offset, { docKey, version });
     if (!result) {
       return undefined;
     }
 
-    const range = new vscode.Range(
-      position.line,
-      result.range.start,
-      position.line,
-      result.range.end,
-    );
+    const startPos = document.positionAt(result.range.start);
+    const endPos = document.positionAt(result.range.end);
+    const range = new vscode.Range(startPos, endPos);
 
     const docMarkdown = buildHoverDocumentation(result.hover);
     return new vscode.Hover(docMarkdown, range);

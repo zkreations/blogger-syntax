@@ -257,6 +257,13 @@ describe('tag attribute completion & canonical data:widgets descriptors', () => 
       expect(postItems).toBeDefined();
       expect(postItems!.suggestions.map(s => s.name)).toEqual(['id', 'title']);
     });
+
+    it('should support ReportAbuse descriptor with base properties', () => {
+      const result = resolver.resolveFromLinePrefix('data:widgets.ReportAbuse1.');
+      expect(result).toBeDefined();
+      const names = result!.suggestions.map(s => s.name);
+      expect(names).toEqual(['id', 'sectionId', 'title', 'type']);
+    });
   });
 
   describe('hover cards for tag, reverse, render', () => {

@@ -1,5 +1,6 @@
 import type { BloggerDiagnostic } from '../linterTypes.js';
 import { bloggerDefaultMarkupTypes, bloggerWidgetTypes } from '../../data/widgetTypes.js';
+import { isExpressionAttribute } from '../../resolver/tagAttributeResolver.js';
 import { createRange, scanXmlTags } from '../linterUtils.js';
 
 const WIDGET_TYPES_SET = new Set<string>(bloggerWidgetTypes);
@@ -30,23 +31,42 @@ const VARIABLE_TYPE_ALLOWED_ATTRS: Record<string, ReadonlySet<string>> = {
   color: new Set(['name', 'description', 'type', 'default', 'value', 'hideeditor', 'red', 'green', 'blue', 'alpha']),
   font: new Set(['name', 'description', 'type', 'default', 'value', 'hideeditor', 'family', 'size']),
   length: new Set(['name', 'description', 'type', 'default', 'value', 'hideeditor', 'min', 'max']),
-  background: new Set(['name', 'description', 'type', 'default', 'value', 'color']),
-  string: new Set(['name', 'description', 'type', 'default', 'value']),
-  url: new Set(['name', 'description', 'type', 'default', 'value']),
-  automatic: new Set(['name', 'description', 'type', 'default', 'value']),
+  background: new Set(['name', 'description', 'type', 'default', 'value', 'hideeditor', 'color']),
+  string: new Set(['name', 'description', 'type', 'default', 'value', 'hideeditor']),
+  url: new Set(['name', 'description', 'type', 'default', 'value', 'hideeditor']),
+  automatic: new Set(['name', 'description', 'type', 'default', 'value', 'hideeditor']),
 };
 
 const STATIC_ONLY_ATTRS: Record<string, ReadonlySet<string>> = {
-  'b:section': new Set(['id', 'showaddelement', 'preferred']),
+  'b:section': new Set(['id', 'showaddelement', 'preferred', 'ads']),
   'b:widget': new Set(['id', 'type', 'title', 'locked', 'visible', 'version']),
   'b:includable': new Set(['id', 'var']),
   'b:loop': new Set(['var', 'index', 'reverse']),
   'b:with': new Set(['var']),
   'b:message': new Set(['name']),
   'b:template-script': new Set(['name']),
-  'Variable': new Set(['name', 'type', 'default', 'value']),
+  'Variable': new Set(['name', 'type', 'default', 'value', 'hideeditor', 'hideEditor']),
   'Group': new Set(['description', 'selector']),
 };
+
+const STATIC_BOOLEAN_ATTRS = new Set([
+  'showaddelement',
+  'locked',
+  'visible',
+  'preferred',
+  'ads',
+  'reverse',
+  'hideeditor',
+]);
+
+const VALID_STATIC_BOOLEAN_VALUES = new Set([
+  'true',
+  'false',
+  'yes',
+  'no',
+]);
+
+const QUOTED_BOOLEAN_IN_EXPR_REGEX = /(?<=^|\W)(["'])\s*(true|false)\s*\1(?=\W|$)/gi;
 
 interface TagAttributeRequirement {
   readonly required: readonly string[];
@@ -181,6 +201,11 @@ const DIRECTIVE_REQUIREMENTS: Record<string, TagAttributeRequirement> = {
       'min',
       'max',
       'hideEditor',
+      'hideeditor',
+      'red',
+      'green',
+      'blue',
+      'alpha',
     ]),
   },
   'Group': {
@@ -195,6 +220,7 @@ const WIDGET_ID_REGEX = /^([A-Z]+)[1-9]\d{0,2}$/i;
 interface ParsedAttr {
   readonly rawName: string;
   readonly value: string | undefined;
+  readonly quoteChar?: '"' | '\'' | undefined;
   readonly attrStart: number;
   readonly attrEnd: number;
   readonly valStart?: number | undefined;
@@ -210,10 +236,12 @@ export function checkDirectiveAttributes(
 
   for (const tag of scanXmlTags(maskedText)) {
     const tagName = tag.tagName;
+    const tagContent = tag.tagContent;
     const lowerTagName = tagName.toLowerCase();
     const isBloggerTag = lowerTagName.startsWith('b:') || lowerTagName === 'variable' || lowerTagName === 'group';
+    const hasDynamicExpr = tagContent.includes('expr:');
 
-    if (!isBloggerTag) {
+    if (!isBloggerTag && !hasDynamicExpr) {
       continue;
     }
 
@@ -221,7 +249,6 @@ export function checkDirectiveAttributes(
       k => k.toLowerCase() === lowerTagName,
     );
 
-    const tagContent = tag.tagContent;
     const tagContentOffset = tag.tagContentOffset;
     const parsedAttrs = new Map<string, ParsedAttr>();
 
@@ -232,7 +259,7 @@ export function checkDirectiveAttributes(
         break;
       }
       const rawName = match[1]!;
-      const quoteChar = match[2];
+      const quoteChar = match[2] as '"' | '\'' | undefined;
       const quotedValue = match[3];
       const unquotedValue = match[4];
       const value = quotedValue ?? unquotedValue;
@@ -255,6 +282,7 @@ export function checkDirectiveAttributes(
       parsedAttrs.set(rawName.toLowerCase(), {
         rawName,
         value,
+        quoteChar,
         attrStart,
         attrEnd,
         valStart,
@@ -337,7 +365,8 @@ export function checkDirectiveAttributes(
         const typeVal = typeAttr?.value?.trim().toLowerCase();
         const isStringSkinVariable = lowerTagName === 'variable' && typeVal === 'string';
         const isExempt = (lowerTagName === 'b:widget' && attrLowerKey === 'title')
-          || (isStringSkinVariable && (attrLowerKey === 'value' || attrLowerKey === 'default'));
+          || (isStringSkinVariable && (attrLowerKey === 'value' || attrLowerKey === 'default'))
+          || (lowerTagName === 'b:attr' && attrLowerKey === 'value');
         if (!isExempt) {
           const valRange = attrInfo.valStart !== undefined && attrInfo.valEnd !== undefined
             ? createRange(lineOffsets, attrInfo.valStart, attrInfo.valEnd)
@@ -352,6 +381,8 @@ export function checkDirectiveAttributes(
             || attrLowerKey === 'cond'
             || attrLowerKey === 'values'
             || attrLowerKey === 'value'
+            || attrLowerKey === 'default'
+            || attrLowerKey === 'description'
           );
 
           if (isRequiredAttr) {
@@ -434,22 +465,6 @@ export function checkDirectiveAttributes(
           range,
         });
       }
-
-      for (const boolAttr of ['locked', 'visible']) {
-        const bInfo = parsedAttrs.get(boolAttr);
-        if (bInfo && bInfo.value && !['true', 'false', 'yes', 'no'].includes(bInfo.value.trim().toLowerCase())) {
-          const range = bInfo.valStart !== undefined && bInfo.valEnd !== undefined
-            ? createRange(lineOffsets, bInfo.valStart, bInfo.valEnd)
-            : createRange(lineOffsets, bInfo.attrStart, bInfo.attrEnd);
-
-          diagnostics.push({
-            code: 'blogger.syntax.invalid-boolean-attribute',
-            message: `Attribute "${boolAttr}" must be a boolean ("true" or "false").`,
-            severity: 'warning',
-            range,
-          });
-        }
-      }
     }
 
     // 5. Special validation for <b:section>
@@ -465,22 +480,6 @@ export function checkDirectiveAttributes(
           diagnostics.push({
             code: 'blogger.syntax.invalid-section-tag',
             message: `HTML container tag "${tagAttr.value}" on <b:section> is not a supported semantic container (must be div, header, nav, main, aside, footer, section, or article).`,
-            severity: 'warning',
-            range,
-          });
-        }
-      }
-
-      for (const yesNoAttr of ['showaddelement', 'preferred']) {
-        const ynInfo = parsedAttrs.get(yesNoAttr);
-        if (ynInfo && ynInfo.value && !['yes', 'no'].includes(ynInfo.value.trim().toLowerCase())) {
-          const range = ynInfo.valStart !== undefined && ynInfo.valEnd !== undefined
-            ? createRange(lineOffsets, ynInfo.valStart, ynInfo.valEnd)
-            : createRange(lineOffsets, ynInfo.attrStart, ynInfo.attrEnd);
-
-          diagnostics.push({
-            code: 'blogger.syntax.invalid-yes-no-attribute',
-            message: `Attribute "${yesNoAttr}" on <b:section> must be "yes" or "no".`,
             severity: 'warning',
             range,
           });
@@ -570,7 +569,67 @@ export function checkDirectiveAttributes(
       }
     }
 
-    // 8. Flag unrecognized attributes on known b: directives
+    // 8. Static boolean attributes validation
+    for (const [attrLowerKey, attrInfo] of parsedAttrs) {
+      if (STATIC_BOOLEAN_ATTRS.has(attrLowerKey)) {
+        if (attrInfo.quoteChar === undefined) {
+          const range = createRange(lineOffsets, attrInfo.attrStart, attrInfo.attrEnd);
+          diagnostics.push({
+            code: 'blogger.syntax.unquoted-attribute',
+            message: `Attribute "${attrInfo.rawName}" must be enclosed in quotes in XML.`,
+            severity: 'error',
+            range,
+          });
+        }
+
+        const valLower = attrInfo.value?.trim().toLowerCase();
+        if (!valLower || !VALID_STATIC_BOOLEAN_VALUES.has(valLower)) {
+          const range = attrInfo.valStart !== undefined && attrInfo.valEnd !== undefined
+            ? createRange(lineOffsets, attrInfo.valStart, attrInfo.valEnd)
+            : createRange(lineOffsets, attrInfo.attrStart, attrInfo.attrEnd);
+
+          diagnostics.push({
+            code: 'blogger.syntax.invalid-boolean-attribute',
+            message: `Attribute "${attrInfo.rawName}" must be a boolean ("true", "false", "yes", or "no").`,
+            severity: 'error',
+            range,
+          });
+        }
+      }
+    }
+
+    // 9. Dynamic expression validation (warn against quoted booleans)
+    for (const [attrLowerKey, attrInfo] of parsedAttrs) {
+      if (isExpressionAttribute(attrLowerKey, lowerTagName) && attrInfo.value) {
+        QUOTED_BOOLEAN_IN_EXPR_REGEX.lastIndex = 0;
+        for (const match of attrInfo.value.matchAll(QUOTED_BOOLEAN_IN_EXPR_REGEX)) {
+          const matchIndex = match.index ?? 0;
+          const matchText = match[0];
+          const boolLiteral = match[2]?.toLowerCase() ?? '';
+
+          const start = (attrInfo.valStart ?? attrInfo.attrStart) + matchIndex;
+          const end = start + matchText.length;
+          const range = createRange(lineOffsets, start, end);
+
+          diagnostics.push({
+            code: 'blogger.syntax.quoted-boolean-in-expression',
+            message: `Quoted boolean literal "${matchText}" in expression evaluates as truthy. Use unquoted "${boolLiteral}" instead.`,
+            severity: 'warning',
+            range,
+            quickFixes: [
+              {
+                title: `Replace with unquoted ${boolLiteral}`,
+                newText: boolLiteral,
+                range,
+                isPreferred: true,
+              },
+            ],
+          });
+        }
+      }
+    }
+
+    // 10. Flag unrecognized attributes on known b: directives
     if (matchedConfigKey && lowerTagName.startsWith('b:')) {
       const validSet = DIRECTIVE_REQUIREMENTS[matchedConfigKey]?.validAttributes;
       if (validSet && lowerTagName !== 'b:tag' && lowerTagName !== 'b:attr') {

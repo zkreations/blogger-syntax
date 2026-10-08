@@ -41,6 +41,20 @@ describe('linter contracts & horatio specifications', () => {
       expect(titleDiags).toHaveLength(0);
     });
 
+    it('allows empty value attribute on <b:attr> to support attribute removal', () => {
+      const xml = `<b:attr name="data-version" value=""/>`;
+      const diags = lintBloggerDocument(xml);
+      const emptyDiags = diags.filter(d => d.code === 'blogger.syntax.empty-attribute');
+      expect(emptyDiags).toHaveLength(0);
+    });
+
+    it('rejects empty name attribute on <b:attr>', () => {
+      const xml = `<b:attr name="" value="1"/>`;
+      const diags = lintBloggerDocument(xml);
+      const emptyNameDiag = diags.find(d => d.code === 'blogger.syntax.empty-attribute' && d.message.includes('"name"'));
+      expect(emptyNameDiag).toBeDefined();
+    });
+
     it('detects missing required attributes on <b:loop> and <b:with>', () => {
       const xml = `
         <b:loop>
@@ -381,6 +395,70 @@ describe('linter contracts & horatio specifications', () => {
       expect(emptyVal).toBeDefined();
       expect(missingDefault).toBeDefined();
     });
+
+    it('rejects empty default attribute on non-string skin variables', () => {
+      const xml = `
+        <b:skin><![CDATA[
+          <Group description="Admin">
+            <Variable name="theme.color" description="Theme color" type="color" default="" value="#fff"/>
+          </Group>
+        ]]></b:skin>
+      `;
+      const diags = lintBloggerDocument(xml);
+      const emptyDefault = diags.find(d => d.code === 'blogger.syntax.empty-attribute' && d.message.includes('"default"'));
+      expect(emptyDefault).toBeDefined();
+    });
+
+    it('supports optional hideEditor across all variable types without unknown attribute errors', () => {
+      const xml = `
+        <b:skin><![CDATA[
+          <Group description="Theme Settings">
+            <Variable name="v.color" description="Color" type="color" default="#fff" value="#fff" hideEditor="true"/>
+            <Variable name="v.font" description="Font" type="font" default="12px Arial" value="12px Arial" hideEditor="false"/>
+            <Variable name="v.length" description="Width" type="length" default="100px" value="100px" hideEditor="true"/>
+            <Variable name="v.bg" description="BG" type="background" default="none" value="none" hideEditor="false"/>
+            <Variable name="v.str" description="Text" type="string" value="hello" hideEditor="true"/>
+            <Variable name="v.url" description="Link" type="url" default="https://example.com" value="https://example.com" hideEditor="false"/>
+          </Group>
+        ]]></b:skin>
+      `;
+      const diags = lintBloggerDocument(xml);
+      expect(diags).toHaveLength(0);
+    });
+
+    it('validates that hideEditor rejects non-boolean values (e.g. "none" or "1")', () => {
+      const xml = `
+        <b:skin><![CDATA[
+          <Group description="Theme Settings">
+            <Variable name="v.str" description="Text" type="string" value="hello" hideEditor="none"/>
+          </Group>
+        ]]></b:skin>
+      `;
+      const diags = lintBloggerDocument(xml);
+      const boolDiag = diags.find(d => d.code === 'blogger.syntax.invalid-boolean-attribute');
+      expect(boolDiag).toBeDefined();
+      expect(boolDiag?.message).toContain('hideEditor');
+    });
+
+    it('requires name, description, type, and value on string variables when omitted', () => {
+      const xml = `
+        <b:skin><![CDATA[
+          <Group description="Theme Settings">
+            <Variable type="string"/>
+          </Group>
+        ]]></b:skin>
+      `;
+      const diags = lintBloggerDocument(xml);
+      const missingName = diags.find(d => d.code === 'blogger.missing.attribute' && d.message.includes('"name"'));
+      const missingDesc = diags.find(d => d.code === 'blogger.missing.attribute' && d.message.includes('"description"'));
+      const missingValue = diags.find(d => d.code === 'blogger.missing.attribute' && d.message.includes('"value"'));
+      const missingDefault = diags.find(d => d.code === 'blogger.missing.attribute' && d.message.includes('"default"'));
+
+      expect(missingName).toBeDefined();
+      expect(missingDesc).toBeDefined();
+      expect(missingValue).toBeDefined();
+      expect(missingDefault).toBeUndefined(); // default is optional for string
+    });
   });
 
   describe('b:defaultmarkup type validation', () => {
@@ -455,6 +533,348 @@ describe('linter contracts & horatio specifications', () => {
       const msgDiag = diags.find(d => d.code === 'blogger.syntax.parameterized-message-invocation');
       expect(msgDiag).toBeDefined();
       expect(msgDiag?.message).toContain('messages.numberOfComments');
+    });
+  });
+
+  describe('static and dynamic boolean attributes validation', () => {
+    describe('static boolean attributes acceptance ("true", "false", "yes", "no")', () => {
+      it.each(['true', 'false', 'yes', 'no', 'TRUE', 'False', 'YES', 'No'])(
+        'accepts "%s" for <b:section showaddelement="...">',
+        (val) => {
+          const xml = `<b:section id='main' showaddelement='${val}'/>`;
+          const diags = lintBloggerDocument(xml);
+          const boolDiags = diags.filter(d =>
+            d.code === 'blogger.syntax.invalid-boolean-attribute'
+            || d.code === 'blogger.syntax.invalid-yes-no-attribute'
+            || d.code === 'blogger.syntax.unquoted-attribute',
+          );
+          expect(boolDiags).toHaveLength(0);
+        },
+      );
+
+      it.each(['true', 'false', 'yes', 'no', 'TRUE', 'False', 'YES', 'No'])(
+        'accepts "%s" for <b:widget locked="...">',
+        (val) => {
+          const xml = `
+            <b:section id='main'>
+              <b:widget id='HTML1' type='HTML' locked='${val}'>
+                <b:includable id='main'/>
+              </b:widget>
+            </b:section>
+          `;
+          const diags = lintBloggerDocument(xml);
+          const boolDiags = diags.filter(d =>
+            d.code === 'blogger.syntax.invalid-boolean-attribute'
+            || d.code === 'blogger.syntax.unquoted-attribute',
+          );
+          expect(boolDiags).toHaveLength(0);
+        },
+      );
+
+      it.each(['true', 'false', 'yes', 'no', 'TRUE', 'False', 'YES', 'No'])(
+        'accepts "%s" for <b:section preferred="...">',
+        (val) => {
+          const xml = `<b:section id='main' preferred='${val}'/>`;
+          const diags = lintBloggerDocument(xml);
+          const boolDiags = diags.filter(d =>
+            d.code === 'blogger.syntax.invalid-boolean-attribute'
+            || d.code === 'blogger.syntax.invalid-yes-no-attribute'
+            || d.code === 'blogger.syntax.unquoted-attribute',
+          );
+          expect(boolDiags).toHaveLength(0);
+        },
+      );
+
+      it.each(['true', 'false', 'yes', 'no'])(
+        'accepts "%s" for ads, visible, reverse, and hideEditor',
+        (val) => {
+          const xml = `
+            <b:section id='main' ads='${val}'>
+              <b:widget id='HTML1' type='HTML' visible='${val}'>
+                <b:includable id='main'>
+                  <b:loop values='data:posts' var='post' reverse='${val}'/>
+                </b:includable>
+              </b:widget>
+            </b:section>
+            <b:skin><![CDATA[
+              <Variable name="v.str" description="Text" type="string" value="hello" hideEditor="${val}"/>
+            ]]></b:skin>
+          `;
+          const diags = lintBloggerDocument(xml);
+          const boolDiags = diags.filter(d =>
+            d.code === 'blogger.syntax.invalid-boolean-attribute'
+            || d.code === 'blogger.syntax.unquoted-attribute',
+          );
+          expect(boolDiags).toHaveLength(0);
+        },
+      );
+    });
+
+    describe('static boolean attributes rejection of invalid values', () => {
+      it('rejects "1", "0", and "none" on static boolean attributes with errors', () => {
+        const xml = `
+          <b:section id='main' showaddelement='1' preferred='0' ads='none'>
+            <b:widget id='HTML1' type='HTML' locked='1' visible='none'>
+              <b:includable id='main'>
+                <b:loop values='data:posts' var='p' reverse='0'/>
+              </b:includable>
+            </b:widget>
+          </b:section>
+        `;
+        const diags = lintBloggerDocument(xml);
+        const boolErrors = diags.filter(d => d.code === 'blogger.syntax.invalid-boolean-attribute');
+        expect(boolErrors).toHaveLength(6);
+        expect(boolErrors.every(d => d.severity === 'error')).toBe(true);
+      });
+
+      it('preserves documented attribute variants such as mobile="only"', () => {
+        const xml = `
+          <b:section id='main' mobile='only'>
+            <b:widget id='HTML1' type='HTML' mobile='only'>
+              <b:includable id='main'/>
+            </b:widget>
+          </b:section>
+        `;
+        const diags = lintBloggerDocument(xml);
+        const boolErrors = diags.filter(d => d.code === 'blogger.syntax.invalid-boolean-attribute');
+        expect(boolErrors).toHaveLength(0);
+      });
+
+      it('enforces XML quote delimiters on static boolean attributes', () => {
+        const xml = `<b:section id='main' showaddelement=false/>`;
+        const diags = lintBloggerDocument(xml);
+        const unquoted = diags.find(d => d.code === 'blogger.syntax.unquoted-attribute');
+        expect(unquoted).toBeDefined();
+        expect(unquoted?.severity).toBe('error');
+        expect(unquoted?.message).toContain('must be enclosed in quotes in XML');
+      });
+
+      it('prohibits dynamic expr: prefix on showaddelement, locked, preferred, and ads', () => {
+        const xml = `
+          <b:section id='main' expr:showaddelement='data:canAdd' expr:preferred='data:pref' expr:ads='data:hasAds'>
+            <b:widget id='HTML1' type='HTML' expr:locked='data:isLocked'>
+              <b:includable id='main'/>
+            </b:widget>
+          </b:section>
+        `;
+        const diags = lintBloggerDocument(xml);
+        const dynamicErrors = diags.filter(d => d.code === 'blogger.syntax.invalid-dynamic-attribute');
+        expect(dynamicErrors).toHaveLength(4);
+        expect(dynamicErrors.some(d => d.message.includes('"expr:showaddelement"'))).toBe(true);
+        expect(dynamicErrors.some(d => d.message.includes('"expr:locked"'))).toBe(true);
+        expect(dynamicErrors.some(d => d.message.includes('"expr:preferred"'))).toBe(true);
+        expect(dynamicErrors.some(d => d.message.includes('"expr:ads"'))).toBe(true);
+      });
+    });
+
+    describe('context differentiation: expressions vs attributes', () => {
+      it('accepts unquoted boolean literals inside dynamic expressions', () => {
+        const xml = `
+          <b:if cond='true and not false'>
+            <b:with var='flag' value='false'>
+              <b:eval expr='true'/>
+            </b:with>
+          </b:if>
+        `;
+        const diags = lintBloggerDocument(xml);
+        const quotedExprWarnings = diags.filter(d => d.code === 'blogger.syntax.quoted-boolean-in-expression');
+        expect(quotedExprWarnings).toHaveLength(0);
+      });
+
+      it('warns about quoted boolean strings inside expressions and offers unquoted quick fixes', () => {
+        const xml = `
+          <b:if cond='"false"'>
+            <b:with var='flag' value='"false"'>
+              <b:eval expr='data:isDraft ? "true" : "false"'/>
+            </b:with>
+          </b:if>
+        `;
+        const diags = lintBloggerDocument(xml);
+        const quotedExprWarnings = diags.filter(d => d.code === 'blogger.syntax.quoted-boolean-in-expression');
+        expect(quotedExprWarnings).toHaveLength(4);
+        expect(quotedExprWarnings.every(d => d.severity === 'warning')).toBe(true);
+        expect(quotedExprWarnings[0]?.message).toContain('evaluates as truthy');
+        expect(quotedExprWarnings[0]?.quickFixes?.[0]?.newText).toBe('false');
+      });
+
+      it('warns about single-quoted boolean strings inside expressions and in expr:* attributes', () => {
+        const xml = `
+          <b:if cond="'true'">
+            <div expr:class='"false"'></div>
+          </b:if>
+        `;
+        const diags = lintBloggerDocument(xml);
+        const quotedExprWarnings = diags.filter(d => d.code === 'blogger.syntax.quoted-boolean-in-expression');
+        expect(quotedExprWarnings).toHaveLength(2);
+        expect(quotedExprWarnings[0]?.quickFixes?.[0]?.newText).toBe('true');
+        expect(quotedExprWarnings[1]?.quickFixes?.[0]?.newText).toBe('false');
+      });
+    });
+
+    describe('reportAbuse widget support & validation rules', () => {
+      it('validates official ReportAbuse widget with version 1 and 2', () => {
+        const xmlV1 = `
+          <b:section id='main'>
+            <b:widget id='ReportAbuse1' type='ReportAbuse' version='1'>
+              <b:includable id='main'>
+                <p>Report</p>
+              </b:includable>
+            </b:widget>
+          </b:section>
+        `;
+        const diagsV1 = lintBloggerDocument(xmlV1);
+        expect(diagsV1).toHaveLength(0);
+
+        const xmlV2 = `
+          <b:section id='main'>
+            <b:widget id='ReportAbuse1' type='ReportAbuse' version='2'>
+              <b:includable id='main'>
+                <p>Report</p>
+              </b:includable>
+            </b:widget>
+          </b:section>
+        `;
+        const diagsV2 = lintBloggerDocument(xmlV2);
+        expect(diagsV2).toHaveLength(0);
+      });
+
+      it('allows b:defaultmarkup type="ReportAbuse"', () => {
+        const xml = `
+          <b:defaultmarkups>
+            <b:defaultmarkup type='ReportAbuse'>
+              <b:includable id='main'/>
+            </b:defaultmarkup>
+          </b:defaultmarkups>
+        `;
+        const diags = lintBloggerDocument(xml);
+        expect(diags).toHaveLength(0);
+      });
+
+      it('rejects widget ID prefix not matching ReportAbuse', () => {
+        const xml = `
+          <b:section id='main'>
+            <b:widget id='Abuse1' type='ReportAbuse'>
+              <b:includable id='main'/>
+            </b:widget>
+          </b:section>
+        `;
+        const diags = lintBloggerDocument(xml);
+        const invalidId = diags.find(d => d.code === 'blogger.syntax.invalid-widget-id');
+        expect(invalidId).toBeDefined();
+        expect(invalidId?.message).toContain('ReportAbuse');
+      });
+
+      it('enforces cardinality: maximum 1 ReportAbuse instance across the template', () => {
+        const xml = `
+          <b:section id='main'>
+            <b:widget id='ReportAbuse1' type='ReportAbuse'>
+              <b:includable id='main'/>
+            </b:widget>
+            <b:widget id='ReportAbuse2' type='ReportAbuse'>
+              <b:includable id='main'/>
+            </b:widget>
+          </b:section>
+        `;
+        const diags = lintBloggerDocument(xml);
+        const cardDiags = diags.filter(d => d.code === 'blogger.widget.cardinality-exceeded');
+        expect(cardDiags).toHaveLength(1);
+        expect(cardDiags[0]?.message).toContain('Only 1 instance of the "ReportAbuse" widget is permitted');
+      });
+
+      it('prohibits <b:widget-settings> inside ReportAbuse widget', () => {
+        const xml = `
+          <b:section id='main'>
+            <b:widget id='ReportAbuse1' type='ReportAbuse'>
+              <b:widget-settings>
+                <b:widget-setting name='style.layout'>1</b:widget-setting>
+              </b:widget-settings>
+              <b:includable id='main'/>
+            </b:widget>
+          </b:section>
+        `;
+        const diags = lintBloggerDocument(xml);
+        const settingsDiag = diags.find(d => d.code === 'blogger.widget.prohibited-settings');
+        expect(settingsDiag).toBeDefined();
+        expect(settingsDiag?.message).toContain('<b:widget-settings> is prohibited in "ReportAbuse" widget');
+      });
+
+      it('flags non-existent local data properties (e.g. data:abuseUrl, data:link, <data:abuseUrl/>)', () => {
+        const xml = `
+          <b:section id='main'>
+            <b:widget id='ReportAbuse1' type='ReportAbuse'>
+              <b:includable id='main'>
+                <data:abuseUrl/>
+                <b:eval expr='data:link'/>
+                <a expr:href='data:abuseUrl'>Report</a>
+              </b:includable>
+            </b:widget>
+          </b:section>
+        `;
+        const diags = lintBloggerDocument(xml);
+        const hallocDiags = diags.filter(d => d.code === 'blogger.hallucination.data-property');
+        expect(hallocDiags).toHaveLength(3);
+        expect(hallocDiags.every(d => d.message.includes('ReportAbuse'))).toBe(true);
+      });
+
+      it('allows universal data:widget.* properties (id, type, sectionId, instanceId, version)', () => {
+        const xml = `
+          <b:section id='main'>
+            <b:widget id='ReportAbuse1' type='ReportAbuse'>
+              <b:includable id='main'>
+                <data:widget.id/>
+                <b:eval expr='data:widget.type'/>
+                <b:eval expr='data:widget.sectionId'/>
+                <b:eval expr='data:widget.instanceId'/>
+                <b:eval expr='data:widget.version'/>
+              </b:includable>
+            </b:widget>
+          </b:section>
+        `;
+        const diags = lintBloggerDocument(xml);
+        const hallocDiags = diags.filter(d => d.code === 'blogger.hallucination.data-property');
+        expect(hallocDiags).toHaveLength(0);
+      });
+
+      it('flags unknown data:widget.* properties inside ReportAbuse', () => {
+        const xml = `
+          <b:section id='main'>
+            <b:widget id='ReportAbuse1' type='ReportAbuse'>
+              <b:includable id='main'>
+                <data:widget.abuseUrl/>
+                <b:eval expr='data:widget.customField'/>
+              </b:includable>
+            </b:widget>
+          </b:section>
+        `;
+        const diags = lintBloggerDocument(xml);
+        const hallocDiags = diags.filter(d => d.code === 'blogger.hallucination.data-property');
+        expect(hallocDiags).toHaveLength(2);
+        expect(hallocDiags[0]?.message).toContain('data:widget.abuseUrl');
+        expect(hallocDiags[1]?.message).toContain('data:widget.customField');
+      });
+
+      it('allows global roots and template scoped variables inside ReportAbuse', () => {
+        const xml = `
+          <b:section id='main'>
+            <b:widget id='ReportAbuse1' type='ReportAbuse'>
+              <b:includable id='main'>
+                <b:eval expr='data:blog.title'/>
+                <b:eval expr='data:view.url'/>
+                <b:eval expr='data:messages.reportAbuse'/>
+                <b:with var='customUrl' value='data:blog.homepageUrl'>
+                  <b:eval expr='data:customUrl'/>
+                </b:with>
+                <b:loop values='data:widgets.ReportAbuse' var='ra'>
+                  <b:eval expr='data:ra.id'/>
+                </b:loop>
+              </b:includable>
+            </b:widget>
+          </b:section>
+        `;
+        const diags = lintBloggerDocument(xml);
+        const hallocDiags = diags.filter(d => d.code === 'blogger.hallucination.data-property');
+        expect(hallocDiags).toHaveLength(0);
+      });
     });
   });
 });

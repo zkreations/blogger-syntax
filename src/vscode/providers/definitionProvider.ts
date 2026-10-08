@@ -1,7 +1,13 @@
 import * as vscode from 'vscode';
-import { findIncludableDefinition } from '../../core/navigation/definitionResolver.js';
+import { TemplateLanguageService } from '../../core/service/templateLanguageService.js';
 
 export class BloggerDefinitionProvider implements vscode.DefinitionProvider {
+  private readonly service: TemplateLanguageService;
+
+  constructor(service?: TemplateLanguageService) {
+    this.service = service ?? new TemplateLanguageService();
+  }
+
   public provideDefinition(
     document: vscode.TextDocument,
     position: vscode.Position,
@@ -9,7 +15,7 @@ export class BloggerDefinitionProvider implements vscode.DefinitionProvider {
     const text = document.getText();
     const offset = document.offsetAt(position);
 
-    const match = findIncludableDefinition(text, offset);
+    const match = this.service.getDefinition(text, offset);
     if (!match) {
       return undefined;
     }

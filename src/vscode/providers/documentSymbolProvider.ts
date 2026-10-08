@@ -1,13 +1,19 @@
 import type { BloggerSymbolNode } from '../../core/navigation/symbolIndexer.js';
 import * as vscode from 'vscode';
-import { indexDocumentSymbols } from '../../core/navigation/symbolIndexer.js';
+import { TemplateLanguageService } from '../../core/service/templateLanguageService.js';
 
 export class BloggerDocumentSymbolProvider implements vscode.DocumentSymbolProvider {
+  private readonly service: TemplateLanguageService;
+
+  constructor(service?: TemplateLanguageService) {
+    this.service = service ?? new TemplateLanguageService();
+  }
+
   public provideDocumentSymbols(
     document: vscode.TextDocument,
   ): vscode.ProviderResult<vscode.DocumentSymbol[]> {
     const text = document.getText();
-    const nodes = indexDocumentSymbols(text);
+    const nodes = this.service.getDocumentSymbols(text);
 
     return this.convertNodes(document, nodes);
   }

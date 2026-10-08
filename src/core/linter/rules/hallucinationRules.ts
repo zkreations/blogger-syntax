@@ -109,7 +109,7 @@ export function checkHallucinations(
     const lowerTagName = tagName.toLowerCase();
 
     // Strictly self-closing tags must end with '/>'
-    const isSelfClosing = tagContent.trimEnd().endsWith('/');
+    const isSelfClosing = tag.hasSelfClosingSlash || tagContent.trimEnd().endsWith('/');
     if (!isSelfClosing && PROHIBITED_CLOSING_MAP.has(lowerTagName)) {
       const tagRange = createRange(lineOffsets, tag.tagStart, tag.tagEnd);
       const closeDelimiterRange = createRange(lineOffsets, tag.tagEnd - 1, tag.tagEnd);

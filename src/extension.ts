@@ -1,6 +1,5 @@
 import * as vscode from 'vscode';
-import { BloggerPathResolver } from './core/resolver/pathResolver.js';
-import { BloggerScopeTracker } from './core/scope/scopeTracker.js';
+import { TemplateLanguageService } from './core/service/templateLanguageService.js';
 import { SUPPORTED_LANGUAGES, TRIGGER_CHARACTERS } from './vscode/constants.js';
 import { registerCursorSuggestListener } from './vscode/listeners/cursorListener.js';
 import { BloggerCodeActionProvider } from './vscode/providers/codeActionProvider.js';
@@ -12,14 +11,13 @@ import { BloggerHoverProvider } from './vscode/providers/hoverProvider.js';
 import { BloggerStatusBarItem } from './vscode/ui/statusBarItem.js';
 
 export function activate(context: vscode.ExtensionContext): void {
-  const pathResolver = new BloggerPathResolver();
-  const scopeTracker = new BloggerScopeTracker();
-  const completionProvider = new BloggerCompletionProvider(pathResolver, scopeTracker);
-  const hoverProvider = new BloggerHoverProvider(pathResolver, scopeTracker);
+  const languageService = new TemplateLanguageService();
+  const completionProvider = new BloggerCompletionProvider(languageService);
+  const hoverProvider = new BloggerHoverProvider(languageService);
   const diagnosticProvider = new BloggerDiagnosticProvider();
   const codeActionProvider = new BloggerCodeActionProvider(diagnosticProvider);
-  const definitionProvider = new BloggerDefinitionProvider();
-  const documentSymbolProvider = new BloggerDocumentSymbolProvider();
+  const definitionProvider = new BloggerDefinitionProvider(languageService);
+  const documentSymbolProvider = new BloggerDocumentSymbolProvider(languageService);
   const statusBarItem = new BloggerStatusBarItem();
 
   context.subscriptions.push(
@@ -54,7 +52,7 @@ export function activate(context: vscode.ExtensionContext): void {
     context.subscriptions.push(
       vscode.workspace.onDidCloseTextDocument((doc) => {
         if (doc?.uri) {
-          scopeTracker.clearCache(doc.uri.toString());
+          languageService.clearCache(doc.uri.toString());
         }
       }),
     );

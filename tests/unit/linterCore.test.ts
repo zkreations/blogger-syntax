@@ -177,6 +177,20 @@ describe('linter core engine', () => {
       expect(selfCloseDiags.some(d => d.message.includes('<b:param>'))).toBe(true);
     });
 
+    it('does not report self-closing-required for properly closed tags ending with />', () => {
+      const xml = `
+        <b:include name='widget-title'/>
+        <b:eval expr='1'/>
+        <b:else/>
+        <b:param name='x' value='1'/>
+        <b:attr name='class' value='btn'/>
+        <b:class name='active'/>
+      `;
+      const diags = lintBloggerDocument(xml);
+      const selfCloseDiags = diags.filter(d => d.code === 'blogger.syntax.self-closing-required');
+      expect(selfCloseDiags).toHaveLength(0);
+    });
+
     it('detects inverted attributes on directives', () => {
       const xml = `
         <b:switch expr='data:view.type'/>

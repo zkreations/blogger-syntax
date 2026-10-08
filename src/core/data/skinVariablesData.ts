@@ -88,6 +88,7 @@ export const bloggerSkinVariableTypeDetails: Record<BloggerSkinVariableType, Blo
       color: { name: 'color', type: 'string', required: false, description: 'Background color code or $color variable reference.' },
       default: { name: 'default', type: 'string', required: true, description: 'Default background CSS value.' },
       value: { name: 'value', type: 'string', required: true, description: 'Current background CSS value.' },
+      hideEditor: { name: 'hideEditor', type: 'string', required: false, description: 'Hides the variable form in the design tool (true or false).' },
     },
   },
   string: {
@@ -103,6 +104,7 @@ export const bloggerSkinVariableTypeDetails: Record<BloggerSkinVariableType, Blo
       type: { name: 'type', type: 'string', required: true, description: 'Variable type: string(skin) (template skin variable, distinct from runtime data:string).' },
       default: { name: 'default', type: 'string', required: false, description: 'Default string value.' },
       value: { name: 'value', type: 'string', required: true, description: 'Current string value.' },
+      hideEditor: { name: 'hideEditor', type: 'string', required: false, description: 'Hides the variable form in the design tool (true or false).' },
     },
   },
   url: {
@@ -118,6 +120,7 @@ export const bloggerSkinVariableTypeDetails: Record<BloggerSkinVariableType, Blo
       type: { name: 'type', type: 'string', required: true, description: 'Variable type: url(skin) (template skin variable, distinct from runtime data:url).' },
       default: { name: 'default', type: 'string', required: true, description: 'Default URL value (typically wrapped in url(...)).' },
       value: { name: 'value', type: 'string', required: true, description: 'Current URL value (typically wrapped in url(...)).' },
+      hideEditor: { name: 'hideEditor', type: 'string', required: false, description: 'Hides the variable form in the design tool (true or false).' },
     },
   },
 };

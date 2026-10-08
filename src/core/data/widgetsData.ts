@@ -1717,6 +1717,8 @@ export const wikipediaWidgetProperties: Record<string, BloggerProperty> = {
   },
 };
 
+export const reportAbuseWidgetProperties: Record<string, BloggerProperty> = {};
+
 export const WIDGET_DATA_DICTIONARIES: Record<string, Record<string, BloggerProperty>> = {
   AdSense: adSenseWidgetProperties,
   Attribution: attributionWidgetProperties,
@@ -1737,6 +1739,7 @@ export const WIDGET_DATA_DICTIONARIES: Record<string, Record<string, BloggerProp
   PageList: pageListWidgetProperties,
   PopularPosts: popularPostsWidgetProperties,
   Profile: profileWidgetProperties,
+  ReportAbuse: reportAbuseWidgetProperties,
   Stats: statsWidgetProperties,
   Subscribe: subscribeWidgetProperties,
   Text: textWidgetProperties,

@@ -1,5 +1,5 @@
 import type { Span } from '../utils/textUtils.js';
-import { maskCommentsAndCdata } from '../utils/textUtils.js';
+import { scanDirectiveTokens } from '../parser/directiveScanner.js';
 
 export type { Span };
 
@@ -21,39 +21,34 @@ export interface BloggerSymbolNode {
   children: BloggerSymbolNode[];
 }
 
-const SYMBOL_TAG_REGEX = /<(\/)?b:(section|widget-settings|widget|includable|defaultmarkups|defaultmarkup|template-skin|skin)\b((?:"[^"]*"|'[^']*'|[^"'/>])*)(\/?)>/gi;
-
-const ATTR_ID_REGEX = /\bid\s*=\s*(["'])([\s\S]*?)\1/i;
-const ATTR_TYPE_REGEX = /\btype\s*=\s*(["'])([\s\S]*?)\1/i;
-const ATTR_TITLE_REGEX = /\btitle\s*=\s*(["'])([\s\S]*?)\1/i;
-const ATTR_VAR_REGEX = /\bvar\s*=\s*(["'])([\s\S]*?)\1/i;
-const ATTR_TAG_REGEX = /\btag\s*=\s*(["'])([\s\S]*?)\1/i;
+const SUPPORTED_TAG_TYPES = new Set([
+  'section',
+  'widget-settings',
+  'widget',
+  'includable',
+  'defaultmarkups',
+  'defaultmarkup',
+  'template-skin',
+  'skin',
+]);
 
 export function indexDocumentSymbols(text: string): BloggerSymbolNode[] {
   const rootSymbols: BloggerSymbolNode[] = [];
   const stack: { node: BloggerSymbolNode; tagType: string }[] = [];
-  const masked = maskCommentsAndCdata(text);
+  const tokens = scanDirectiveTokens(text);
 
-  SYMBOL_TAG_REGEX.lastIndex = 0;
-  while (true) {
-    const match = SYMBOL_TAG_REGEX.exec(masked);
-    if (!match) {
-      break;
+  for (const token of tokens) {
+    const rawTag = token.tagName.toLowerCase();
+    const tagType = rawTag.startsWith('b:') ? rawTag.slice(2) : rawTag;
+    if (!SUPPORTED_TAG_TYPES.has(tagType)) {
+      continue;
     }
 
-    const isClosing = Boolean(match[1]);
-    const tagType = (match[2] ?? '').toLowerCase();
-    const attrs = match[3] ?? '';
-    const isSelfClosing = Boolean(match[4]);
-    const tagStart = match.index;
-    const tagEnd = tagStart + match[0].length;
-
-    if (isClosing) {
-      // Find matching open tag in stack
+    if (token.isClosing) {
       for (let i = stack.length - 1; i >= 0; i--) {
         if (stack[i]!.tagType === tagType) {
           const entry = stack[i]!;
-          entry.node.span.end = tagEnd;
+          entry.node.span.end = token.tagEnd;
           stack.splice(i, 1);
           break;
         }
@@ -61,47 +56,42 @@ export function indexDocumentSymbols(text: string): BloggerSymbolNode[] {
       continue;
     }
 
-    // Opening tag: extract details
+    const attrs = token.attributes;
+    const idAttr = attrs.id;
+    const typeAttr = attrs.type;
+    const titleAttr = attrs.title;
+    const varAttr = attrs.var;
+    const tagAttr = attrs.tag;
+
+    let selectionSpan: Span = { start: token.tagStart, end: token.tagEnd };
+    if (idAttr) {
+      selectionSpan = { start: idAttr.valueStart, end: idAttr.valueEnd };
+    }
+
     let name = tagType;
     let detail: string | undefined;
     let kind: BloggerSymbolCategory = 'section';
-    let selectionSpan: Span = { start: tagStart, end: tagEnd };
-
-    const idMatch = ATTR_ID_REGEX.exec(attrs);
-    const typeMatch = ATTR_TYPE_REGEX.exec(attrs);
-    const titleMatch = ATTR_TITLE_REGEX.exec(attrs);
-    const varMatch = ATTR_VAR_REGEX.exec(attrs);
-    const htmlTagMatch = ATTR_TAG_REGEX.exec(attrs);
-
-    if (idMatch) {
-      const quoteChar = idMatch[1] ?? '"';
-      const idVal = idMatch[2] ?? '';
-      const idAttrOffset = tagStart + match[0].indexOf(idMatch[0]);
-      const idValStart = idAttrOffset + idMatch[0].indexOf(quoteChar) + 1;
-      selectionSpan = { start: idValStart, end: idValStart + idVal.length };
-    }
 
     switch (tagType) {
       case 'section': {
         kind = 'section';
-        const secId = idMatch ? (idMatch[2] ?? '') : 'section';
-        name = secId;
-        const htmlTag = htmlTagMatch ? (htmlTagMatch[2] ?? '') : '';
+        name = idAttr?.value || 'section';
+        const htmlTag = tagAttr?.value || '';
         detail = htmlTag ? `<b:section tag="${htmlTag}">` : '<b:section>';
         break;
       }
       case 'widget': {
         kind = 'widget';
-        const wId = idMatch ? (idMatch[2] ?? '') : 'widget';
-        const wType = typeMatch ? (typeMatch[2] ?? '') : '';
+        const wId = idAttr?.value || 'widget';
+        const wType = typeAttr?.value || '';
         name = wType ? `${wId} (${wType})` : wId;
-        detail = titleMatch ? `"${titleMatch[2]}"` : (wType ? `Widget [${wType}]` : '<b:widget>');
+        detail = titleAttr?.value ? `"${titleAttr.value}"` : (wType ? `Widget [${wType}]` : '<b:widget>');
         break;
       }
       case 'includable': {
         kind = 'includable';
-        const incId = idMatch ? (idMatch[2] ?? '') : 'includable';
-        const paramVar = varMatch ? (varMatch[2] ?? '') : '';
+        const incId = idAttr?.value || 'includable';
+        const paramVar = varAttr?.value || '';
         name = paramVar ? `${incId}(${paramVar})` : incId;
         detail = 'includable';
         break;
@@ -120,7 +110,7 @@ export function indexDocumentSymbols(text: string): BloggerSymbolNode[] {
       }
       case 'defaultmarkup': {
         kind = 'defaultmarkup';
-        const dmType = typeMatch ? (typeMatch[2] ?? '') : 'all';
+        const dmType = typeAttr?.value || 'all';
         name = `defaultmarkup (${dmType})`;
         detail = dmType;
         break;
@@ -138,7 +128,7 @@ export function indexDocumentSymbols(text: string): BloggerSymbolNode[] {
       name,
       detail,
       kind,
-      span: { start: tagStart, end: tagEnd },
+      span: { start: token.tagStart, end: token.tagEnd },
       selectionSpan,
       children: [],
     };
@@ -150,7 +140,7 @@ export function indexDocumentSymbols(text: string): BloggerSymbolNode[] {
       rootSymbols.push(node);
     }
 
-    if (!isSelfClosing) {
+    if (!token.isSelfClosing) {
       stack.push({ node, tagType });
     }
   }

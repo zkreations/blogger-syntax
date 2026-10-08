@@ -22,6 +22,7 @@ export const bloggerWidgetTypes: readonly string[] = [
   'PageList',
   'PopularPosts',
   'Profile',
+  'ReportAbuse',
   'Stats',
   'Subscribe',
   'Text',
@@ -121,6 +122,10 @@ export const bloggerWidgetTypeDetails: Record<string, WidgetTypeInfo> = {
   Profile: {
     description: 'Profile widget rendering blog author biographical details and avatar.',
     docUrl: 'https://bloggercode.orbiona.com/1979/07/Ressource-Profile.html',
+  },
+  ReportAbuse: {
+    description: 'ReportAbuse widget rendering a link or button for reporting inappropriate blog content.',
+    docUrl: 'https://bloggercode.orbiona.com/2019/04/widget-reportAbuse.html',
   },
   Stats: {
     description: 'Stats widget rendering total visitor counts and pageview statistics.',

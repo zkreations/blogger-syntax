@@ -5,6 +5,7 @@ import type {
   BloggerSuggestion,
 } from '../models/types.js';
 import type { BloggerIncludablesInfo, BloggerResolverContext, LocalVariablesResolver } from './hoverCardResolver.js';
+import type { PropertyNavigationResult } from './propertyHierarchy.js';
 import type { TagAttributeContext } from './tagAttributeResolver.js';
 import { bloggerGlobalRoot } from '../data/globalData.js';
 import { getHtmlTagSuggestions } from '../data/htmlTagsData.js';
@@ -18,8 +19,7 @@ import {
   getOperatorSuggestions,
 } from '../data/operatorsData.js';
 import { bloggerTags } from '../data/tagsData.js';
-import { getCategorizedPropertyMembers, getPropertyMembers } from '../data/typeMembers.js';
-import { getWidgetDescriptor } from '../data/widgetDescriptors.js';
+import { getCategorizedPropertyMembers } from '../data/typeMembers.js';
 import { WIDGET_DATA_DICTIONARIES } from '../data/widgetsData.js';
 import { getWidgetSettingsSuggestions } from '../data/widgetSettingsData.js';
 import {
@@ -38,6 +38,8 @@ import {
   resolveHoverCardAtPosition,
   resolveLocalVariables,
 } from './hoverCardResolver.js';
+
+import { navigatePropertyPath } from './propertyHierarchy.js';
 import {
   hasAttributeValueCompletions,
   isExpressionAttribute,
@@ -64,90 +66,11 @@ export type {
   TagAttributeContext,
 };
 
-export interface PropertyNavigationResult {
-  readonly target?: BloggerProperty | undefined;
-  readonly children?: Record<string, BloggerProperty> | undefined;
-}
-
 const ATTR_VALUE_REGEX = /\b([\w:-]+)\s*=\s*["']([^"']*)$/;
 const TAG_CONTEXT_REGEX = /<([\w:-]+)(?:\s[^>]*)?$/;
 const DATA_PREFIX_REGEX = /(?:^|[^\w:.])(data:[[\]\w.]*)$/;
 const TAG_PREFIX_REGEX = /(?:^|[^\w:])(?:(<\/|<)([\w:-]*)|(b:[\w-]*|data:?|Variable\w*|Group\w*))$/i;
 const OPERAND_START_TRIGGER_REGEX = /(?:^|[=?:,(+\-*/%]|\b(?:and|or|not|eq|neq|lt|lte|gt|gte|to|in|contains)\b)\s*([a-zA-Z_!=]*)$/;
-
-export function navigatePropertyPath(
-  segments: readonly string[],
-  localVariables?: Record<string, BloggerProperty>,
-  rootTree: Record<string, BloggerProperty> = bloggerGlobalRoot,
-): PropertyNavigationResult | undefined {
-  if (segments.length === 0) {
-    return undefined;
-  }
-
-  const normalizedSegments = segments.flatMap(s =>
-    s.replace(/\[/g, '.').replace(/\]/g, '').split('.').filter(Boolean),
-  );
-
-  if (normalizedSegments.length === 0) {
-    return undefined;
-  }
-
-  const [firstSegment, ...restSegments] = normalizedSegments;
-  if (!firstSegment) {
-    return undefined;
-  }
-
-  let targetProperty: BloggerProperty | undefined
-    = localVariables?.[firstSegment] ?? rootTree[firstSegment];
-
-  if (!targetProperty) {
-    return undefined;
-  }
-
-  let currentMap: Record<string, BloggerProperty> | undefined = getPropertyMembers(targetProperty);
-
-  for (const segment of restSegments) {
-    if (!segment || !currentMap) {
-      return undefined;
-    }
-
-    let nextProp = currentMap[segment];
-
-    // Handle array indexing (e.g. 0, [0], i)
-    if (!nextProp && targetProperty.type === 'array' && targetProperty.itemChildren) {
-      const isIndex = /^\d+$/.test(segment) || /^\[\d+\]$/.test(segment) || segment === '[i]' || segment === 'i';
-      if (isIndex) {
-        nextProp = {
-          name: `${targetProperty.name}[item]`,
-          type: 'object',
-          description: `Item of ${targetProperty.name} collection.`,
-          children: targetProperty.itemChildren,
-        };
-      }
-    }
-
-    // Handle widget ID lookup on data:widgets (e.g. data:widgets.Blog1 or data:widgets.Header1)
-    if (!nextProp && targetProperty.name === 'widgets') {
-      const cleanSegment = segment.replace(/^\[['"]?/, '').replace(/['"]?\]$/, '');
-      const descriptorProps = getWidgetDescriptor(cleanSegment);
-      nextProp = {
-        name: cleanSegment,
-        type: 'object',
-        description: `Layout descriptor object for widget "${cleanSegment}".`,
-        children: descriptorProps,
-      };
-    }
-
-    if (!nextProp) {
-      return undefined;
-    }
-
-    targetProperty = nextProp;
-    currentMap = getPropertyMembers(targetProperty);
-  }
-
-  return { target: targetProperty, children: currentMap };
-}
 
 export class BloggerPathResolver {
   private readonly rootTree: Record<string, BloggerProperty> = bloggerGlobalRoot;
@@ -274,44 +197,13 @@ export class BloggerPathResolver {
     }));
   }
 
-  public resolveDescriptions(): readonly BloggerSuggestion[] {
-    return resolveDescriptionsSuggestions();
-  }
-
-  public resolveWidgetTypes(): readonly BloggerSuggestion[] {
-    return resolveWidgetTypesSuggestions();
-  }
-
-  public resolveDefaultMarkupTypes(excludedTypes?: readonly string[]): readonly BloggerSuggestion[] {
-    const all = resolveDefaultMarkupTypesSuggestions();
-    if (!excludedTypes || excludedTypes.length === 0) {
-      return all;
-    }
-    const excludedSet = new Set(excludedTypes.map(t => t.trim().toLowerCase()));
-    return all.filter(s => !excludedSet.has(s.name.toLowerCase()));
-  }
-
-  public resolveSkinVariableTypes(): readonly BloggerSuggestion[] {
-    return resolveSkinVariableTypesSuggestions();
-  }
-
-  public resolveBloggerTags(
-    hasOpenBracket: boolean,
-    isClosingTag: boolean = false,
-    targetTag?: string,
-  ): readonly BloggerSuggestion[] {
-    return resolveBloggerTagSuggestions(hasOpenBracket, isClosingTag, targetTag);
-  }
-
-  public resolveExpressionContext(
-    expressionText: string,
+  private resolveDataOrLambda(
+    text: string,
     localVariables?: Record<string, BloggerProperty>,
-    isLoopContext: boolean = false,
-    lineSuffix?: string,
     widgetType?: string,
   ): BloggerResolveResult | undefined {
     // 1. Data path context (data: or data:path. or data:path.partial)
-    const dataMatch = DATA_PREFIX_REGEX.exec(expressionText);
+    const dataMatch = DATA_PREFIX_REGEX.exec(text);
     if (dataMatch && dataMatch[1] !== undefined) {
       const fullExpression = dataMatch[1];
       const rawPath = fullExpression.slice('data:'.length);
@@ -342,7 +234,7 @@ export class BloggerPathResolver {
     }
 
     // 2. Lambda context (p => p.member or p => p)
-    const lambdaContext = resolveLambdaContextAtCursor(expressionText, expressionText.length, localVariables);
+    const lambdaContext = resolveLambdaContextAtCursor(text, text.length, localVariables);
     if (lambdaContext) {
       if (lambdaContext.isNavigatingMember && lambdaContext.targetProperty) {
         const categorized = getCategorizedPropertyMembers(lambdaContext.targetProperty);
@@ -405,6 +297,21 @@ export class BloggerPathResolver {
           };
         }
       }
+    }
+
+    return undefined;
+  }
+
+  public resolveExpressionContext(
+    expressionText: string,
+    localVariables?: Record<string, BloggerProperty>,
+    isLoopContext: boolean = false,
+    lineSuffix?: string,
+    widgetType?: string,
+  ): BloggerResolveResult | undefined {
+    const dataOrLambda = this.resolveDataOrLambda(expressionText, localVariables, widgetType);
+    if (dataOrLambda) {
+      return dataOrLambda;
     }
 
     // 2.5. Incomplete Lambda pre-arrow context (e.g. data:posts first ( or data:posts first (p )
@@ -528,7 +435,7 @@ export class BloggerPathResolver {
     // 4. Infix operator position (<operand> <space> [partialOp])
     const opInfo = extractLeftOperandAtCursor(expressionText);
     if (opInfo) {
-      const lambdaScopes = lambdaContext?.activeScopes;
+      const lambdaScopes = resolveLambdaContextAtCursor(expressionText, expressionText.length, localVariables)?.activeScopes;
       const inferred = inferExpressionType(opInfo.operand, localVariables, lambdaScopes);
       const leftType = inferred.type;
       const allOps = getOperatorSuggestions(leftType, isLoopContext);
@@ -701,7 +608,7 @@ export class BloggerPathResolver {
         const isSkinTag = tagName === 'Variable' || tagName === 'Group';
         if (isSkinTag) {
           return {
-            suggestions: this.resolveDescriptions(),
+            suggestions: resolveDescriptionsSuggestions(),
             replacementLength: typedText.length,
           };
         }
@@ -710,14 +617,14 @@ export class BloggerPathResolver {
       if (attrName === 'type') {
         if (tagName === 'Variable') {
           return {
-            suggestions: this.resolveSkinVariableTypes(),
+            suggestions: resolveSkinVariableTypesSuggestions(),
             replacementLength: typedText.length,
           };
         }
 
         if (tagName === 'b:widget') {
           return {
-            suggestions: this.resolveWidgetTypes(),
+            suggestions: resolveWidgetTypesSuggestions(),
             replacementLength: typedText.length,
           };
         }
@@ -743,7 +650,7 @@ export class BloggerPathResolver {
           const excludedTypes = [...definedBefore, ...definedAfter];
 
           return {
-            suggestions: this.resolveDefaultMarkupTypes(excludedTypes),
+            suggestions: resolveDefaultMarkupTypesSuggestions(excludedTypes),
             replacementLength: prefixToReplace.length,
           };
         }
@@ -784,100 +691,9 @@ export class BloggerPathResolver {
     }
 
     const localVars = resolveLocalVariables(options?.localVariables);
-    const bareLambdaContext = resolveLambdaContextAtCursor(linePrefix, linePrefix.length, localVars);
-    if (bareLambdaContext) {
-      if (bareLambdaContext.isNavigatingMember && bareLambdaContext.targetProperty) {
-        const categorized = getCategorizedPropertyMembers(bareLambdaContext.targetProperty);
-        const suggestions: BloggerSuggestion[] = categorized && categorized.length > 0
-          ? categorized.map(m => ({
-              name: m.property.name,
-              type: m.property.type,
-              description: m.property.description,
-              example: `${bareLambdaContext.activeParam}.${m.property.name}`,
-              kind: 'property' as const,
-              deprecated: m.property.deprecated,
-              docUrl: m.property.docUrl,
-              categoryBadge: m.categoryBadge,
-              sortPriority: m.sortPriority,
-            }))
-          : Object.values(bareLambdaContext.targetProperty.children ?? {}).map(prop => ({
-              name: prop.name,
-              type: prop.type,
-              description: prop.description,
-              example: `${bareLambdaContext.activeParam}.${prop.name}`,
-              kind: 'property' as const,
-              deprecated: prop.deprecated,
-              docUrl: prop.docUrl,
-              categoryBadge: 'Property',
-              sortPriority: 0,
-            }));
-        return {
-          suggestions,
-          replacementLength: bareLambdaContext.currentToken.length,
-        };
-      }
-      if (!bareLambdaContext.isNavigatingMember) {
-        const varSuggestions: BloggerSuggestion[] = Object.entries(bareLambdaContext.activeScopes).map(([pName, prop]) => ({
-          name: pName,
-          type: prop.type,
-          kind: 'variable' as const,
-          description: prop.description ?? `Lambda parameter \`${pName}\`.`,
-          example: pName,
-          categoryBadge: 'Lambda',
-          sortPriority: 0,
-        }));
-        const dataPrefixSuggestion: BloggerSuggestion = {
-          name: 'data:',
-          type: 'object',
-          kind: 'property',
-          detail: '(Blogger Data Prefix)',
-          description: 'Blogger data expression prefix.',
-          example: 'data:blog.title',
-          categoryBadge: 'Prefix',
-          sortPriority: 5,
-        };
-        const suggestions = [...varSuggestions, dataPrefixSuggestion];
-        const filtered = bareLambdaContext.currentToken
-          ? suggestions.filter(s => s.name.startsWith(bareLambdaContext.currentToken))
-          : suggestions;
-        if (filtered.length > 0) {
-          return {
-            suggestions: filtered,
-            replacementLength: bareLambdaContext.currentToken.length,
-          };
-        }
-      }
-    }
-
-    const dataMatch = DATA_PREFIX_REGEX.exec(linePrefix);
-    if (dataMatch && dataMatch[1] !== undefined) {
-      const localVariables = resolveLocalVariables(options?.localVariables);
-      const fullExpression = dataMatch[1];
-      const rawPath = fullExpression.slice('data:'.length);
-
-      if (rawPath === '') {
-        return {
-          suggestions: this.resolveDataPath([], localVariables, options?.widgetType),
-          replacementLength: 0,
-        };
-      }
-
-      if (rawPath.endsWith('.')) {
-        const normalized = rawPath.slice(0, -1).replace(/\[/g, '.').replace(/\]/g, '');
-        const segments = normalized.split('.').filter(Boolean);
-        return {
-          suggestions: this.resolveDataPath(segments, localVariables, options?.widgetType),
-          replacementLength: 0,
-        };
-      }
-
-      const normalized = rawPath.replace(/\[/g, '.').replace(/\]/g, '');
-      const segments = normalized.split('.').filter(Boolean);
-      const lastSegment = segments.pop() ?? '';
-      return {
-        suggestions: this.resolveDataPath(segments, localVariables, options?.widgetType),
-        replacementLength: lastSegment.length,
-      };
+    const bareExprResult = this.resolveDataOrLambda(linePrefix, localVars, options?.widgetType);
+    if (bareExprResult) {
+      return bareExprResult;
     }
 
     const tagMatch = TAG_PREFIX_REGEX.exec(linePrefix);
@@ -892,7 +708,7 @@ export class BloggerPathResolver {
         if (!nearestOpenTag) {
           return undefined;
         }
-        const closingSuggestions = this.resolveBloggerTags(false, true, nearestOpenTag);
+        const closingSuggestions = resolveBloggerTagSuggestions(false, true, nearestOpenTag);
         if (closingSuggestions.length === 0) {
           return undefined;
         }
@@ -903,7 +719,7 @@ export class BloggerPathResolver {
       }
 
       return {
-        suggestions: this.resolveBloggerTags(hasOpenBracket, false),
+        suggestions: resolveBloggerTagSuggestions(hasOpenBracket, false),
         replacementLength: typedTag.length,
       };
     }

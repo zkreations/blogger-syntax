@@ -5,7 +5,7 @@ import {
   postLabelItemProperties,
   singlePostProperties,
 } from '../data/widgetsData.js';
-import { navigatePropertyPath } from '../resolver/pathResolver.js';
+import { navigatePropertyPath } from '../resolver/propertyHierarchy.js';
 import { getTypeModifiers } from '../types/typeSystem.js';
 
 export interface ActiveLambdaContext {

@@ -1,10 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { bloggerTags } from '../../src/core/data/tagsData.js';
-import { BloggerPathResolver } from '../../src/core/resolver/pathResolver.js';
+import { resolveBloggerTagSuggestions } from '../../src/core/resolver/tagAttributeResolver.js';
 
 describe('tags and snippets validation', () => {
-  const resolver = new BloggerPathResolver();
-  const allTagSuggestions = resolver.resolveBloggerTags(false, false);
+  const allTagSuggestions = resolveBloggerTagSuggestions(false, false);
 
   it('should have valid bloggerTags defined', () => {
     expect(typeof bloggerTags).toBe('object');
@@ -55,9 +54,9 @@ describe('tags and snippets validation', () => {
   });
 
   it('should format snippetBody correctly with and without open bracket', () => {
-    const suggestionsBare = resolver.resolveBloggerTags(false, false);
-    const suggestionsOpen = resolver.resolveBloggerTags(true, false);
-    const suggestionsClose = resolver.resolveBloggerTags(false, true);
+    const suggestionsBare = resolveBloggerTagSuggestions(false, false);
+    const suggestionsOpen = resolveBloggerTagSuggestions(true, false);
+    const suggestionsClose = resolveBloggerTagSuggestions(false, true);
 
     const varBare = suggestionsBare.find(s => s.name === 'Variable');
     const varOpen = suggestionsOpen.find(s => s.name === 'Variable');

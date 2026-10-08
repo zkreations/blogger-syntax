@@ -3,6 +3,12 @@ import { describe, expect, it } from 'vitest';
 import { bloggerDescriptions } from '../../src/core/data/descriptions.js';
 import { blogWidgetProperties, singlePostProperties } from '../../src/core/data/widgetsData.js';
 import { BloggerPathResolver } from '../../src/core/resolver/pathResolver.js';
+import {
+  resolveBloggerTagSuggestions,
+  resolveDefaultMarkupTypesSuggestions,
+  resolveDescriptionsSuggestions,
+  resolveWidgetTypesSuggestions,
+} from '../../src/core/resolver/tagAttributeResolver.js';
 
 describe('bloggerPathResolver', () => {
   const resolver = new BloggerPathResolver();
@@ -315,9 +321,9 @@ describe('bloggerPathResolver', () => {
     });
   });
 
-  describe('resolveDescriptions', () => {
+  describe('resolveDescriptionsSuggestions', () => {
     it('should return all descriptions with variable examples', () => {
-      const suggestions = resolver.resolveDescriptions();
+      const suggestions = resolveDescriptionsSuggestions();
       expect(suggestions.length).toBe(bloggerDescriptions.length);
       expect(suggestions.every(s => s.kind === 'enumMember')).toBe(true);
       expect(suggestions.some(s => s.name === 'Blog Title')).toBe(true);
@@ -327,9 +333,9 @@ describe('bloggerPathResolver', () => {
     });
   });
 
-  describe('resolveWidgetTypes', () => {
+  describe('resolveWidgetTypesSuggestions', () => {
     it('should return valid widget types with metadata and documentation', () => {
-      const suggestions = resolver.resolveWidgetTypes();
+      const suggestions = resolveWidgetTypesSuggestions();
       expect(suggestions.length).toBeGreaterThanOrEqual(20);
       expect(suggestions.every(s => s.kind === 'enumMember')).toBe(true);
       expect(suggestions.every(s => s.detail === '(Blogger Widget Type)')).toBe(true);
@@ -347,9 +353,9 @@ describe('bloggerPathResolver', () => {
     });
   });
 
-  describe('resolveDefaultMarkupTypes', () => {
+  describe('resolveDefaultMarkupTypesSuggestions', () => {
     it('should return valid defaultmarkup types including All and Common', () => {
-      const suggestions = resolver.resolveDefaultMarkupTypes();
+      const suggestions = resolveDefaultMarkupTypesSuggestions();
       expect(suggestions.length).toBeGreaterThanOrEqual(20);
       expect(suggestions.every(s => s.kind === 'enumMember')).toBe(true);
       expect(suggestions.every(s => s.detail === '(Blogger Default Markup Type)')).toBe(true);
@@ -365,9 +371,9 @@ describe('bloggerPathResolver', () => {
     });
   });
 
-  describe('resolveBloggerTags', () => {
+  describe('resolveBloggerTagSuggestions', () => {
     it('should propagate attributes and snippet body for tags', () => {
-      const suggestions = resolver.resolveBloggerTags(true);
+      const suggestions = resolveBloggerTagSuggestions(true);
       const ifTag = suggestions.find(s => s.name === 'b:if');
       expect(ifTag).toBeDefined();
       expect(ifTag!.attributes).toBeDefined();
@@ -442,10 +448,11 @@ describe('bloggerPathResolver', () => {
       const result = resolver.resolveFromLinePrefix('<b:widget id="main" type="');
       expect(result).toBeDefined();
       expect(result!.replacementLength).toBe(0);
-      expect(result!.suggestions.length).toBe(25);
+      expect(result!.suggestions.length).toBe(26);
       const names = result!.suggestions.map(s => s.name);
       expect(names).toContain('AdSense');
       expect(names).toContain('Blog');
+      expect(names).toContain('ReportAbuse');
       expect(names).toContain('Wikipedia');
     });
 
@@ -453,48 +460,51 @@ describe('bloggerPathResolver', () => {
       const result = resolver.resolveFromLinePrefix('<b:widget type="Blo');
       expect(result).toBeDefined();
       expect(result!.replacementLength).toBe(3);
-      expect(result!.suggestions.length).toBe(25);
+      expect(result!.suggestions.length).toBe(26);
     });
 
     it('should resolve defaultmarkup types for <b:defaultmarkup type="', () => {
       const result = resolver.resolveFromLinePrefix('<b:defaultmarkup type="');
       expect(result).toBeDefined();
       expect(result!.replacementLength).toBe(0);
-      expect(result!.suggestions.length).toBe(27);
+      expect(result!.suggestions.length).toBe(28);
       const names = result!.suggestions.map(s => s.name);
       expect(names[0]).toBe('All');
       expect(names[1]).toBe('Common');
       expect(names).toContain('Blog');
+      expect(names).toContain('ReportAbuse');
     });
 
     it('should resolve defaultmarkup types for <b:defaultmarkup type=\'All with replacementLength', () => {
       const result = resolver.resolveFromLinePrefix('<b:defaultmarkup type=\'All');
       expect(result).toBeDefined();
       expect(result!.replacementLength).toBe(3);
-      expect(result!.suggestions.length).toBe(27);
+      expect(result!.suggestions.length).toBe(28);
     });
 
     it('should exclude previously defined types when suggesting after comma in b:defaultmarkup type', () => {
       const result = resolver.resolveFromLinePrefix('<b:defaultmarkup type="Blog,');
       expect(result).toBeDefined();
       expect(result!.replacementLength).toBe(0);
-      expect(result!.suggestions.length).toBe(26);
+      expect(result!.suggestions.length).toBe(27);
       const names = result!.suggestions.map(s => s.name);
       expect(names).not.toContain('Blog');
       expect(names).toContain('Common');
       expect(names).toContain('All');
       expect(names).toContain('PopularPosts');
+      expect(names).toContain('ReportAbuse');
     });
 
     it('should exclude multiple previously defined types and support partial prefix', () => {
       const result = resolver.resolveFromLinePrefix('<b:defaultmarkup type="Blog, PopularPosts, Fea');
       expect(result).toBeDefined();
       expect(result!.replacementLength).toBe(3);
-      expect(result!.suggestions.length).toBe(25);
+      expect(result!.suggestions.length).toBe(26);
       const names = result!.suggestions.map(s => s.name);
       expect(names).not.toContain('Blog');
       expect(names).not.toContain('PopularPosts');
       expect(names).toContain('FeaturedPost');
+      expect(names).toContain('ReportAbuse');
     });
 
     it('should exclude types specified after cursor when lineSuffix is provided', () => {
@@ -502,17 +512,18 @@ describe('bloggerPathResolver', () => {
         lineSuffix: ',FeaturedPost">',
       });
       expect(result).toBeDefined();
-      expect(result!.suggestions.length).toBe(25);
+      expect(result!.suggestions.length).toBe(26);
       const names = result!.suggestions.map(s => s.name);
       expect(names).not.toContain('Blog');
       expect(names).not.toContain('FeaturedPost');
+      expect(names).toContain('ReportAbuse');
     });
 
     it('should resolve widget types for multi-line b:widget tag', () => {
       const result = resolver.resolveFromLinePrefix('<b:widget\n  id="Blog1"\n  type="');
       expect(result).toBeDefined();
       expect(result!.replacementLength).toBe(0);
-      expect(result!.suggestions.length).toBe(25);
+      expect(result!.suggestions.length).toBe(26);
     });
 
     it('should resolve nearest unclosed Blogger tag for "</b:"', () => {
@@ -611,8 +622,8 @@ describe('bloggerPathResolver', () => {
       expect(result!.suggestions.length).toBe(6);
     });
 
-    it('should include all 6 Variable specialized tags in resolveBloggerTags', () => {
-      const openTags = resolver.resolveBloggerTags(true, false);
+    it('should include all 6 Variable specialized tags in resolveBloggerTagSuggestions', () => {
+      const openTags = resolveBloggerTagSuggestions(true, false);
       const skinTagNames = [
         'Variable (color)',
         'Variable (font)',
@@ -630,7 +641,7 @@ describe('bloggerPathResolver', () => {
       }
 
       // Closing tag should NOT have Variable (color)> or Variable>
-      const closeTags = resolver.resolveBloggerTags(false, true);
+      const closeTags = resolveBloggerTagSuggestions(false, true);
       expect(closeTags.find(s => s.name === 'Variable (color)')).toBeUndefined();
       expect(closeTags.find(s => s.name === 'Variable')).toBeUndefined();
       expect(closeTags.find(s => s.name === 'b:eval')).toBeUndefined();
@@ -770,8 +781,8 @@ describe('bloggerPathResolver', () => {
       expect(defaultShare?.sortPriority).toBe(10);
     });
 
-    it('should assign categorization badges to Blogger tags in resolveBloggerTags', () => {
-      const tags = resolver.resolveBloggerTags(true, false);
+    it('should assign categorization badges to Blogger tags in resolveBloggerTagSuggestions', () => {
+      const tags = resolveBloggerTagSuggestions(true, false);
       const ifTag = tags.find(t => t.name === 'b:if');
       expect(ifTag).toBeDefined();
       expect(ifTag?.categoryBadge).toBe('Control Flow');
