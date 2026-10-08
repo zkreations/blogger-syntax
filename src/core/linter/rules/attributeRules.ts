@@ -37,18 +37,6 @@ const VARIABLE_TYPE_ALLOWED_ATTRS: Record<string, ReadonlySet<string>> = {
   automatic: new Set(['name', 'description', 'type', 'default', 'value', 'hideeditor']),
 };
 
-const STATIC_ONLY_ATTRS: Record<string, ReadonlySet<string>> = {
-  'b:section': new Set(['id', 'showaddelement', 'preferred', 'ads']),
-  'b:widget': new Set(['id', 'type', 'title', 'locked', 'visible', 'version']),
-  'b:includable': new Set(['id', 'var']),
-  'b:loop': new Set(['var', 'index', 'reverse']),
-  'b:with': new Set(['var']),
-  'b:message': new Set(['name']),
-  'b:template-script': new Set(['name']),
-  'Variable': new Set(['name', 'type', 'default', 'value', 'hideeditor', 'hideEditor']),
-  'Group': new Set(['description', 'selector']),
-};
-
 const STATIC_BOOLEAN_ATTRS = new Set([
   'showaddelement',
   'locked',
@@ -72,6 +60,8 @@ interface TagAttributeRequirement {
   readonly required: readonly string[];
   readonly eitherOneOf?: readonly (readonly string[])[];
   readonly validAttributes?: ReadonlySet<string>;
+  readonly exprAttributes?: ReadonlySet<string>;
+  readonly arbitraryAttributes?: boolean;
 }
 
 const DIRECTIVE_REQUIREMENTS: Record<string, TagAttributeRequirement> = {
@@ -90,6 +80,7 @@ const DIRECTIVE_REQUIREMENTS: Record<string, TagAttributeRequirement> = {
       'growth',
       'mobile',
     ]),
+    exprAttributes: new Set(['name', 'tag', 'cond', 'growth']),
   },
   'b:widget': {
     required: ['id', 'type'],
@@ -104,88 +95,98 @@ const DIRECTIVE_REQUIREMENTS: Record<string, TagAttributeRequirement> = {
       'mobile',
       'pageType',
     ]),
+    exprAttributes: new Set(['cond']),
   },
   'b:includable': {
     required: ['id'],
     validAttributes: new Set(['id', 'var']),
+    exprAttributes: new Set(['var']),
   },
   'b:include': {
-    required: [],
-    eitherOneOf: [['name', 'expr:name']],
+    required: ['name'],
     validAttributes: new Set(['name', 'data', 'cond']),
+    exprAttributes: new Set(['name', 'data', 'cond']),
   },
   'b:loop': {
-    required: ['var'],
-    eitherOneOf: [['values', 'expr:values']],
+    required: ['values', 'var'],
     validAttributes: new Set(['values', 'var', 'index', 'reverse']),
+    exprAttributes: new Set(['values', 'var', 'index', 'reverse']),
   },
   'b:with': {
-    required: ['var'],
-    eitherOneOf: [['value', 'expr:value']],
+    required: ['value', 'var'],
     validAttributes: new Set(['value', 'var']),
+    exprAttributes: new Set(['value', 'var']),
   },
   'b:if': {
-    required: [],
-    eitherOneOf: [['cond', 'expr:cond']],
+    required: ['cond'],
     validAttributes: new Set(['cond']),
+    exprAttributes: new Set(['cond']),
   },
   'b:elseif': {
-    required: [],
-    eitherOneOf: [['cond', 'expr:cond']],
+    required: ['cond'],
     validAttributes: new Set(['cond']),
+    exprAttributes: new Set(['cond']),
   },
   'b:switch': {
-    required: [],
-    eitherOneOf: [['var', 'expr:var']],
+    required: ['var'],
     validAttributes: new Set(['var']),
+    exprAttributes: new Set(['var']),
   },
   'b:case': {
-    required: [],
-    eitherOneOf: [['value', 'expr:value']],
+    required: ['value'],
     validAttributes: new Set(['value']),
+    exprAttributes: new Set(['value']),
   },
   'b:tag': {
-    required: [],
-    eitherOneOf: [['name', 'expr:name']],
+    required: ['name'],
+    arbitraryAttributes: true,
     validAttributes: new Set(['name', 'cond']),
+    exprAttributes: new Set(['name', 'cond']),
   },
   'b:attr': {
-    required: [],
-    eitherOneOf: [
-      ['name', 'expr:name'],
-      ['value', 'expr:value'],
-    ],
+    required: ['name', 'value'],
     validAttributes: new Set(['name', 'value', 'cond']),
+    exprAttributes: new Set(['name', 'value', 'cond']),
   },
   'b:class': {
-    required: [],
-    eitherOneOf: [['name', 'expr:name']],
+    required: ['name'],
     validAttributes: new Set(['name', 'cond']),
+    exprAttributes: new Set(['name', 'cond']),
   },
   'b:eval': {
     required: ['expr'],
     validAttributes: new Set(['expr']),
+    exprAttributes: new Set(),
   },
   'b:message': {
     required: ['name'],
     validAttributes: new Set(['name']),
+    exprAttributes: new Set(),
   },
   'b:param': {
-    required: ['name'],
-    eitherOneOf: [['value', 'expr:value']],
+    required: ['name', 'value'],
     validAttributes: new Set(['name', 'value']),
+    exprAttributes: new Set(['value']),
   },
   'b:defaultmarkup': {
     required: ['type'],
     validAttributes: new Set(['type']),
+    exprAttributes: new Set(),
   },
   'b:widget-setting': {
     required: ['name'],
     validAttributes: new Set(['name']),
+    exprAttributes: new Set(),
   },
   'b:template-script': {
     required: ['name'],
     validAttributes: new Set(['name']),
+    exprAttributes: new Set(),
+  },
+  'b:comment': {
+    required: [],
+    validAttributes: new Set(['render']),
+    exprAttributes: new Set(['render']),
   },
   'Variable': {
     required: ['name', 'description', 'type', 'default', 'value'],
@@ -207,10 +208,12 @@ const DIRECTIVE_REQUIREMENTS: Record<string, TagAttributeRequirement> = {
       'blue',
       'alpha',
     ]),
+    exprAttributes: new Set(),
   },
   'Group': {
     required: ['description'],
     validAttributes: new Set(['description', 'selector']),
+    exprAttributes: new Set(),
   },
 };
 
@@ -336,13 +339,13 @@ export function checkDirectiveAttributes(
     }
 
     // 2. Prohibit expr: on static-only attributes
-    const staticAttrs = STATIC_ONLY_ATTRS[matchedConfigKey ?? ''];
-    if (staticAttrs) {
-      for (const [attrLowerKey, attrInfo] of parsedAttrs) {
-        if (attrLowerKey.startsWith('expr:')) {
-          const baseName = attrLowerKey.slice(5);
-          for (const s of staticAttrs) {
-            if (s.toLowerCase() === baseName) {
+    if (matchedConfigKey) {
+      const config = DIRECTIVE_REQUIREMENTS[matchedConfigKey];
+      if (config && !config.arbitraryAttributes) {
+        for (const [attrLowerKey, attrInfo] of parsedAttrs) {
+          if (attrLowerKey.startsWith('expr:')) {
+            const baseName = attrLowerKey.slice(5);
+            if (config.validAttributes?.has(baseName) && !config.exprAttributes?.has(baseName)) {
               const range = createRange(lineOffsets, attrInfo.attrStart, attrInfo.attrEnd);
               diagnostics.push({
                 code: 'blogger.syntax.invalid-dynamic-attribute',
@@ -350,7 +353,6 @@ export function checkDirectiveAttributes(
                 severity: 'error',
                 range,
               });
-              break;
             }
           }
         }
@@ -372,17 +374,18 @@ export function checkDirectiveAttributes(
             ? createRange(lineOffsets, attrInfo.valStart, attrInfo.valEnd)
             : createRange(lineOffsets, attrInfo.attrStart, attrInfo.attrEnd);
 
+          const baseKey = attrLowerKey.startsWith('expr:') ? attrLowerKey.slice(5) : attrLowerKey;
           const isRequiredAttr = (
-            attrLowerKey === 'id'
-            || attrLowerKey === 'type'
-            || attrLowerKey === 'var'
-            || attrLowerKey === 'name'
-            || attrLowerKey === 'expr'
-            || attrLowerKey === 'cond'
-            || attrLowerKey === 'values'
-            || attrLowerKey === 'value'
-            || attrLowerKey === 'default'
-            || attrLowerKey === 'description'
+            baseKey === 'id'
+            || baseKey === 'type'
+            || baseKey === 'var'
+            || baseKey === 'name'
+            || baseKey === 'expr'
+            || baseKey === 'cond'
+            || baseKey === 'values'
+            || baseKey === 'value'
+            || baseKey === 'default'
+            || baseKey === 'description'
           );
 
           if (isRequiredAttr) {
@@ -631,8 +634,9 @@ export function checkDirectiveAttributes(
 
     // 10. Flag unrecognized attributes on known b: directives
     if (matchedConfigKey && lowerTagName.startsWith('b:')) {
-      const validSet = DIRECTIVE_REQUIREMENTS[matchedConfigKey]?.validAttributes;
-      if (validSet && lowerTagName !== 'b:tag' && lowerTagName !== 'b:attr') {
+      const config = DIRECTIVE_REQUIREMENTS[matchedConfigKey];
+      const validSet = config?.validAttributes;
+      if (validSet && !config?.arbitraryAttributes && lowerTagName !== 'b:tag' && lowerTagName !== 'b:attr') {
         for (const [attrLowerKey, attrInfo] of parsedAttrs) {
           if (attrLowerKey === 'xmlns' || attrLowerKey.startsWith('xmlns:')) {
             continue;

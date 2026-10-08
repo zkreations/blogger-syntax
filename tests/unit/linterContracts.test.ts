@@ -877,4 +877,82 @@ describe('linter contracts & horatio specifications', () => {
       });
     });
   });
+
+  describe('dynamic attribute validation and expr: prefix handling (Horatio catalog rules)', () => {
+    it('allows valid dynamic expr: attributes on <b:loop> without false positives', () => {
+      const xml = `
+        <b:loop expr:values='data:posts' var='post' expr:index='i' expr:reverse='data:blog.isMobileRequest'>
+          <b:eval expr='data:post.title'/>
+        </b:loop>
+      `;
+      const diags = lintBloggerDocument(xml);
+      const attrDiags = diags.filter(d =>
+        d.code === 'blogger.syntax.invalid-dynamic-attribute'
+        || d.code === 'blogger.unrecognized.attribute'
+        || d.code === 'blogger.missing.attribute',
+      );
+      expect(attrDiags).toHaveLength(0);
+    });
+
+    it('allows arbitrary static and dynamic attributes on <b:tag>', () => {
+      const xml = `
+        <b:tag expr:name='data:view.isPost ? "article" : "div"' expr:class='data:post.labels' expr:id='data:post.id' custom-attr='test'>
+          Content
+        </b:tag>
+      `;
+      const diags = lintBloggerDocument(xml);
+      const tagDiags = diags.filter(d =>
+        d.code === 'blogger.syntax.invalid-dynamic-attribute'
+        || d.code === 'blogger.unrecognized.attribute'
+        || d.code === 'blogger.missing.attribute',
+      );
+      expect(tagDiags).toHaveLength(0);
+    });
+
+    it('satisfies mandatory attributes when dynamic expr: variant is used', () => {
+      const xml = `
+        <b:with expr:value='data:post.title' var='title'>
+          <b:include expr:name='"subroutine"'/>
+        </b:with>
+      `;
+      const diags = lintBloggerDocument(xml);
+      const missingDiags = diags.filter(d => d.code === 'blogger.missing.attribute');
+      expect(missingDiags).toHaveLength(0);
+    });
+
+    it('flags invalid dynamic attributes when base attribute has expr: false', () => {
+      const xml = `
+        <b:section id='main'>
+          <b:widget expr:id='data:id' type='HTML' expr:title='data:title'>
+            <b:includable expr:id='main'/>
+          </b:widget>
+        </b:section>
+        <b:eval expr:expr='data:post.title'/>
+        <b:template-script expr:name='indie'/>
+        <b:defaultmarkup expr:type='Common'/>
+        <b:widget-setting expr:name='foo'/>
+        <b:param expr:name='p' value='val'/>
+      `;
+      const diags = lintBloggerDocument(xml);
+      const dynamicErrors = diags.filter(d => d.code === 'blogger.syntax.invalid-dynamic-attribute');
+      expect(dynamicErrors.length).toBeGreaterThanOrEqual(7);
+      expect(dynamicErrors.some(d => d.message.includes('"expr:id"') && d.message.includes('<b:widget>'))).toBe(true);
+      expect(dynamicErrors.some(d => d.message.includes('"expr:title"') && d.message.includes('<b:widget>'))).toBe(true);
+      expect(dynamicErrors.some(d => d.message.includes('"expr:id"') && d.message.includes('<b:includable>'))).toBe(true);
+      expect(dynamicErrors.some(d => d.message.includes('"expr:expr"') && d.message.includes('<b:eval>'))).toBe(true);
+      expect(dynamicErrors.some(d => d.message.includes('"expr:name"') && d.message.includes('<b:template-script>'))).toBe(true);
+      expect(dynamicErrors.some(d => d.message.includes('"expr:type"') && d.message.includes('<b:defaultmarkup>'))).toBe(true);
+      expect(dynamicErrors.some(d => d.message.includes('"expr:name"') && d.message.includes('<b:param>'))).toBe(true);
+    });
+
+    it('flags unrecognized attributes on tags when base attribute does not exist', () => {
+      const xml = `
+        <b:loop values='data:posts' var='post' expr:nonExistentAttr='true'/>
+      `;
+      const diags = lintBloggerDocument(xml);
+      const unrec = diags.find(d => d.code === 'blogger.unrecognized.attribute');
+      expect(unrec).toBeDefined();
+      expect(unrec?.message).toContain('expr:nonExistentAttr');
+    });
+  });
 });
