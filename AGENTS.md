@@ -14,7 +14,7 @@ VS Code extension adding IntelliSense, validation, diagnostics, and snippets for
 - `src/core/`: Domain logic, AST/expression parser, path resolver, scope tracker, data schemas, and linter. Decoupled from the VS Code API.
   - `data/`: Definitions for global data, widgets, tags, attributes, and Theme Designer variables.
   - `models/`: Domain interfaces (`BloggerProperty`, `BloggerSuggestion`, etc.).
-  - `parser/`: Expression parser, lambda scope resolver, and directive token scanner (`exprParser.ts`, `directiveScanner.ts`, `tagTreeTracker.ts`).
+  - `parser/`: Expression parser, lambda scope resolver, and directive token scanner (`exprParser.ts`, `directiveScanner.ts`).
   - `resolver/`: Data path navigation, property hierarchy, and expression resolution (`pathResolver.ts`, `hoverCardResolver.ts`, `tagAttributeResolver.ts`).
   - `scope/`: Context variable inference for `<b:loop>`, `<b:with>`, and `<b:includable>` (`scopeTracker.ts`, `typeInferencer.ts`).
   - `navigation/`: Definition resolver (`definitionResolver.ts`) and symbol indexer (`symbolIndexer.ts`).
