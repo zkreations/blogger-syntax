@@ -65,4 +65,9 @@ describe('propertyHierarchy', () => {
     expect(result?.target?.name).toBe('Blog1');
     expect(result?.children?.posts).toBeDefined();
   });
+
+  it('should return undefined for non-existent properties or primitives', () => {
+    expect(navigatePropertyPath(['nonExistentProperty'])).toBeUndefined();
+    expect(navigatePropertyPath(['blog', 'nonExistentChild'])).toBeUndefined();
+  });
 });

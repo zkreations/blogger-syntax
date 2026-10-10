@@ -84,7 +84,7 @@ describe('bloggerCompletionProvider', () => {
     expect(items).toBeDefined();
     const item = items[0];
     expect(item?.range).toBeDefined();
-    expect((item?.range as vscode.Range).start.character).toBeGreaterThanOrEqual(0);
+    expect((item?.range as vscode.Range).start.character).toBe(1);
   });
 
   it('should return undefined for plain text with no matching prefix', () => {

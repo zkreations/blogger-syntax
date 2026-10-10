@@ -11,62 +11,61 @@ describe('operators - Catalog Integrity, Dual Syntax & Autocompletion', () => {
   const resolver = new BloggerPathResolver();
 
   describe('bloggerOperatorsCatalog', () => {
-    it('contains all canonical Blogger operators across all families', () => {
-      const expectedOperators = [
-        // Lambdas (infix only)
-        'filter',
-        'where',
-        'map',
-        'select',
-        'count',
-        'first',
-        'any',
-        'all',
-        'none',
-        // Collection & range
-        'take',
-        'limit',
-        'skip',
-        'offset',
-        'to',
-        // Membership & content
-        'in',
-        'contains',
-        // Transforms (dual syntax)
-        'format',
-        'params',
-        'appendParams',
-        'path',
-        'fragment',
-        'snippet',
-        'resizeImage',
-        'sourceSet',
-        // Logical
-        'and',
-        'or',
-        'not',
-        // Comparison (word aliases)
-        'eq',
-        'neq',
-        'lt',
-        'lte',
-        'gt',
-        'gte',
-        // Coalescing & arithmetic
-        '?:',
-        '+',
-        '-',
-        '*',
-        '/',
-        '%',
-      ];
+    const expectedOperators = [
+      // Lambdas (infix only)
+      'filter',
+      'where',
+      'map',
+      'select',
+      'count',
+      'first',
+      'any',
+      'all',
+      'none',
+      // Collection & range
+      'take',
+      'limit',
+      'skip',
+      'offset',
+      'to',
+      // Membership & content
+      'in',
+      'contains',
+      // Transforms (dual syntax)
+      'format',
+      'params',
+      'appendParams',
+      'path',
+      'fragment',
+      'snippet',
+      'resizeImage',
+      'sourceSet',
+      // Logical
+      'and',
+      'or',
+      'not',
+      // Comparison (word aliases)
+      'eq',
+      'neq',
+      'lt',
+      'lte',
+      'gt',
+      'gte',
+      // Coalescing & arithmetic
+      '?:',
+      '+',
+      '-',
+      '*',
+      '/',
+      '%',
+    ];
 
-      for (const op of expectedOperators) {
-        expect(bloggerOperatorsCatalog[op], `Operator ${op} should be present in catalog`).toBeDefined();
-        expect(bloggerOperatorsCatalog[op]?.signature).toBeTruthy();
-        expect(bloggerOperatorsCatalog[op]?.description).toBeTruthy();
-        expect(bloggerOperatorsCatalog[op]?.example).toBeTruthy();
-      }
+    it.each(expectedOperators)('contains canonical operator "%s" with valid metadata in catalog', (op) => {
+      const entry = bloggerOperatorsCatalog[op];
+      expect(entry, `Operator ${op} should be present in catalog`).toBeDefined();
+      expect(entry?.signature.length).toBeGreaterThan(0);
+      expect(entry?.description.length).toBeGreaterThan(0);
+      expect(entry?.example.length).toBeGreaterThan(0);
     });
 
     it('strictly prohibits "ne" and ensures only "neq" exists', () => {

@@ -97,7 +97,7 @@ describe('documentation links integrity (docUrls)', () => {
     }
   });
 
-  it('all documentation URLs should be reachable and return HTTP 200 OK', async () => {
+  it.runIf(process.env.CHECK_EXTERNAL_URLS === 'true')('all documentation URLs should be reachable and return HTTP 200 OK', async () => {
     let isOnline = false;
     try {
       const probe = await fetch('https://bloggercode.orbiona.com/', {

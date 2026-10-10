@@ -5,6 +5,12 @@ describe('templateLanguageService', () => {
   const service = new TemplateLanguageService();
 
   describe('getCompletions', () => {
+    it('returns undefined for negative offset or offset exceeding document text length', () => {
+      const doc = '<b:eval expr="data:blog.title"/>';
+      expect(service.getCompletions(doc, -1)).toBeUndefined();
+      expect(service.getCompletions(doc, doc.length + 5)).toBeUndefined();
+    });
+
     it('should provide completions for data: with exact replacement range', () => {
       const doc = '<b:eval expr="data:blog."/>';
       const offset = doc.indexOf('blog.') + 'blog.'.length;
@@ -39,6 +45,12 @@ describe('templateLanguageService', () => {
   });
 
   describe('getHover', () => {
+    it('returns undefined for negative offset or offset exceeding document text length', () => {
+      const doc = '<b:eval expr="data:blog.title"/>';
+      expect(service.getHover(doc, -1)).toBeUndefined();
+      expect(service.getHover(doc, doc.length + 5)).toBeUndefined();
+    });
+
     it('should return hover card and exact absolute range for data token', () => {
       const doc = '<b:eval expr="data:blog.title"/>';
       const offset = doc.indexOf('title') + 1;
@@ -71,6 +83,13 @@ describe('templateLanguageService', () => {
       expect(symbols[0]?.name).toBe('main');
       expect(symbols[0]?.children.length).toBe(1);
       expect(symbols[0]?.children[0]?.name).toContain('Blog1');
+    });
+  });
+
+  describe('clearCache', () => {
+    it('clears document cache without throwing', () => {
+      expect(() => service.clearCache('file:///test.xml')).not.toThrow();
+      expect(() => service.clearCache()).not.toThrow();
     });
   });
 });

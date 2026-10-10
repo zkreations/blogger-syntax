@@ -5,6 +5,7 @@ import {
   buildCompletionDocumentation,
   buildHoverDocumentation,
   formatDocLinks,
+  getDocUrlLabel,
   getSuggestionExample,
 } from '../../src/vscode/utils/docBuilder.js';
 
@@ -76,6 +77,20 @@ describe('docBuilder', () => {
     it('should return undefined for empty docUrls', () => {
       expect(formatDocLinks(undefined)).toBeUndefined();
       expect(formatDocLinks([])).toBeUndefined();
+    });
+  });
+
+  describe('getDocUrlLabel', () => {
+    it('should return zkreations Reference for zkreations.com URLs', () => {
+      expect(getDocUrlLabel('https://zkreations.com/tutorial')).toBe('zkreations Reference');
+    });
+
+    it('should fall back to Documentation Reference for invalid URL string', () => {
+      expect(getDocUrlLabel('invalid-url-string', 0, 1)).toBe('Documentation Reference');
+    });
+
+    it('should format indexed label for generic domains with multiple links', () => {
+      expect(getDocUrlLabel('https://example.com/docs', 1, 3)).toBe('Reference 2');
     });
   });
 

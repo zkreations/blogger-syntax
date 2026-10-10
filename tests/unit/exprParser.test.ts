@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { blogWidgetProperties, singlePostProperties } from '../../src/core/data/widgetsData.js';
 import {
   detectLambdaPreArrowContext,
+  extractLeftOperandAtCursor,
+  extractPrecedingExpressionForMember,
   getArrayElementProperty,
   inferExpressionType,
   inferSingularParamName,
@@ -263,6 +265,62 @@ describe('exprParser - Expression Parsing & Lambda Scopes', () => {
     it('returns undefined for non-lambda expressions', () => {
       expect(detectLambdaPreArrowContext('data:posts take 5')).toBeUndefined();
       expect(detectLambdaPreArrowContext('data:posts.size + 1')).toBeUndefined();
+    });
+  });
+
+  describe('extractLeftOperandAtCursor', () => {
+    it('extracts operand and partial operator from expression', () => {
+      const res = extractLeftOperandAtCursor('data:posts filt');
+      expect(res).toBeDefined();
+      expect(res?.operand).toBe('posts');
+      expect(res?.partialOp).toBe('filt');
+    });
+
+    it('extracts operand with empty partial operator when space follows', () => {
+      const res = extractLeftOperandAtCursor('data:posts ');
+      expect(res).toBeDefined();
+      expect(res?.operand).toBe('posts');
+      expect(res?.partialOp).toBe('');
+    });
+
+    it('handles parenthesized complex operands', () => {
+      const res = extractLeftOperandAtCursor('(data:posts filter (p => p.hasJumpLink)) ');
+      expect(res).toBeDefined();
+      expect(res?.operand).toBe('(data:posts filter (p => p.hasJumpLink))');
+      expect(res?.partialOp).toBe('');
+    });
+
+    it('returns undefined for invalid or empty expression', () => {
+      expect(extractLeftOperandAtCursor('')).toBeUndefined();
+      expect(extractLeftOperandAtCursor('   ')).toBeUndefined();
+    });
+  });
+
+  describe('extractPrecedingExpressionForMember', () => {
+    it('extracts parenthesized operand and partial member name', () => {
+      const res = extractPrecedingExpressionForMember('(data:posts.first).tit');
+      expect(res).toBeDefined();
+      expect(res?.operand).toBe('data:posts.first');
+      expect(res?.partialMember).toBe('tit');
+    });
+
+    it('extracts parenthesized operand right after dot with empty partial member', () => {
+      const res = extractPrecedingExpressionForMember('(data:posts.first).');
+      expect(res).toBeDefined();
+      expect(res?.operand).toBe('data:posts.first');
+      expect(res?.partialMember).toBe('');
+    });
+
+    it('handles nested balanced parentheses', () => {
+      const res = extractPrecedingExpressionForMember('((data:posts.first).author).name');
+      expect(res).toBeDefined();
+      expect(res?.operand).toBe('(data:posts.first).author');
+      expect(res?.partialMember).toBe('name');
+    });
+
+    it('returns undefined when expression is not a parenthesized member access', () => {
+      expect(extractPrecedingExpressionForMember('data:posts.title')).toBeUndefined();
+      expect(extractPrecedingExpressionForMember('123')).toBeUndefined();
     });
   });
 });

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import * as vscode from 'vscode';
 import {
   isBloggerAttributeContext,
@@ -160,6 +160,84 @@ describe('cursorListener', () => {
       expect(disposable).toBeDefined();
       expect(typeof disposable.dispose).toBe('function');
       expect(() => disposable.dispose()).not.toThrow();
+    });
+
+    it('should trigger suggest command when cursor is inside empty attribute and setting is enabled', () => {
+      vi.useFakeTimers();
+
+      let selectionHandler: ((e: any) => void) | undefined;
+      vi.spyOn(vscode.window, 'onDidChangeTextEditorSelection').mockImplementation((cb: any) => {
+        selectionHandler = cb;
+        return new (vscode as any).Disposable(() => {});
+      });
+
+      const executeSpy = vi.spyOn(vscode.commands, 'executeCommand').mockResolvedValue(undefined as any);
+
+      const line = '<b:widget id="main" type="" />';
+      const doc = createMockDocument(line);
+      const pos = new vscode.Position(0, line.indexOf('""') + 1);
+
+      const mockEditor = {
+        document: doc,
+        selection: { active: pos },
+      };
+      (vscode.window as any).activeTextEditor = mockEditor;
+
+      const disposable = registerCursorSuggestListener(100);
+      expect(selectionHandler).toBeDefined();
+
+      selectionHandler!({
+        textEditor: mockEditor,
+        selections: [{ isEmpty: true }],
+      });
+
+      vi.advanceTimersByTime(150);
+
+      expect(executeSpy).toHaveBeenCalledWith('editor.action.triggerSuggest');
+
+      disposable.dispose();
+      vi.useRealTimers();
+      (vscode.window as any).activeTextEditor = undefined;
+    });
+
+    it('should NOT trigger suggest command when disabled via configuration', () => {
+      vi.useFakeTimers();
+
+      let selectionHandler: ((e: any) => void) | undefined;
+      vi.spyOn(vscode.window, 'onDidChangeTextEditorSelection').mockImplementation((cb: any) => {
+        selectionHandler = cb;
+        return new (vscode as any).Disposable(() => {});
+      });
+
+      const executeSpy = vi.spyOn(vscode.commands, 'executeCommand').mockResolvedValue(undefined as any);
+      vi.spyOn(vscode.workspace, 'getConfiguration').mockReturnValue({
+        get: () => false,
+      } as any);
+
+      const line = '<b:widget id="main" type="" />';
+      const doc = createMockDocument(line);
+      const pos = new vscode.Position(0, line.indexOf('""') + 1);
+
+      const mockEditor = {
+        document: doc,
+        selection: { active: pos },
+      };
+      (vscode.window as any).activeTextEditor = mockEditor;
+
+      const disposable = registerCursorSuggestListener(100);
+
+      selectionHandler!({
+        textEditor: mockEditor,
+        selections: [{ isEmpty: true }],
+      });
+
+      vi.advanceTimersByTime(150);
+
+      expect(executeSpy).not.toHaveBeenCalled();
+
+      disposable.dispose();
+      vi.useRealTimers();
+      (vscode.window as any).activeTextEditor = undefined;
     });
   });
 });
