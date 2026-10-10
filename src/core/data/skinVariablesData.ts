@@ -7,6 +7,7 @@ export const bloggerSkinVariableTypes = [
   'background',
   'string',
   'url',
+  'automatic',
 ] as const;
 
 export type BloggerSkinVariableType = (typeof bloggerSkinVariableTypes)[number];
@@ -120,6 +121,22 @@ export const bloggerSkinVariableTypeDetails: Record<BloggerSkinVariableType, Blo
       type: { name: 'type', type: 'string', required: true, description: 'Variable type: url(skin) (template skin variable, distinct from runtime data:url).' },
       default: { name: 'default', type: 'string', required: true, description: 'Default URL value (typically wrapped in url(...)).' },
       value: { name: 'value', type: 'string', required: true, description: 'Current URL value (typically wrapped in url(...)).' },
+      hideEditor: { name: 'hideEditor', type: 'string', required: false, description: 'Hides the variable form in the design tool (true or false).' },
+    },
+  },
+  automatic: {
+    type: 'automatic',
+    skinTypeLabel: 'automatic(skin)',
+    description: 'Defines an automatic skin variable computed or generated automatically by the theme engine.',
+    docUrl: 'https://bloggercode.orbiona.com/2016/09/skin-type-automatic.html',
+    example: '<Variable name="body.rule" description="Body Rule" type="automatic" default="" value=""/>',
+    snippetBody: 'Variable name="$1" description="$2" type="automatic" default="$3" value="$4"/>$0',
+    attributes: {
+      name: { name: 'name', type: 'string', required: true, description: 'Unique variable identifier name. Letters, numbers, and dots are allowed.' },
+      description: { name: 'description', type: 'string', required: true, description: 'Variable label shown in Template Designer.' },
+      type: { name: 'type', type: 'string', required: true, description: 'Variable type: automatic(skin).' },
+      default: { name: 'default', type: 'string', required: false, description: 'Default automatic variable value.' },
+      value: { name: 'value', type: 'string', required: true, description: 'Current automatic variable value.' },
       hideEditor: { name: 'hideEditor', type: 'string', required: false, description: 'Hides the variable form in the design tool (true or false).' },
     },
   },

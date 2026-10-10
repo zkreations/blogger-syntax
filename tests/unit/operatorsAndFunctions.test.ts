@@ -51,8 +51,13 @@ describe('operators - Catalog Integrity, Dual Syntax & Autocompletion', () => {
       'lte',
       'gt',
       'gte',
+      '<',
+      '<=',
+      '>',
+      '>=',
       // Coalescing & arithmetic
       '?:',
+      '? :',
       '+',
       '-',
       '*',

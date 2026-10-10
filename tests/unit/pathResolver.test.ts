@@ -62,7 +62,7 @@ describe('bloggerPathResolver', () => {
       const suggestions = resolver.resolveDataPath(['blog', 'locale']);
       const names = suggestions.map(s => s.name);
 
-      expect(names).toEqual(['name', 'language', 'country', 'variant', 'languageDirection', 'languageAlignment']);
+      expect(names).toEqual(['name', 'language', 'country', 'variant', 'script', 'languageDirection', 'languageAlignment']);
     });
 
     it('should resolve view archive properties for ["view", "archive"]', () => {
@@ -599,10 +599,10 @@ describe('bloggerPathResolver', () => {
       const result = resolver.resolveFromLinePrefix('<Variable name="test" type="');
       expect(result).toBeDefined();
       expect(result!.replacementLength).toBe(0);
-      expect(result!.suggestions.length).toBe(6);
+      expect(result!.suggestions.length).toBe(7);
 
       const names = result!.suggestions.map(s => s.name);
-      expect(names).toEqual(['color', 'font', 'length', 'background', 'string', 'url']);
+      expect(names).toEqual(['color', 'font', 'length', 'background', 'string', 'url', 'automatic']);
 
       const stringSug = result!.suggestions.find(s => s.name === 'string');
       expect(stringSug).toBeDefined();
@@ -619,10 +619,10 @@ describe('bloggerPathResolver', () => {
       const result = resolver.resolveFromLinePrefix('<Variable type="str');
       expect(result).toBeDefined();
       expect(result!.replacementLength).toBe(3);
-      expect(result!.suggestions.length).toBe(6);
+      expect(result!.suggestions.length).toBe(7);
     });
 
-    it('should include all 6 Variable specialized tags in resolveBloggerTagSuggestions', () => {
+    it('should include all 7 Variable specialized tags in resolveBloggerTagSuggestions', () => {
       const openTags = resolveBloggerTagSuggestions(true, false);
       const skinTagNames = [
         'Variable (color)',
@@ -631,6 +631,7 @@ describe('bloggerPathResolver', () => {
         'Variable (background)',
         'Variable (string)',
         'Variable (url)',
+        'Variable (automatic)',
       ];
 
       for (const name of skinTagNames) {

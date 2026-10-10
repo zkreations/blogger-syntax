@@ -50,6 +50,18 @@ export const IMAGE_MEMBERS: Record<string, BloggerProperty> = Object.freeze({
     description: 'Height of the image in pixels.',
     docUrl: 'https://bloggercode.orbiona.com/2018/02/data-parameters-width-height.html',
   },
+  originalWidth: {
+    name: 'originalWidth',
+    type: 'number',
+    description: 'Original width of the source image in pixels.',
+    docUrl: 'https://bloggercode.orbiona.com/2018/02/data-parameters-width-height.html',
+  },
+  originalHeight: {
+    name: 'originalHeight',
+    type: 'number',
+    description: 'Original height of the source image in pixels.',
+    docUrl: 'https://bloggercode.orbiona.com/2018/02/data-parameters-width-height.html',
+  },
   isResizable: {
     name: 'isResizable',
     type: 'boolean',
@@ -58,12 +70,6 @@ export const IMAGE_MEMBERS: Record<string, BloggerProperty> = Object.freeze({
   },
   isYouTube: {
     name: 'isYouTube',
-    type: 'boolean',
-    description: 'Indicates whether the image is a YouTube video thumbnail.',
-    docUrl: 'https://bloggercode.orbiona.com/2018/02/data-parameters-isYouTube-youtubeMaxResDefaultUrl.html',
-  },
-  isYoutube: {
-    name: 'isYoutube',
     type: 'boolean',
     description: 'Indicates whether the image is a YouTube video thumbnail.',
     docUrl: 'https://bloggercode.orbiona.com/2018/02/data-parameters-isYouTube-youtubeMaxResDefaultUrl.html',
@@ -99,6 +105,12 @@ export const LOCALE_MEMBERS: Record<string, BloggerProperty> = Object.freeze({
     name: 'variant',
     type: 'string',
     description: 'Language/locale variant if specified.',
+    docUrl: 'https://bloggercode.orbiona.com/2018/02/data-parameters-locale-name-lang-country-variant-script.html',
+  },
+  script: {
+    name: 'script',
+    type: 'string',
+    description: 'Four-letter script code of the locale (e.g. Latn, Cyrl, Hant).',
     docUrl: 'https://bloggercode.orbiona.com/2018/02/data-parameters-locale-name-lang-country-variant-script.html',
   },
   languageDirection: {

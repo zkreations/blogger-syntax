@@ -53,6 +53,12 @@ export const bloggerTags: Record<string, BloggerTagDefinition> = {
     snippetBody: 'data:${1}/>$0',
     docUrl: 'https://bloggercode.orbiona.com/2016/03/tag-data.html',
   },
+  'CDATA': {
+    name: 'CDATA',
+    description: 'Character data block escaping XML parsing, used for scripts and CSS styles within <b:skin> or <b:template-skin>.',
+    snippetBody: '<![CDATA[\n\t$0\n]]>',
+    docUrl: 'https://bloggercode.orbiona.com/2014/06/tag-b-skin-b-template-skin.html',
+  },
   'b:eval': {
     name: 'b:eval',
     description: 'Evaluates a Blogger expression and explicitly outputs the result.',
@@ -175,6 +181,7 @@ export const bloggerTags: Record<string, BloggerTagDefinition> = {
       showaddelement: { name: 'showaddelement', type: 'string', required: false, description: 'Whether to show the Add a Gadget button in layout editor (yes / no).', values: ['yes', 'no'] },
       preferred: { name: 'preferred', type: 'string', required: false, description: 'Designates this section as preferred target for new gadgets in layout editor (yes / no).', values: ['yes', 'no'] },
       cond: { name: 'cond', type: 'string', required: false, description: 'Conditional expression governing section rendering.' },
+      ads: { name: 'ads', type: 'string', required: false, description: 'Designates whether the section is reserved exclusively for AdSense ads (true / false).', values: ['true', 'false'] },
     },
   },
   'b:skin': {
@@ -317,6 +324,10 @@ export const bloggerTags: Record<string, BloggerTagDefinition> = {
       min: { name: 'min', type: 'string', required: false, description: 'Minimum value boundary for length variable.' },
       max: { name: 'max', type: 'string', required: false, description: 'Maximum value boundary for length variable.' },
       hideEditor: { name: 'hideEditor', type: 'string', required: false, description: 'Whether to hide the control in Theme Designer UI (true / false).' },
+      red: { name: 'red', type: 'string', required: false, description: 'Red color channel value (0-255).' },
+      green: { name: 'green', type: 'string', required: false, description: 'Green color channel value (0-255).' },
+      blue: { name: 'blue', type: 'string', required: false, description: 'Blue color channel value (0-255).' },
+      alpha: { name: 'alpha', type: 'string', required: false, description: 'Alpha opacity channel value (0-1).' },
     },
   },
 };

@@ -7,7 +7,7 @@ import {
 import { cleanSnippetBody } from '../../src/core/utils/snippetFormatter.js';
 
 describe('blogger Skin Variables Data', () => {
-  it('should define all 6 skin variable types', () => {
+  it('should define all 7 skin variable types', () => {
     expect(bloggerSkinVariableTypes).toEqual([
       'color',
       'font',
@@ -15,6 +15,7 @@ describe('blogger Skin Variables Data', () => {
       'background',
       'string',
       'url',
+      'automatic',
     ]);
   });
 
@@ -62,8 +63,8 @@ describe('blogger Skin Variables Data', () => {
     expect(background.attributes.default).toBeDefined();
   });
 
-  it('should generate valid tags for each of the 6 skin variable types', () => {
-    expect(bloggerSkinVariableTags.length).toBe(6);
+  it('should generate valid tags for each of the 7 skin variable types', () => {
+    expect(bloggerSkinVariableTags.length).toBe(7);
 
     const expectedNames = [
       'Variable (color)',
@@ -72,6 +73,7 @@ describe('blogger Skin Variables Data', () => {
       'Variable (background)',
       'Variable (string)',
       'Variable (url)',
+      'Variable (automatic)',
     ];
 
     expect(bloggerSkinVariableTags.map(t => t.name)).toEqual(expectedNames);

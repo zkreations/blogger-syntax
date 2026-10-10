@@ -129,6 +129,13 @@ describe('plan 1: Data Model Integrity & Canonical Specifications', () => {
       expect(attrs.growth).toBeUndefined();
       expect(attrs.preferred).toBeDefined();
       expect(attrs.preferred?.values).toEqual(['yes', 'no']);
+      expect(attrs.ads).toBeDefined();
+    });
+
+    it('should include CDATA tag definition', () => {
+      const cdata = bloggerTags.CDATA;
+      expect(cdata).toBeDefined();
+      expect(cdata?.snippetBody).toContain('<![CDATA[');
     });
 
     it('should enforce title as required on b:widget and support cond and visible', () => {
@@ -159,6 +166,10 @@ describe('plan 1: Data Model Integrity & Canonical Specifications', () => {
       expect(vAttrs.min).toBeDefined();
       expect(vAttrs.max).toBeDefined();
       expect(vAttrs.hideEditor).toBeDefined();
+      expect(vAttrs.red).toBeDefined();
+      expect(vAttrs.green).toBeDefined();
+      expect(vAttrs.blue).toBeDefined();
+      expect(vAttrs.alpha).toBeDefined();
     });
   });
 });
