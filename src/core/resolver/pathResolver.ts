@@ -22,6 +22,7 @@ import { bloggerTags } from '../data/tagsData.js';
 import { getCategorizedPropertyMembers } from '../data/typeMembers.js';
 import { WIDGET_DATA_DICTIONARIES } from '../data/widgetsData.js';
 import { getWidgetSettingsSuggestions } from '../data/widgetSettingsData.js';
+import { getNearestUnclosedTag } from '../parser/directiveScanner.js';
 import {
   detectLambdaPreArrowContext,
   extractLeftOperandAtCursor,
@@ -31,11 +32,9 @@ import {
   resolveCollectionProperty,
   resolveLambdaContextAtCursor,
 } from '../parser/exprParser.js';
-import { getNearestUnclosedTag } from '../parser/tagTreeTracker.js';
 import {
-
   normalizeDocUrls,
-  resolveHoverCardAtPosition,
+  resolveHoverAtPosition as resolveHoverAtPositionDirect,
   resolveLocalVariables,
 } from './hoverCardResolver.js';
 
@@ -732,8 +731,7 @@ export class BloggerPathResolver {
     precedingContext?: string | (() => string | undefined),
     options?: BloggerResolverContext,
   ): BloggerHoverResult | undefined {
-    return resolveHoverCardAtPosition(
-      (segments, localVars) => this.resolvePropertyFromPath(segments, localVars),
+    return resolveHoverAtPositionDirect(
       lineText,
       character,
       precedingContext,

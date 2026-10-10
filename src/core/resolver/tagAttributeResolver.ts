@@ -15,7 +15,7 @@ import {
   bloggerWidgetTypeDetails,
   bloggerWidgetTypes,
 } from '../data/widgetTypes.js';
-import { isStrictlySelfClosingTag } from '../parser/tagTreeTracker.js';
+import { isStrictlySelfClosingTag } from '../parser/directiveScanner.js';
 
 export interface TagAttributeContext {
   readonly tagName: string;

@@ -86,6 +86,46 @@ describe('templateLanguageService', () => {
     });
   });
 
+  describe('getDiagnostics', () => {
+    it('returns diagnostics from linter engine', () => {
+      const doc = '<b:eval expr="data:blog.isMobile"/>';
+      const diags = service.getDiagnostics(doc);
+      expect(diags.length).toBeGreaterThan(0);
+      expect(diags.some(d => d.code.includes('deprecated'))).toBe(true);
+    });
+  });
+
+  describe('getTemplateVersion and getTemplateSummary', () => {
+    it('computes template version and structural summary metrics', () => {
+      const doc = `<html b:layoutsVersion='3'>
+        <head><b:skin><![CDATA[]]></b:skin></head>
+        <body>
+          <b:section id='main'>
+            <b:widget id='Header1' type='Header'>
+              <b:includable id='main'/>
+              <b:includable id='sub'/>
+            </b:widget>
+          </b:section>
+        </body>
+      </html>`;
+      const version = service.getTemplateVersion(doc);
+      expect(version.version).toBe(3);
+
+      const summary = service.getTemplateSummary(doc);
+      expect(summary.version.version).toBe(3);
+      expect(summary.sectionCount).toBe(1);
+      expect(summary.widgetCount).toBe(1);
+      expect(summary.includableCount).toBe(2);
+    });
+  });
+
+  describe('hasAttributeValueCompletions', () => {
+    it('identifies attributes that provide value completions', () => {
+      expect(service.hasAttributeValueCompletions('b:widget', 'type')).toBe(true);
+      expect(service.hasAttributeValueCompletions('b:section', 'id')).toBe(false);
+    });
+  });
+
   describe('clearCache', () => {
     it('clears document cache without throwing', () => {
       expect(() => service.clearCache('file:///test.xml')).not.toThrow();

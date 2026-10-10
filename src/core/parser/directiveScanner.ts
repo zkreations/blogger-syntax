@@ -298,3 +298,14 @@ export function getUnclosedDirectiveStack(text: string, offset?: number): readon
 
   return stack;
 }
+
+export const STRICTLY_SELF_CLOSING_BLOGGER_TAGS = STRICTLY_SELF_CLOSING_TAGS;
+
+export function getUnclosedTagStack(text: string, offset?: number): string[] {
+  return [...getUnclosedDirectiveStack(text, offset)];
+}
+
+export function getNearestUnclosedTag(text: string, offset?: number): string | undefined {
+  const stack = getUnclosedDirectiveStack(text, offset);
+  return stack.length > 0 ? stack[stack.length - 1] : undefined;
+}

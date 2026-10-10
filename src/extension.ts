@@ -14,11 +14,11 @@ export function activate(context: vscode.ExtensionContext): void {
   const languageService = new TemplateLanguageService();
   const completionProvider = new BloggerCompletionProvider(languageService);
   const hoverProvider = new BloggerHoverProvider(languageService);
-  const diagnosticProvider = new BloggerDiagnosticProvider();
+  const diagnosticProvider = new BloggerDiagnosticProvider(languageService);
   const codeActionProvider = new BloggerCodeActionProvider(diagnosticProvider);
   const definitionProvider = new BloggerDefinitionProvider(languageService);
   const documentSymbolProvider = new BloggerDocumentSymbolProvider(languageService);
-  const statusBarItem = new BloggerStatusBarItem();
+  const statusBarItem = new BloggerStatusBarItem(languageService);
 
   context.subscriptions.push(
     vscode.languages.registerCompletionItemProvider(
@@ -43,7 +43,7 @@ export function activate(context: vscode.ExtensionContext): void {
       SUPPORTED_LANGUAGES,
       documentSymbolProvider,
     ),
-    registerCursorSuggestListener(),
+    registerCursorSuggestListener(languageService),
     diagnosticProvider,
     statusBarItem,
   );

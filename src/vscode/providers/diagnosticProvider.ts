@@ -1,6 +1,6 @@
 import type { BloggerDiagnostic } from '../../core/linter/linterTypes.js';
 import * as vscode from 'vscode';
-import { lintBloggerDocument } from '../../core/linter/linterEngine.js';
+import { TemplateLanguageService } from '../../core/service/templateLanguageService.js';
 import { SUPPORTED_LANGUAGES } from '../constants.js';
 import { getDocumentText } from '../utils/documentHelper.js';
 
@@ -43,7 +43,7 @@ export class BloggerDiagnosticProvider implements vscode.Disposable {
   private readonly documentDiagnostics = new Map<string, readonly BloggerDiagnostic[]>();
   private readonly disposables: vscode.Disposable[] = [];
 
-  constructor() {
+  constructor(private readonly service: TemplateLanguageService = new TemplateLanguageService()) {
     this.disposables.push(
       this.diagnosticCollection,
       vscode.workspace.onDidOpenTextDocument(doc => this.validateDocument(doc, true)),
@@ -86,7 +86,7 @@ export class BloggerDiagnosticProvider implements vscode.Disposable {
 
     const runValidation = () => {
       const text = getDocumentText(document);
-      const diagnostics = lintBloggerDocument(text);
+      const diagnostics = this.service.getDiagnostics(text);
       this.documentDiagnostics.set(uriStr, diagnostics);
       this.diagnosticCollection.set(document.uri, diagnostics.map(toVsCodeDiagnostic));
     };

@@ -3,7 +3,7 @@ import {
   getNearestUnclosedTag,
   getUnclosedTagStack,
   isStrictlySelfClosingTag,
-} from '../../src/core/parser/tagTreeTracker.js';
+} from '../../src/core/parser/directiveScanner.js';
 
 describe('tagTreeTracker', () => {
   describe('isStrictlySelfClosingTag', () => {

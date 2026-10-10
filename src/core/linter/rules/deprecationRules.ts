@@ -1,12 +1,11 @@
+import type { DirectiveToken } from '../../parser/directiveScanner.js';
 import type { BloggerDiagnostic } from '../linterTypes.js';
+import { scanDirectiveTokens } from '../../parser/directiveScanner.js';
 import { createRange } from '../linterUtils.js';
 
 const DEPRECATED_SECTION_ATTRS = new Set(['growth', 'mobile', 'maxwidgets']);
 const DEPRECATED_WIDGET_ATTRS = new Set(['mobile']);
 
-const SECTION_TAG_REGEX = /<b:section\b([^>]*)/gi;
-const WIDGET_TAG_REGEX = /<b:widget\b([^>]*)/gi;
-const ATTR_SCANNER_REGEX = /(\s+)([\w:-]+)(?:\s*=\s*(["'])([\s\S]*?)\3|\s*=\s*([^\s>]+))?/g;
 const DEPRECATED_DATA_IS_MOBILE_REGEX = /\bdata:blog\.isMobile\b/g;
 const DEPRECATED_DATA_VIEW_IS_MOBILE_REGEX = /\bdata:view\.isMobile\b/g;
 const DEPRECATED_DATA_MOBILE_CLASS_REGEX = /\bdata:blog\.mobileClass\b/g;
@@ -21,81 +20,71 @@ export function checkDeprecations(
   _text: string,
   maskedText: string,
   lineOffsets: readonly number[],
+  scannedTokens?: readonly DirectiveToken[],
 ): BloggerDiagnostic[] {
   const diagnostics: BloggerDiagnostic[] = [];
+  const tokens = scannedTokens ?? scanDirectiveTokens(maskedText);
 
-  // 1. Check deprecated attributes on <b:section>
-  for (const match of maskedText.matchAll(SECTION_TAG_REGEX)) {
-    const tagAttrs = match[1] ?? '';
-    const tagAttrsStart = (match.index ?? 0) + '<b:section'.length;
+  // 1 & 2. Check deprecated attributes on <b:section> and <b:widget>
+  for (const token of tokens) {
+    if (token.isClosing) {
+      continue;
+    }
+    const lower = token.tagName.toLowerCase();
+    if (lower === 'b:section') {
+      for (const attr of Object.values(token.attributes)) {
+        if (DEPRECATED_SECTION_ATTRS.has(attr.name)) {
+          let removeStart = attr.start;
+          while (removeStart > token.attributesOffset && /\s/.test(maskedText[removeStart - 1]!)) {
+            removeStart--;
+          }
+          const removalRange = createRange(lineOffsets, removeStart, attr.end);
+          const attrOnlyRange = createRange(lineOffsets, attr.start, attr.start + attr.name.length);
 
-    for (const attrMatch of tagAttrs.matchAll(ATTR_SCANNER_REGEX)) {
-      const leadingSpace = attrMatch[1] ?? ' ';
-      const attrName = attrMatch[2] ?? '';
-
-      if (DEPRECATED_SECTION_ATTRS.has(attrName)) {
-        const fullMatchLength = attrMatch[0].length;
-        const attrOffset = tagAttrsStart + (attrMatch.index ?? 0);
-        const removalRange = createRange(lineOffsets, attrOffset, attrOffset + fullMatchLength);
-        const attrOnlyRange = createRange(
-          lineOffsets,
-          attrOffset + leadingSpace.length,
-          attrOffset + leadingSpace.length + attrName.length,
-        );
-
-        diagnostics.push({
-          code: 'blogger.deprecated.section-attribute',
-          message: `The attribute "${attrName}" on <b:section> is obsolete in Blogger Layouts v3.`,
-          severity: 'warning',
-          range: attrOnlyRange,
-          tags: ['deprecated'],
-          quickFixes: [
-            {
-              title: `Remove obsolete attribute "${attrName}"`,
-              newText: '',
-              range: removalRange,
-              isPreferred: true,
-            },
-          ],
-        });
+          diagnostics.push({
+            code: 'blogger.deprecated.section-attribute',
+            message: `The attribute "${attr.name}" on <b:section> is obsolete in Blogger Layouts v3.`,
+            severity: 'warning',
+            range: attrOnlyRange,
+            tags: ['deprecated'],
+            quickFixes: [
+              {
+                title: `Remove obsolete attribute "${attr.name}"`,
+                newText: '',
+                range: removalRange,
+                isPreferred: true,
+              },
+            ],
+          });
+        }
       }
     }
-  }
+    else if (lower === 'b:widget') {
+      for (const attr of Object.values(token.attributes)) {
+        if (DEPRECATED_WIDGET_ATTRS.has(attr.name)) {
+          let removeStart = attr.start;
+          while (removeStart > token.attributesOffset && /\s/.test(maskedText[removeStart - 1]!)) {
+            removeStart--;
+          }
+          const removalRange = createRange(lineOffsets, removeStart, attr.end);
+          const attrOnlyRange = createRange(lineOffsets, attr.start, attr.start + attr.name.length);
 
-  // 2. Check deprecated attributes on <b:widget>
-  for (const match of maskedText.matchAll(WIDGET_TAG_REGEX)) {
-    const tagAttrs = match[1] ?? '';
-    const tagAttrsStart = (match.index ?? 0) + '<b:widget'.length;
-
-    for (const attrMatch of tagAttrs.matchAll(ATTR_SCANNER_REGEX)) {
-      const leadingSpace = attrMatch[1] ?? ' ';
-      const attrName = attrMatch[2] ?? '';
-
-      if (DEPRECATED_WIDGET_ATTRS.has(attrName)) {
-        const fullMatchLength = attrMatch[0].length;
-        const attrOffset = tagAttrsStart + (attrMatch.index ?? 0);
-        const removalRange = createRange(lineOffsets, attrOffset, attrOffset + fullMatchLength);
-        const attrOnlyRange = createRange(
-          lineOffsets,
-          attrOffset + leadingSpace.length,
-          attrOffset + leadingSpace.length + attrName.length,
-        );
-
-        diagnostics.push({
-          code: 'blogger.deprecated.widget-attribute',
-          message: `The attribute "${attrName}" on <b:widget> is obsolete in Blogger Layouts v3. Use responsive CSS or modern widget settings.`,
-          severity: 'warning',
-          range: attrOnlyRange,
-          tags: ['deprecated'],
-          quickFixes: [
-            {
-              title: `Remove obsolete attribute "${attrName}"`,
-              newText: '',
-              range: removalRange,
-              isPreferred: true,
-            },
-          ],
-        });
+          diagnostics.push({
+            code: 'blogger.deprecated.widget-attribute',
+            message: `The attribute "${attr.name}" on <b:widget> is obsolete in Blogger Layouts v3. Use responsive CSS or modern widget settings.`,
+            severity: 'warning',
+            range: attrOnlyRange,
+            tags: ['deprecated'],
+            quickFixes: [
+              {
+                title: `Remove obsolete attribute "${attr.name}"`,
+                newText: '',
+                range: removalRange,
+                isPreferred: true,
+              },
+            ],
+          });
+        }
       }
     }
   }

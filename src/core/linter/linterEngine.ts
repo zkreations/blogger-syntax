@@ -1,4 +1,5 @@
 import type { BloggerDiagnostic, LinterOptions } from './linterTypes.js';
+import { scanDirectiveTokens } from '../parser/directiveScanner.js';
 import { computeLineOffsets, maskComments } from './linterUtils.js';
 import { checkDirectiveAttributes } from './rules/attributeRules.js';
 import { checkContextAvailability } from './rules/contextRules.js';
@@ -23,12 +24,13 @@ export function lintBloggerDocument(
 
   const lineOffsets = computeLineOffsets(documentText);
   const maskedText = maskComments(documentText);
+  const tokens = scanDirectiveTokens(maskedText);
 
   const rules = options?.rules;
   const diagnostics: BloggerDiagnostic[] = [];
 
   if (rules?.deprecations !== false) {
-    diagnostics.push(...checkDeprecations(documentText, maskedText, lineOffsets));
+    diagnostics.push(...checkDeprecations(documentText, maskedText, lineOffsets, tokens));
   }
 
   if (rules?.hallucinations !== false) {
@@ -40,15 +42,15 @@ export function lintBloggerDocument(
   }
 
   if (rules?.context !== false) {
-    diagnostics.push(...checkContextAvailability(documentText, maskedText, lineOffsets));
+    diagnostics.push(...checkContextAvailability(documentText, maskedText, lineOffsets, tokens));
   }
 
   if (rules?.duplicates !== false) {
-    diagnostics.push(...checkDuplicateIncludables(documentText, maskedText, lineOffsets));
+    diagnostics.push(...checkDuplicateIncludables(documentText, maskedText, lineOffsets, tokens));
   }
 
   if (rules?.inclusions !== false) {
-    diagnostics.push(...checkUnresolvedInclusions(documentText, maskedText, lineOffsets));
+    diagnostics.push(...checkUnresolvedInclusions(documentText, maskedText, lineOffsets, tokens));
   }
 
   if (rules?.attributes !== false) {
@@ -56,7 +58,7 @@ export function lintBloggerDocument(
   }
 
   if (rules?.structure !== false) {
-    diagnostics.push(...checkDocumentStructure(documentText, maskedText, lineOffsets));
+    diagnostics.push(...checkDocumentStructure(documentText, maskedText, lineOffsets, tokens));
   }
 
   return diagnostics;

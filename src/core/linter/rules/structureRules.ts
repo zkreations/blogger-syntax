@@ -1,97 +1,7 @@
+import type { DirectiveToken } from '../../parser/directiveScanner.js';
 import type { BloggerDiagnostic } from '../linterTypes.js';
-import { isStrictlySelfClosingTag } from '../../parser/tagTreeTracker.js';
+import { scanDirectiveTokens } from '../../parser/directiveScanner.js';
 import { createRange } from '../linterUtils.js';
-
-interface XmlToken {
-  readonly tagName: string;
-  readonly isClosing: boolean;
-  readonly isSelfClosing: boolean;
-  readonly tagContent: string;
-  readonly tagContentOffset: number;
-  readonly tagStart: number;
-  readonly tagEnd: number;
-}
-
-function scanAllXmlTokens(text: string): XmlToken[] {
-  const tokens: XmlToken[] = [];
-  const len = text.length;
-  let i = 0;
-
-  while (i < len) {
-    const openIndex = text.indexOf('<', i);
-    if (openIndex === -1) {
-      break;
-    }
-
-    const nextChar = text[openIndex + 1];
-    if (!nextChar || nextChar === '!' || nextChar === '?') {
-      i = openIndex + 1;
-      continue;
-    }
-
-    const isClosing = nextChar === '/';
-    const nameStart = isClosing ? openIndex + 2 : openIndex + 1;
-
-    let nameEnd = nameStart;
-    while (nameEnd < len && /[\w:-]/.test(text[nameEnd]!)) {
-      nameEnd++;
-    }
-
-    if (nameEnd === nameStart) {
-      i = openIndex + 1;
-      continue;
-    }
-
-    const tagName = text.slice(nameStart, nameEnd);
-    const tagContentOffset = nameEnd;
-
-    let inQuote: '"' | '\'' | null = null;
-    let tagEnd = -1;
-    let j = nameEnd;
-
-    while (j < len) {
-      const c = text[j];
-      if (inQuote) {
-        if (c === inQuote) {
-          inQuote = null;
-        }
-      }
-      else {
-        if (c === '"' || c === '\'') {
-          inQuote = c;
-        }
-        else if (c === '>') {
-          tagEnd = j;
-          break;
-        }
-      }
-      j++;
-    }
-
-    if (tagEnd === -1) {
-      break;
-    }
-
-    const tagContent = text.slice(tagContentOffset, tagEnd);
-    const trimmedContent = tagContent.trimEnd();
-    const hasSlash = trimmedContent.endsWith('/');
-    const isSelfClosing = !isClosing && (hasSlash || isStrictlySelfClosingTag(tagName));
-
-    tokens.push({
-      tagName,
-      isClosing,
-      isSelfClosing,
-      tagContent,
-      tagContentOffset,
-      tagStart: openIndex,
-      tagEnd: tagEnd + 1,
-    });
-
-    i = tagEnd + 1;
-  }
-
-  return tokens;
-}
 
 const ATTR_ID_REGEX = /\bid\s*=\s*(["'])([\s\S]*?)\1/i;
 const ATTR_TYPE_REGEX = /\btype\s*=\s*(["'])([\s\S]*?)\1/i;
@@ -109,9 +19,10 @@ export function checkDocumentStructure(
   documentText: string,
   maskedText: string,
   lineOffsets: readonly number[],
+  scannedTokens?: readonly DirectiveToken[],
 ): BloggerDiagnostic[] {
   const diagnostics: BloggerDiagnostic[] = [];
-  const tokens = scanAllXmlTokens(maskedText);
+  const tokens = scannedTokens ?? scanDirectiveTokens(maskedText);
 
   // 1. Detect if this document is a full template
   const isFullDocument = (
@@ -123,8 +34,8 @@ export function checkDocumentStructure(
 
   let skinFound = false;
   let sectionFound = false;
-  let headToken: XmlToken | undefined;
-  let bodyToken: XmlToken | undefined;
+  let headToken: DirectiveToken | undefined;
+  let bodyToken: DirectiveToken | undefined;
 
   const sectionIds = new Map<string, { start: number; end: number }>();
   const widgetIds = new Map<string, { start: number; end: number }>();
@@ -162,10 +73,8 @@ export function checkDocumentStructure(
     const parent = stack[stack.length - 1];
     const parentLower = parent?.lowerTagName;
 
-    const idMatch = ATTR_ID_REGEX.exec(token.tagContent);
-    const idVal = idMatch ? idMatch[2]?.trim() : undefined;
-    const typeMatch = ATTR_TYPE_REGEX.exec(token.tagContent);
-    const typeVal = typeMatch ? typeMatch[2]?.trim() : undefined;
+    const idVal = token.attributes.id?.value?.trim() ?? ATTR_ID_REGEX.exec(token.rawAttributesText)?.[2]?.trim();
+    const typeVal = token.attributes.type?.value?.trim() ?? ATTR_TYPE_REGEX.exec(token.rawAttributesText)?.[2]?.trim();
 
     const currentRange = createRange(lineOffsets, token.tagStart, token.tagEnd);
 

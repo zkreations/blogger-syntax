@@ -1,14 +1,28 @@
+import type { BloggerDiagnostic, LinterOptions } from '../linter/linterTypes.js';
 import type {
   BloggerHoverInfo,
   BloggerSuggestion,
 } from '../models/types.js';
 import type { IncludableDefinitionMatch } from '../navigation/definitionResolver.js';
 import type { BloggerSymbolNode } from '../navigation/symbolIndexer.js';
+import type { TemplateVersionResult } from '../version/templateVersion.js';
+import { lintBloggerDocument } from '../linter/linterEngine.js';
 import { findIncludableDefinition } from '../navigation/definitionResolver.js';
 import { indexDocumentSymbols } from '../navigation/symbolIndexer.js';
-import { getNearestUnclosedTag } from '../parser/tagTreeTracker.js';
+import { getNearestUnclosedTag } from '../parser/directiveScanner.js';
+import { resolveHoverAtPosition } from '../resolver/hoverCardResolver.js';
 import { BloggerPathResolver } from '../resolver/pathResolver.js';
+import { hasAttributeValueCompletions } from '../resolver/tagAttributeResolver.js';
 import { BloggerScopeTracker } from '../scope/scopeTracker.js';
+import { detectTemplateVersion } from '../version/templateVersion.js';
+
+export interface TemplateSummary {
+  readonly version: TemplateVersionResult;
+  readonly sectionCount: number;
+  readonly widgetCount: number;
+  readonly includableCount: number;
+  readonly symbols: readonly BloggerSymbolNode[];
+}
 
 export interface CompletionResult {
   readonly suggestions: readonly BloggerSuggestion[];
@@ -147,7 +161,7 @@ export class TemplateLanguageService {
       return lines.slice(startLineIndex).join('\n');
     };
 
-    const result = this.pathResolver.resolveHoverAtPosition(
+    const result = resolveHoverAtPosition(
       lineText,
       character,
       getPrecedingContext,
@@ -178,6 +192,54 @@ export class TemplateLanguageService {
     documentText: string,
   ): BloggerSymbolNode[] {
     return indexDocumentSymbols(documentText);
+  }
+
+  public getDiagnostics(
+    documentText: string,
+    options?: LinterOptions,
+  ): readonly BloggerDiagnostic[] {
+    return lintBloggerDocument(documentText, options);
+  }
+
+  public getTemplateVersion(documentText: string): TemplateVersionResult {
+    return detectTemplateVersion(documentText);
+  }
+
+  public getTemplateSummary(documentText: string): TemplateSummary {
+    const version = this.getTemplateVersion(documentText);
+    const symbols = this.getDocumentSymbols(documentText);
+
+    let sectionCount = 0;
+    let widgetCount = 0;
+    let includableCount = 0;
+
+    for (const sym of symbols) {
+      if (sym.kind === 'section') {
+        sectionCount++;
+        for (const child of sym.children) {
+          if (child.kind === 'widget') {
+            widgetCount++;
+            for (const sub of child.children) {
+              if (sub.kind === 'includable') {
+                includableCount++;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    return {
+      version,
+      sectionCount,
+      widgetCount,
+      includableCount,
+      symbols,
+    };
+  }
+
+  public hasAttributeValueCompletions(tagName: string, attrName: string): boolean {
+    return hasAttributeValueCompletions(tagName, attrName);
   }
 
   public clearCache(docKey?: string): void {

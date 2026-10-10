@@ -1,7 +1,9 @@
+import type { DirectiveToken } from '../../parser/directiveScanner.js';
 import type { BloggerDiagnostic } from '../linterTypes.js';
 import { scanDirectiveTokens } from '../../parser/directiveScanner.js';
 import { isExpressionAttribute } from '../../resolver/pathResolver.js';
 import { maskStringLiterals } from '../../utils/textUtils.js';
+
 import { createRange } from '../linterUtils.js';
 
 const UNIVERSAL_WIDGET_PROPERTIES = new Set([
@@ -141,6 +143,7 @@ export function checkContextAvailability(
   _text: string,
   maskedText: string,
   lineOffsets: readonly number[],
+  scannedTokens?: readonly DirectiveToken[],
 ): BloggerDiagnostic[] {
   const diagnostics: BloggerDiagnostic[] = [];
 
@@ -211,7 +214,7 @@ export function checkContextAvailability(
   }
 
   // 3. Check data:widget scope delimitations & canonical contract and ReportAbuse restrictions
-  const tokens = scanDirectiveTokens(maskedText);
+  const tokens = scannedTokens ?? scanDirectiveTokens(maskedText);
   const scopeStack: ScopeFrame[] = [];
 
   for (const token of tokens) {

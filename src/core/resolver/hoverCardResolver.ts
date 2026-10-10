@@ -8,6 +8,7 @@ import { bloggerOperatorsCatalog } from '../data/operatorsData.js';
 import { bloggerTags } from '../data/tagsData.js';
 import { widgetSettingsCatalog } from '../data/widgetSettingsData.js';
 import { resolveLambdaHoverAtPosition } from '../parser/exprParser.js';
+import { navigatePropertyPath } from './propertyHierarchy.js';
 
 export interface BloggerIncludablesInfo {
   readonly local?: readonly string[];
@@ -321,4 +322,19 @@ export function resolveHoverCardAtPosition(
   }
 
   return undefined;
+}
+
+export function resolveHoverAtPosition(
+  lineText: string,
+  character: number,
+  precedingContext?: string | (() => string | undefined),
+  options?: BloggerResolverContext,
+): BloggerHoverResult | undefined {
+  return resolveHoverCardAtPosition(
+    (segments, localVars) => navigatePropertyPath(segments, localVars)?.target,
+    lineText,
+    character,
+    precedingContext,
+    options,
+  );
 }

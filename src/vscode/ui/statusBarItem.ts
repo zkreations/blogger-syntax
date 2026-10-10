@@ -1,6 +1,5 @@
 import * as vscode from 'vscode';
-import { indexDocumentSymbols } from '../../core/navigation/symbolIndexer.js';
-import { detectTemplateVersion } from '../../core/version/templateVersion.js';
+import { TemplateLanguageService } from '../../core/service/templateLanguageService.js';
 import { SUPPORTED_LANGUAGES } from '../constants.js';
 
 export class BloggerStatusBarItem implements vscode.Disposable {
@@ -8,7 +7,7 @@ export class BloggerStatusBarItem implements vscode.Disposable {
   private readonly disposables: vscode.Disposable[] = [];
   private debounceTimer: ReturnType<typeof setTimeout> | undefined;
 
-  constructor() {
+  constructor(private readonly service: TemplateLanguageService = new TemplateLanguageService()) {
     this.statusBarItem = vscode.window.createStatusBarItem(
       vscode.StatusBarAlignment.Right,
       100,
@@ -49,7 +48,7 @@ export class BloggerStatusBarItem implements vscode.Disposable {
     }
 
     const text = editor.document.getText();
-    const result = detectTemplateVersion(text);
+    const result = this.service.getTemplateVersion(text);
 
     this.statusBarItem.text = `$(symbol-structure) Blogger v${result.version}`;
     this.statusBarItem.tooltip = `${result.summary}\nClick to view template structure & version details.`;
@@ -63,35 +62,14 @@ export class BloggerStatusBarItem implements vscode.Disposable {
     }
 
     const text = editor.document.getText();
-    const versionResult = detectTemplateVersion(text);
-    const symbols = indexDocumentSymbols(text);
-
-    let sectionCount = 0;
-    let widgetCount = 0;
-    let includableCount = 0;
-
-    for (const sym of symbols) {
-      if (sym.kind === 'section') {
-        sectionCount++;
-        for (const child of sym.children) {
-          if (child.kind === 'widget') {
-            widgetCount++;
-            for (const sub of child.children) {
-              if (sub.kind === 'includable') {
-                includableCount++;
-              }
-            }
-          }
-        }
-      }
-    }
+    const summary = this.service.getTemplateSummary(text);
 
     const info = `Blogger Template Details:\n`
-      + `• Version: ${versionResult.summary}\n`
-      + `• Sections: ${sectionCount}\n`
-      + `• Widgets: ${widgetCount}\n`
-      + `• Includables: ${includableCount}\n`
-      + `• Features: ${versionResult.detectedFeatures.join(', ')}`;
+      + `• Version: ${summary.version.summary}\n`
+      + `• Sections: ${summary.sectionCount}\n`
+      + `• Widgets: ${summary.widgetCount}\n`
+      + `• Includables: ${summary.includableCount}\n`
+      + `• Features: ${summary.version.detectedFeatures.join(', ')}`;
 
     void vscode.window.showInformationMessage(info);
   }

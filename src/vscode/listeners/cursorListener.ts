@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { hasAttributeValueCompletions } from '../../core/resolver/pathResolver.js';
+import { TemplateLanguageService } from '../../core/service/templateLanguageService.js';
 import { CURSOR_SUGGEST_DEBOUNCE_MS, SUPPORTED_LANGUAGES } from '../constants.js';
 
 const DEFAULT_EMPTY_ATTR_REGEX = /\b([\w:-]+)\s*=\s*(["'])$/;
@@ -36,6 +36,7 @@ export function isCursorInsideEmptyAttribute(
 export function isBloggerAttributeContext(
   document: vscode.TextDocument,
   position: vscode.Position,
+  service: TemplateLanguageService = new TemplateLanguageService(),
 ): boolean {
   const lineText = document.lineAt(position.line).text;
   const prefix = lineText.slice(0, position.character);
@@ -62,7 +63,7 @@ export function isBloggerAttributeContext(
     return false;
   }
 
-  return hasAttributeValueCompletions(tagName, attrName);
+  return service.hasAttributeValueCompletions(tagName, attrName);
 }
 
 export function isCursorInsideDataTag(lineText: string, character: number): boolean {
@@ -79,8 +80,14 @@ export function isCursorInsideDataTag(lineText: string, character: number): bool
  * when the cursor is positioned inside empty attributes like `description=""` or `type=""` in supported documents.
  */
 export function registerCursorSuggestListener(
-  debounceMs: number = CURSOR_SUGGEST_DEBOUNCE_MS,
+  serviceOrDebounceMs?: TemplateLanguageService | number,
+  maybeDebounceMs?: number,
 ): vscode.Disposable {
+  const service = serviceOrDebounceMs instanceof TemplateLanguageService ? serviceOrDebounceMs : new TemplateLanguageService();
+  const debounceMs = typeof serviceOrDebounceMs === 'number'
+    ? serviceOrDebounceMs
+    : (maybeDebounceMs ?? CURSOR_SUGGEST_DEBOUNCE_MS);
+
   let debounceTimer: ReturnType<typeof setTimeout> | undefined;
 
   const disposable = vscode.window.onDidChangeTextEditorSelection((event) => {
@@ -117,7 +124,7 @@ export function registerCursorSuggestListener(
 
       const lineText = activeEditor.document.lineAt(position.line).text;
 
-      const insideEmptyAttr = isCursorInsideEmptyAttribute(lineText, position.character) && isBloggerAttributeContext(activeEditor.document, position);
+      const insideEmptyAttr = isCursorInsideEmptyAttribute(lineText, position.character) && isBloggerAttributeContext(activeEditor.document, position, service);
       const insideDataTag = isCursorInsideDataTag(lineText, position.character);
 
       if (insideEmptyAttr || insideDataTag) {
