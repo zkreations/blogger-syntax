@@ -5,7 +5,7 @@
   <h1 align="center">Blogger Syntax</h1>
 </p>
 
-<p align="center">VS Code extension adding IntelliSense and snippets for the Blogger (Blogspot) XML template syntax.</p>
+<p align="center">VS Code extension adding IntelliSense, validation diagnostics, code navigation, and snippets for the Blogger (Blogspot) XML template syntax.</p>
 
 <p align="center">
   <a href="https://marketplace.visualstudio.com/items?itemName=zkreations.blogger-syntax"><img src="https://img.shields.io/badge/VS%20Code%20Marketplace-Marketplace-030712?style=for-the-badge&labelColor=030712&color=8b5cf6" alt="Marketplace Visualstudio"></a>
@@ -26,7 +26,7 @@ Completions for all Blogger `data:*` objects and their nested properties, with d
 
 **Scoped loop & with variable inference**
 
-Context-aware suggestions for local variables defined in `<b:loop>` (`var`, `index`) and `<b:with>` (`var`) blocks with automatic type inference from parent expressions and nested scopes.
+Context-aware suggestions for local variables defined in `<b:loop>` (`var`, `index`), `<b:with>` (`var`), and `<b:includable>` blocks with automatic type inference from parent expressions, forwarded include parameters, and nested scopes.
 
 **Hover documentation**
 
@@ -42,13 +42,21 @@ Suggestions for `description="..."` in `<Variable>` and `<Group>` tags with 250+
 
 **Widget and markup type autocomplete**
 
-Suggestions for `type="..."` in `<b:widget>` (25 widget types) and `<b:defaultmarkup>` (27 markup types) with comprehensive descriptions and documentation links.
+Suggestions for `type="..."` in `<b:widget>` (27 widget types) and `<b:defaultmarkup>` (29 markup types) with comprehensive descriptions and documentation links.
 
 ![Widget and markup type autocomplete](https://raw.githubusercontent.com/zkreations/blogger-syntax/refs/heads/main/images/Screenshot/widget-markup-type-autocomplete.png)
 
+**Real-time validation & diagnostics**
+
+Pure TypeScript linter detecting unknown tags, invalid attributes, illegal widget nesting, deprecated constructs, missing required parameters, and structural quota limits, with automated quick fixes.
+
+**Code navigation & outline**
+
+Go to Definition support for `<b:include>` subroutines jumping directly to their `<b:includable>` declarations, plus a structured document outline (symbols breadcrumb) for widgets, sections, and includables.
+
 **Snippets & Tag completion**
 
-32+ snippets and tag completions with tab stops for all template tags, including specialized `<Variable>` type snippets, `<b:param>`, `<b:switch>`, `<b:with>`, and Theme Designer tags.
+35+ snippets and tag completions with tab stops for all template tags, including specialized `<Variable>` type snippets, `<b:param>`, `<b:switch>`, `<b:with>`, `<b:template-script>`, and Theme Designer tags.
 
 ![Snippets](https://raw.githubusercontent.com/zkreations/blogger-syntax/refs/heads/main/images/Screenshot/snippets.png)
 
@@ -63,7 +71,10 @@ Active automatically for:
 
 | Setting | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `bloggerSyntax.autoTriggerInEmptyAttributes` | `boolean` | `true` | Automatically trigger suggestions when moving the cursor inside empty `description=""` or `type=""` attributes. |
+| `bloggerSyntax.autoTriggerInEmptyAttributes` | `boolean` | `true` | Automatically trigger suggestions when moving the cursor inside empty attributes (e.g. `name=""`, `type=""`, `description=""`, etc.) or `<data:/>` tags. |
+| `bloggerSyntax.linter.enabled` | `boolean` | `true` | Enable real-time diagnostic warnings and linting for Blogger XML templates. |
+| `bloggerSyntax.linter.trigger` | `string` (`onType` \| `onSave`) | `onType` | Control when the Blogger linter validates documents (with debounce on type, or strictly on save). |
+| `bloggerSyntax.linter.debounceMs` | `number` | `400` | Debounce delay in milliseconds when validating documents during typing. |
 
 ## Snippets
 
@@ -74,6 +85,7 @@ Active automatically for:
 | `b:comment` | `<b:comment>` | Creates comments toggleable in rendering. |
 | `b:defaultmarkups` | `<b:defaultmarkups>` | Default template markup includes container. |
 | `b:defaultmarkup` | `<b:defaultmarkup>` | Default markup includes for a widget type. |
+| `data:` | `<data:/>` | Outputs a resolved Blogger data expression directly into output HTML. |
 | `b:eval` | `<b:eval>` | Evaluates an expression and outputs the result. |
 | `b:if` | `<b:if>` | Conditional rendering block. |
 | `b:elseif` | `<b:elseif>` | Alternative conditional branch. |
@@ -86,6 +98,7 @@ Active automatically for:
 | `b:section` | `<b:section>` | Defines a layout section containing widgets. |
 | `b:skin` | `<b:skin>` | Theme styles and variables for Template Designer. |
 | `b:template-skin` | `<b:template-skin>` | Layout mode CSS styles. |
+| `b:template-script` | `<b:template-script>` | Declares and asynchronously initializes Blogger platform scripts in Layouts v3. |
 | `Group` | `<Group>` | Groups variables in the Template Designer. |
 | `Variable` | `<Variable>` | Customization options for Template Designer. |
 | `Variable (color)` | `<Variable type="color">` | Color variable for Template Designer CSS. |
@@ -107,7 +120,7 @@ Active automatically for:
 
 ### Requirements
 - [Node.js](https://nodejs.org/) >= 22
-- [pnpm](https://pnpm.io/) >= 11
+- [pnpm](https://pnpm.io/) >= 12
 
 ### Setup
 
