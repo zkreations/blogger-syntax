@@ -1,3 +1,4 @@
+import type { Token } from '../linter/linterEngine.js';
 import type {
   BloggerHoverResult,
   BloggerProperty,
@@ -22,6 +23,7 @@ import { bloggerTags } from '../data/tagsData.js';
 import { getCategorizedPropertyMembers } from '../data/typeMembers.js';
 import { WIDGET_DATA_DICTIONARIES } from '../data/widgetsData.js';
 import { getWidgetSettingsSuggestions } from '../data/widgetSettingsData.js';
+import { tokenizeExpression } from '../linter/linterEngine.js';
 import { getNearestUnclosedTag } from '../parser/directiveScanner.js';
 import {
   detectLambdaPreArrowContext,
@@ -65,11 +67,107 @@ export type {
   TagAttributeContext,
 };
 
-const ATTR_VALUE_REGEX = /\b([\w:-]+)\s*=\s*["']([^"']*)$/;
+function matchAttributeValue(linePrefix: string): { attrName: string; typedText: string; beforeAttr: string } | undefined {
+  const doubleMatch = /\b([\w:-]+)\s*=\s*"([^"]*)$/.exec(linePrefix);
+  const singleMatch = /\b([\w:-]+)\s*=\s*'([^']*)$/.exec(linePrefix);
+
+  if (doubleMatch && singleMatch) {
+    return doubleMatch.index > singleMatch.index
+      ? { attrName: doubleMatch[1]!, typedText: doubleMatch[2]!, beforeAttr: linePrefix.slice(0, doubleMatch.index) }
+      : { attrName: singleMatch[1]!, typedText: singleMatch[2]!, beforeAttr: linePrefix.slice(0, singleMatch.index) };
+  }
+
+  const match = doubleMatch ?? singleMatch;
+  if (match && match[1] && match[2] !== undefined) {
+    return {
+      attrName: match[1],
+      typedText: match[2],
+      beforeAttr: linePrefix.slice(0, match.index),
+    };
+  }
+
+  return undefined;
+}
 const TAG_CONTEXT_REGEX = /<([\w:-]+)(?:\s[^>]*)?$/;
 const DATA_PREFIX_REGEX = /(?:^|[^\w:.])(data:[[\]\w.]*)$/;
 const TAG_PREFIX_REGEX = /(?:^|[^\w:])(?:(<\/|<)([\w:-]*)|(b:[\w-]*|data:?|Variable\w*|Group\w*))$/i;
 const OPERAND_START_TRIGGER_REGEX = /(?:^|[=?:,(+\-*/%]|\b(?:and|or|not|eq|neq|lt|lte|gt|gte|to|in|contains)\b)\s*([a-zA-Z_!=]*)$/;
+
+const OPERAND_EXPECTING_TOKEN_TYPES = new Set([
+  'OPERATOR_TERNARY_SELECT',
+  'OPERATOR_TERNARY_BRANCH',
+  'OPERATOR_ELVIS',
+  'OPERATOR_ARITHMETIC',
+  'OPERATOR_RELATIONAL',
+  'OPERATOR_LOGICAL',
+  'OPERATOR_LOGICAL_JS',
+  'OPERATOR_MEMBERSHIP',
+  'OPERATOR_COLLECTION',
+  'DELIMITER_COMMA',
+  'GROUPING_PAREN_OPEN',
+  'CONTAINER_ARRAY',
+  'CONTAINER_OBJECT',
+]);
+
+function detectOperandPosition(expressionText: string): { isOperandStart: boolean; typedPrefix: string } {
+  if (!expressionText || !expressionText.trim()) {
+    return { isOperandStart: true, typedPrefix: '' };
+  }
+
+  let tokens: Token[] = [];
+  try {
+    tokens = tokenizeExpression(expressionText);
+  }
+  catch {
+    // Gracefully fallback to regex on tokenization error
+  }
+
+  if (tokens.length > 0) {
+    const lastToken = tokens[tokens.length - 1]!;
+
+    if (lastToken.tokenType === 'STRING_LITERAL') {
+      const val = lastToken.value;
+      const isUnclosed = val.length === 1 || val[0] !== val[val.length - 1];
+      if (isUnclosed) {
+        return { isOperandStart: false, typedPrefix: '' };
+      }
+    }
+
+    if (lastToken.tokenType === 'DATA_PATH') {
+      return { isOperandStart: false, typedPrefix: '' };
+    }
+
+    const hasTrailingSpace = /\s$/.test(expressionText);
+
+    // If only 1 token and no trailing space, user is typing an operand/functional operator at expression start
+    if (tokens.length === 1 && !hasTrailingSpace) {
+      if (['IDENTIFIER', 'NATIVE_FUNCTION', 'BOOLEAN_LITERAL', 'OPERATOR_LOGICAL', 'OPERATOR_RELATIONAL'].includes(lastToken.tokenType)) {
+        return { isOperandStart: true, typedPrefix: lastToken.value };
+      }
+    }
+
+    // If multiple tokens and no trailing space, check if the previous token was expecting an operand
+    if (tokens.length > 1 && !hasTrailingSpace) {
+      const prevToken = tokens[tokens.length - 2]!;
+      if (OPERAND_EXPECTING_TOKEN_TYPES.has(prevToken.tokenType)) {
+        if (['IDENTIFIER', 'NATIVE_FUNCTION', 'BOOLEAN_LITERAL', 'OPERATOR_LOGICAL', 'OPERATOR_RELATIONAL'].includes(lastToken.tokenType)) {
+          return { isOperandStart: true, typedPrefix: lastToken.value };
+        }
+      }
+    }
+
+    if (OPERAND_EXPECTING_TOKEN_TYPES.has(lastToken.tokenType)) {
+      return { isOperandStart: true, typedPrefix: '' };
+    }
+  }
+
+  const operandStartMatch = OPERAND_START_TRIGGER_REGEX.exec(expressionText);
+  if (operandStartMatch) {
+    return { isOperandStart: true, typedPrefix: operandStartMatch[1] ?? '' };
+  }
+
+  return { isOperandStart: false, typedPrefix: '' };
+}
 
 export class BloggerPathResolver {
   private readonly rootTree: Record<string, BloggerProperty> = bloggerGlobalRoot;
@@ -467,32 +565,14 @@ export class BloggerPathResolver {
     }
 
     // 5. Operand start / Functional operator position
-    const operandStartMatch = OPERAND_START_TRIGGER_REGEX.exec(expressionText);
-    if (operandStartMatch) {
-      const typedPrefix = operandStartMatch[1] ?? '';
-      const functionalOps = getFunctionalOperatorSuggestions();
+    const operandPos = detectOperandPosition(expressionText);
+    if (operandPos.isOperandStart) {
+      const typedPrefix = operandPos.typedPrefix;
+      const suggestions: BloggerSuggestion[] = [];
 
-      const varSuggestions: BloggerSuggestion[] = localVariables
-        ? Object.entries(localVariables)
-            .filter(([name]) => !typedPrefix || name.startsWith(typedPrefix))
-            .map(([name, prop]) => ({
-              name,
-              type: prop.type,
-              kind: 'variable' as const,
-              description: prop.description ?? `Local variable \`${name}\`.`,
-              example: name,
-              categoryBadge: 'Local',
-              sortPriority: 0,
-            }))
-        : [];
-
-      const filteredOps = typedPrefix
-        ? functionalOps.filter(k => k.name.startsWith(typedPrefix))
-        : functionalOps;
-
-      const dataPrefixSuggestions: BloggerSuggestion[] = [];
+      // 1. Data prefix incremental suggestion
       if (!typedPrefix || 'data:'.startsWith(typedPrefix)) {
-        dataPrefixSuggestions.push({
+        suggestions.push({
           name: 'data:',
           type: 'object',
           kind: 'property',
@@ -500,14 +580,157 @@ export class BloggerPathResolver {
           description: 'Blogger data expression prefix.',
           example: 'data:blog.title',
           categoryBadge: 'Prefix',
-          sortPriority: 5,
+          sortPriority: 0,
         });
       }
 
-      const combined = [...varSuggestions, ...dataPrefixSuggestions, ...filteredOps];
-      if (combined.length > 0) {
+      // 2. Scoped template variables (with data: prefix)
+      const widgetDict = widgetType && WIDGET_DATA_DICTIONARIES[widgetType] ? WIDGET_DATA_DICTIONARIES[widgetType] : undefined;
+      const seenDataProps = new Set<string>();
+
+      if (localVariables) {
+        for (const [name, prop] of Object.entries(localVariables)) {
+          const isGlobal = Boolean(this.rootTree[name]);
+          const isWidget = Boolean(widgetDict && widgetDict[name]);
+          if (!isGlobal && !isWidget) {
+            const qualifiedName = `data:${name}`;
+            seenDataProps.add(name);
+            if (!typedPrefix || qualifiedName.startsWith(typedPrefix) || name.startsWith(typedPrefix)) {
+              suggestions.push({
+                name: qualifiedName,
+                type: prop.type,
+                description: prop.description ?? `Template variable \`${name}\`.`,
+                example: qualifiedName,
+                deprecated: prop.deprecated,
+                docUrl: prop.docUrl,
+                kind: 'variable',
+                categoryBadge: 'Local',
+                sortPriority: 5,
+              });
+            }
+          }
+        }
+      }
+
+      // 3. Enclosing widget properties (with data: prefix)
+      if (widgetDict) {
+        for (const [name, prop] of Object.entries(widgetDict)) {
+          seenDataProps.add(name);
+          const qualifiedName = `data:${name}`;
+          if (!typedPrefix || qualifiedName.startsWith(typedPrefix) || name.startsWith(typedPrefix)) {
+            suggestions.push({
+              name: qualifiedName,
+              type: prop.type,
+              description: prop.description,
+              example: qualifiedName,
+              deprecated: prop.deprecated,
+              docUrl: prop.docUrl,
+              kind: 'property',
+              detail: `(Widget Data: ${widgetType})`,
+              categoryBadge: widgetType ? `Widget: ${widgetType}` : 'Widget',
+              sortPriority: 10,
+            });
+          }
+        }
+      }
+      else if (localVariables) {
+        // Fallback if widgetType was not explicitly passed in resolver context
+        for (const [name, prop] of Object.entries(localVariables)) {
+          if (!seenDataProps.has(name) && !this.rootTree[name]) {
+            const qualifiedName = `data:${name}`;
+            if (!typedPrefix || qualifiedName.startsWith(typedPrefix) || name.startsWith(typedPrefix)) {
+              suggestions.push({
+                name: qualifiedName,
+                type: prop.type,
+                description: prop.description,
+                example: qualifiedName,
+                deprecated: prop.deprecated,
+                docUrl: prop.docUrl,
+                kind: 'property',
+                categoryBadge: 'Widget',
+                sortPriority: 10,
+              });
+            }
+          }
+        }
+      }
+
+      // 4. Global root properties (with data: prefix)
+      for (const [name, prop] of Object.entries(this.rootTree)) {
+        const qualifiedName = `data:${name}`;
+        if (!typedPrefix || qualifiedName.startsWith(typedPrefix) || name.startsWith(typedPrefix)) {
+          suggestions.push({
+            name: qualifiedName,
+            type: prop.type,
+            description: prop.description,
+            example: qualifiedName,
+            deprecated: prop.deprecated,
+            docUrl: prop.docUrl,
+            kind: 'property',
+            detail: `(Blogger Global: ${name})`,
+            categoryBadge: 'Global',
+            sortPriority: 20,
+          });
+        }
+      }
+
+      // 5. Functional operators and transforms
+      const functionalOps = getFunctionalOperatorSuggestions();
+      const filteredOps = typedPrefix
+        ? functionalOps.filter(k => k.name.startsWith(typedPrefix))
+        : functionalOps;
+      suggestions.push(...filteredOps);
+
+      // 6. Literals and prefix operators
+      const literals: BloggerSuggestion[] = [
+        {
+          name: 'true',
+          type: 'boolean',
+          kind: 'enumMember',
+          description: 'Boolean literal true.',
+          sortPriority: 30,
+        },
+        {
+          name: 'false',
+          type: 'boolean',
+          kind: 'enumMember',
+          description: 'Boolean literal false.',
+          sortPriority: 30,
+        },
+        {
+          name: 'null',
+          type: 'unknown',
+          kind: 'enumMember',
+          description: 'Null literal value.',
+          sortPriority: 30,
+        },
+        {
+          name: 'not',
+          type: 'boolean',
+          kind: 'operator',
+          detail: '(Prefix Logical Operator)',
+          description: 'Logical NOT prefix operator.',
+          insertText: 'not ',
+          sortPriority: 25,
+        },
+        {
+          name: '!',
+          type: 'boolean',
+          kind: 'operator',
+          detail: '(Prefix Logical Operator)',
+          description: 'Logical NOT prefix operator.',
+          insertText: '! ',
+          sortPriority: 25,
+        },
+      ];
+      const filteredLiterals = typedPrefix
+        ? literals.filter(l => l.name.startsWith(typedPrefix))
+        : literals;
+      suggestions.push(...filteredLiterals);
+
+      if (suggestions.length > 0) {
         return {
-          suggestions: combined,
+          suggestions,
           replacementLength: typedPrefix.length,
         };
       }
@@ -520,11 +743,9 @@ export class BloggerPathResolver {
     linePrefix: string,
     options?: BloggerResolverContext,
   ): BloggerResolveResult | undefined {
-    const attrMatch = ATTR_VALUE_REGEX.exec(linePrefix);
-    if (attrMatch && attrMatch[1] && attrMatch[2] !== undefined) {
-      const attrName = attrMatch[1];
-      const typedText = attrMatch[2];
-      const beforeAttr = linePrefix.slice(0, attrMatch.index);
+    const attrMatch = matchAttributeValue(linePrefix);
+    if (attrMatch) {
+      const { attrName, typedText, beforeAttr } = attrMatch;
       const tagMatch = TAG_CONTEXT_REGEX.exec(beforeAttr)
         || /(?:^|\s)([\w:-]+)(?:\s[^>]*)?$/.exec(beforeAttr);
       const tagName = tagMatch?.[1];

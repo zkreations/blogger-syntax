@@ -293,6 +293,79 @@ describe('operators - Catalog Integrity, Dual Syntax & Autocompletion', () => {
       expect(res?.suggestions.some(s => s.name === 'data:')).toBe(true);
     });
 
+    describe('ternary and elvis operators nested and contextual autocompletion', () => {
+      it('suggests data: prefixed widget properties and ZERO bare properties when typing space around ternary ? inside Blog widget', () => {
+        const line = '<b:eval expr="data:adClientId snippet ? ';
+        const res = resolver.resolveFromLinePrefix(line, { localVariables: blogWidgetProperties, widgetType: 'Blog' });
+        expect(res).toBeDefined();
+        expect(res?.suggestions.some(s => s.name === 'adClientId')).toBe(false);
+        expect(res?.suggestions.some(s => s.name === 'data:adClientId')).toBe(true);
+        expect(res?.suggestions.some(s => s.name === 'data:posts')).toBe(true);
+        expect(res?.suggestions.some(s => s.name === 'data:')).toBe(true);
+        expect(res?.suggestions.some(s => s.name === 'snippet')).toBe(true);
+        expect(res?.replacementLength).toBe(0);
+      });
+
+      it('suggests data: prefixed widget properties and ZERO bare properties after ternary colon :', () => {
+        const line = '<b:eval expr="data:adClientId snippet ? \'yes\' : ';
+        const res = resolver.resolveFromLinePrefix(line, { localVariables: blogWidgetProperties, widgetType: 'Blog' });
+        expect(res).toBeDefined();
+        expect(res?.suggestions.some(s => s.name === 'adClientId')).toBe(false);
+        expect(res?.suggestions.some(s => s.name === 'data:adClientId')).toBe(true);
+        expect(res?.suggestions.some(s => s.name === 'data:')).toBe(true);
+        expect(res?.replacementLength).toBe(0);
+      });
+
+      it('replaces partial prefix with data:adClientId when typing ad after ?', () => {
+        const line = '<b:eval expr="data:adClientId snippet ? ad';
+        const res = resolver.resolveFromLinePrefix(line, { localVariables: blogWidgetProperties, widgetType: 'Blog' });
+        expect(res).toBeDefined();
+        expect(res?.suggestions.some(s => s.name === 'data:adClientId')).toBe(true);
+        expect(res?.replacementLength).toBe(2);
+      });
+
+      it('suggests qualified operands in nested ternary in else branch', () => {
+        const line = '<b:eval expr="cond1 ? \'a\' : cond2 ? ';
+        const res = resolver.resolveFromLinePrefix(line, { localVariables: blogWidgetProperties, widgetType: 'Blog' });
+        expect(res).toBeDefined();
+        expect(res?.suggestions.some(s => s.name === 'data:adClientId')).toBe(true);
+        expect(res?.suggestions.some(s => s.name === 'adClientId')).toBe(false);
+      });
+
+      it('suggests qualified operands in nested ternary in then branch', () => {
+        const line = '<b:eval expr="cond1 ? (cond2 ? ';
+        const res = resolver.resolveFromLinePrefix(line, { localVariables: blogWidgetProperties, widgetType: 'Blog' });
+        expect(res).toBeDefined();
+        expect(res?.suggestions.some(s => s.name === 'data:adClientId')).toBe(true);
+        expect(res?.suggestions.some(s => s.name === 'adClientId')).toBe(false);
+      });
+
+      it('suggests qualified operands after elvis operator with trailing space', () => {
+        const line = '<b:eval expr="data:post.title ?: ';
+        const res = resolver.resolveFromLinePrefix(line, { localVariables: blogWidgetProperties, widgetType: 'Blog' });
+        expect(res).toBeDefined();
+        expect(res?.suggestions.some(s => s.name === 'data:adClientId')).toBe(true);
+        expect(res?.suggestions.some(s => s.name === 'adClientId')).toBe(false);
+        expect(res?.suggestions.some(s => s.name === 'data:')).toBe(true);
+      });
+
+      it('suggests qualified operands in chained elvis operator', () => {
+        const line = '<b:eval expr="data:post.title ?: data:messages.noTitle ?: ';
+        const res = resolver.resolveFromLinePrefix(line, { localVariables: blogWidgetProperties, widgetType: 'Blog' });
+        expect(res).toBeDefined();
+        expect(res?.suggestions.some(s => s.name === 'data:adClientId')).toBe(true);
+        expect(res?.suggestions.some(s => s.name === 'adClientId')).toBe(false);
+      });
+
+      it('suggests qualified operands in elvis nested inside ternary', () => {
+        const line = '<b:eval expr="cond ? (data:post.title ?: ';
+        const res = resolver.resolveFromLinePrefix(line, { localVariables: blogWidgetProperties, widgetType: 'Blog' });
+        expect(res).toBeDefined();
+        expect(res?.suggestions.some(s => s.name === 'data:adClientId')).toBe(true);
+        expect(res?.suggestions.some(s => s.name === 'adClientId')).toBe(false);
+      });
+    });
+
     it('suggests post members on bare variable post. inside expression attribute', () => {
       const line = '<b:eval expr="post.';
       const localVariables = {

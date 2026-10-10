@@ -63,3 +63,6 @@ export function lintBloggerDocument(
 
   return diagnostics;
 }
+
+export { tokenizeExpression } from './rules/quotaRules.js';
+export type { Token } from './rules/quotaRules.js';
