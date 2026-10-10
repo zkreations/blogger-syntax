@@ -25,7 +25,6 @@ describe('hTML tags autocompletion for b:tag and data: output tag directive', ()
     // Absolutely NO b: tags allowed in b:tag
     expect(names.some(n => n.startsWith('b:'))).toBe(false);
 
-    // Detail confirms open W3C standard flexibility
     const divSugg = result!.suggestions.find(s => s.name === 'div');
     expect(divSugg?.detail).toBe('(HTML Element — Recommended)');
     expect(divSugg?.description).toContain('W3C HTML element');

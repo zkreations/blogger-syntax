@@ -656,7 +656,6 @@ export class BloggerPathResolver {
         }
       }
 
-      // Check if attribute has declared enumerated values (e.g. tag, reverse, render, locked, visible, version, showaddelement)
       if (tagName && bloggerTags[tagName]?.attributes?.[attrName]?.values) {
         const values = bloggerTags[tagName].attributes![attrName].values!;
         return {

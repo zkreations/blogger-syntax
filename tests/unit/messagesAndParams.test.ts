@@ -19,7 +19,6 @@ describe('system messages and b:param contextual autocompletion', () => {
     expect(names).toContain('messages.templateImagesByLink');
     expect(names.length).toBe(95);
 
-    // Verify detail labels
     const homeSugg = result!.suggestions.find(s => s.name === 'messages.home');
     expect(homeSugg?.detail).toBe('(System Message)');
 

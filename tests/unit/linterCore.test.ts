@@ -151,7 +151,6 @@ describe('linter core engine', () => {
       expect(selfCloseDiag?.quickFixes?.[0]?.newText).toBe('/>');
       expect(selfCloseDiag?.quickFixes?.[0]?.title).toBe('Close <b:eval/> with \'/>\'');
 
-      // Verify that applying the quick fix produces valid self-closing syntax
       const fix = selfCloseDiag!.quickFixes![0]!;
       const lines = xml.split('\n');
       const startLine = lines[fix.range.start.line]!;

@@ -53,7 +53,6 @@ export class BloggerDiagnosticProvider implements vscode.Disposable {
       vscode.workspace.onDidChangeConfiguration(e => this.handleConfigurationChange(e)),
     );
 
-    // Initial validation for currently open documents
     if (vscode.workspace.textDocuments) {
       for (const doc of vscode.workspace.textDocuments) {
         this.validateDocument(doc, true);

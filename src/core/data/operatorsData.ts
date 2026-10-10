@@ -20,7 +20,6 @@ export interface BloggerOperatorDefinition {
 }
 
 export const bloggerOperatorsCatalog: Record<string, BloggerOperatorDefinition> = {
-  // --- Lambda / Collection Pipeline Operators (Infix only) ---
   'filter': {
     name: 'filter',
     aliases: ['where'],
@@ -143,7 +142,6 @@ export const bloggerOperatorsCatalog: Record<string, BloggerOperatorDefinition> 
     docUrl: 'https://bloggercode.orbiona.com/2016/04/operators-lambdas.html',
   },
 
-  // --- Collection / Slicing & Numeric Range ---
   'take': {
     name: 'take',
     aliases: ['limit'],
@@ -212,7 +210,6 @@ export const bloggerOperatorsCatalog: Record<string, BloggerOperatorDefinition> 
     docUrl: 'https://bloggercode.orbiona.com/2016/04/operators-array.html',
   },
 
-  // --- Membership & Content Operators ---
   'in': {
     name: 'in',
     isCollectionOperator: false,
@@ -240,7 +237,6 @@ export const bloggerOperatorsCatalog: Record<string, BloggerOperatorDefinition> 
     docUrl: 'https://bloggercode.orbiona.com/2016/04/operators-memberships.html',
   },
 
-  // --- URL Operators ---
   'params': {
     name: 'params',
     isCollectionOperator: false,
@@ -294,7 +290,6 @@ export const bloggerOperatorsCatalog: Record<string, BloggerOperatorDefinition> 
     docUrl: 'https://bloggercode.orbiona.com/2017/04/operators-URLs.html',
   },
 
-  // --- Date Operator ---
   'format': {
     name: 'format',
     isCollectionOperator: false,
@@ -309,7 +304,6 @@ export const bloggerOperatorsCatalog: Record<string, BloggerOperatorDefinition> 
     docUrl: 'https://bloggercode.orbiona.com/2017/04/date-operator.html',
   },
 
-  // --- Image Transform Operators (Native dual syntax) ---
   'resizeImage': {
     name: 'resizeImage',
     isCollectionOperator: false,
@@ -337,7 +331,6 @@ export const bloggerOperatorsCatalog: Record<string, BloggerOperatorDefinition> 
     docUrl: 'https://bloggercode.orbiona.com/2016/04/operators-images.html',
   },
 
-  // --- Truncation Operator (Native dual syntax) ---
   'snippet': {
     name: 'snippet',
     isCollectionOperator: false,
@@ -352,7 +345,6 @@ export const bloggerOperatorsCatalog: Record<string, BloggerOperatorDefinition> 
     docUrl: 'https://bloggercode.orbiona.com/2017/04/operator-snippet.html',
   },
 
-  // --- Logical Operators ---
   'and': {
     name: 'and',
     aliases: ['&&'],
@@ -396,7 +388,6 @@ export const bloggerOperatorsCatalog: Record<string, BloggerOperatorDefinition> 
     docUrl: 'https://bloggercode.orbiona.com/2016/04/operators-logicals.html',
   },
 
-  // --- Comparison Operators (==, !=, and word aliases eq, neq, lt, lte, gt, gte) ---
   '==': {
     name: '==',
     aliases: ['eq'],
@@ -510,7 +501,6 @@ export const bloggerOperatorsCatalog: Record<string, BloggerOperatorDefinition> 
     docUrl: 'https://bloggercode.orbiona.com/2016/04/operators-equivalence.html',
   },
 
-  // --- Coalescing / Fallback Operator ---
   '?:': {
     name: '?:',
     isCollectionOperator: false,
@@ -526,7 +516,6 @@ export const bloggerOperatorsCatalog: Record<string, BloggerOperatorDefinition> 
     docUrl: 'https://bloggercode.orbiona.com/2025/08/elvis-operator.html',
   },
 
-  // --- Arithmetic & Concatenation ---
   '+': {
     name: '+',
     isCollectionOperator: false,

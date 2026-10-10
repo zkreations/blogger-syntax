@@ -220,7 +220,6 @@ export function checkHallucinations(
 
       const maskedAttrVal = maskStringLiterals(attrVal);
 
-      // 2a. JS method chaining: .filter(
       for (const jsMatch of maskedAttrVal.matchAll(/\.filter\s*\(/g)) {
         const start = attrValOffset + (jsMatch.index ?? 0);
         const end = start + jsMatch[0].length;
@@ -241,7 +240,6 @@ export function checkHallucinations(
         });
       }
 
-      // 2b. JS method chaining: .map(
       for (const jsMatch of maskedAttrVal.matchAll(/\.map\s*\(/g)) {
         const start = attrValOffset + (jsMatch.index ?? 0);
         const end = start + jsMatch[0].length;
@@ -262,7 +260,6 @@ export function checkHallucinations(
         });
       }
 
-      // 2c. JS method chaining: .slice( or .substring(
       for (const jsMatch of maskedAttrVal.matchAll(/\.(?:slice|substring|substr|replace|includes|indexOf|push|pop|shift|unshift)\s*\(/g)) {
         const start = attrValOffset + (jsMatch.index ?? 0);
         const end = start + jsMatch[0].length;
@@ -275,7 +272,6 @@ export function checkHallucinations(
         });
       }
 
-      // 2d. String case/split operations or unsupported collection operations
       for (const funcMatch of maskedAttrVal.matchAll(/\b(?:toUpperCase|toLowerCase|trim|split|sort|orderBy|groupBy|reduce)\s*(?:\(|=?>)/g)) {
         const start = attrValOffset + (funcMatch.index ?? 0);
         const end = start + funcMatch[0].length;
@@ -288,7 +284,6 @@ export function checkHallucinations(
         });
       }
 
-      // 2e. Lambda data prefix: => data:foo
       for (const lambdaDataMatch of maskedAttrVal.matchAll(/=>\s*(data:[\w.]+)/g)) {
         const fullMatch = lambdaDataMatch[0];
         const dataPrefixStr = lambdaDataMatch[1]!;
@@ -311,7 +306,6 @@ export function checkHallucinations(
         });
       }
 
-      // 2f. Strict equality === or !==
       for (const opMatch of maskedAttrVal.matchAll(/===|!==/g)) {
         const start = attrValOffset + (opMatch.index ?? 0);
         const end = start + opMatch[0].length;
@@ -334,7 +328,6 @@ export function checkHallucinations(
         });
       }
 
-      // 2g. Unescaped XML or JS boolean operators: && or ||
       for (const boolMatch of maskedAttrVal.matchAll(/&&|\|\|/g)) {
         const start = attrValOffset + (boolMatch.index ?? 0);
         const end = start + boolMatch[0].length;
@@ -357,7 +350,6 @@ export function checkHallucinations(
         });
       }
 
-      // 2h. Parameterized message direct reference inside expressions: data:messages.numberOfComments
       for (const msgMatch of maskedAttrVal.matchAll(/\bdata:messages\.([\w-]+)\b/g)) {
         const key = msgMatch[1];
         if (key && PARAMETERIZED_MESSAGE_KEYS.has(key)) {
@@ -375,7 +367,6 @@ export function checkHallucinations(
     }
   }
 
-  // 3. Detect scalar <data:...> tags containing operators or parameterized messages
   const dataTagScanner = /<data:([\w.:][^>]*)>/gi;
   for (const match of maskedText.matchAll(dataTagScanner)) {
     const rawBody = match[1]?.trim() ?? '';

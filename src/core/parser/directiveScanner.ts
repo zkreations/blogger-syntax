@@ -137,7 +137,6 @@ export function parseAttributes(
     let valueEnd = end;
 
     if (match[2] !== undefined && match[4] !== undefined) {
-      // Double quoted
       quote = '"';
       value = match[3] ?? '';
       const quoteOffset = match[0].indexOf('"');
@@ -145,7 +144,6 @@ export function parseAttributes(
       valueEnd = valueStart + value.length;
     }
     else if (match[5] !== undefined && match[7] !== undefined) {
-      // Single quoted
       quote = '\'';
       value = match[6] ?? '';
       const quoteOffset = match[0].indexOf('\'');
@@ -153,7 +151,6 @@ export function parseAttributes(
       valueEnd = valueStart + value.length;
     }
     else if (match[8] !== undefined) {
-      // Unquoted
       value = match[8];
       const eqOffset = match[0].indexOf('=');
       valueStart = start + eqOffset + 1;
@@ -199,7 +196,6 @@ export function scanDirectiveTokens(
     const isClosing = nextChar === '/';
     const nameStart = isClosing ? openIndex + 2 : openIndex + 1;
 
-    // Scan tagName
     let nameEnd = nameStart;
     while (nameEnd < len && /[\w:.-]/.test(maskedText[nameEnd]!)) {
       nameEnd++;
@@ -213,7 +209,6 @@ export function scanDirectiveTokens(
     const tagName = maskedText.slice(nameStart, nameEnd);
     const attributesOffset = nameEnd;
 
-    // Scan until unquoted '>'
     let inQuote: '"' | '\'' | null = null;
     let tagEnd = -1;
     let j = nameEnd;

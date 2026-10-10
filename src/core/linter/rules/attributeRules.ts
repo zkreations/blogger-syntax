@@ -295,7 +295,6 @@ export function checkDirectiveAttributes(
 
     const tagHeadRange = createRange(lineOffsets, tag.tagStart, tag.tagStart + tagName.length + 1);
 
-    // 1. Validate mandatory attributes
     if (matchedConfigKey) {
       const config = DIRECTIVE_REQUIREMENTS[matchedConfigKey]!;
 
@@ -338,7 +337,6 @@ export function checkDirectiveAttributes(
       }
     }
 
-    // 2. Prohibit expr: on static-only attributes
     if (matchedConfigKey) {
       const config = DIRECTIVE_REQUIREMENTS[matchedConfigKey];
       if (config && !config.arbitraryAttributes) {
@@ -359,7 +357,6 @@ export function checkDirectiveAttributes(
       }
     }
 
-    // 3. Validate empty required/structural attribute values
     for (const [attrLowerKey, attrInfo] of parsedAttrs) {
       const val = attrInfo.value;
       if (val !== undefined && val.trim() === '') {
@@ -400,7 +397,6 @@ export function checkDirectiveAttributes(
       }
     }
 
-    // 4. Special validation for <b:widget>
     if (lowerTagName === 'b:widget') {
       const typeAttr = parsedAttrs.get('type');
       const idAttr = parsedAttrs.get('id');
@@ -470,7 +466,6 @@ export function checkDirectiveAttributes(
       }
     }
 
-    // 5. Special validation for <b:section>
     if (lowerTagName === 'b:section') {
       const tagAttr = parsedAttrs.get('tag');
       if (tagAttr && tagAttr.value && tagAttr.value.trim() !== '') {
@@ -490,7 +485,6 @@ export function checkDirectiveAttributes(
       }
     }
 
-    // 6. Special validation for <b:defaultmarkup>
     if (lowerTagName === 'b:defaultmarkup') {
       const typeAttr = parsedAttrs.get('type');
       if (typeAttr && typeAttr.value && typeAttr.value.trim() !== '') {
@@ -536,7 +530,6 @@ export function checkDirectiveAttributes(
       }
     }
 
-    // 7. Special validation for <Variable>
     if (lowerTagName === 'variable') {
       const typeAttr = parsedAttrs.get('type');
       if (typeAttr && typeAttr.value && typeAttr.value.trim() !== '') {
@@ -572,7 +565,6 @@ export function checkDirectiveAttributes(
       }
     }
 
-    // 8. Static boolean attributes validation
     for (const [attrLowerKey, attrInfo] of parsedAttrs) {
       if (STATIC_BOOLEAN_ATTRS.has(attrLowerKey)) {
         if (attrInfo.quoteChar === undefined) {
@@ -601,7 +593,6 @@ export function checkDirectiveAttributes(
       }
     }
 
-    // 9. Dynamic expression validation (warn against quoted booleans)
     for (const [attrLowerKey, attrInfo] of parsedAttrs) {
       if (isExpressionAttribute(attrLowerKey, lowerTagName) && attrInfo.value) {
         QUOTED_BOOLEAN_IN_EXPR_REGEX.lastIndex = 0;
@@ -632,7 +623,6 @@ export function checkDirectiveAttributes(
       }
     }
 
-    // 10. Flag unrecognized attributes on known b: directives
     if (matchedConfigKey && lowerTagName.startsWith('b:')) {
       const config = DIRECTIVE_REQUIREMENTS[matchedConfigKey];
       const validSet = config?.validAttributes;

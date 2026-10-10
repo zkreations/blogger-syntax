@@ -159,7 +159,6 @@ export function checkDocumentStructure(
       continue;
     }
 
-    // Opening or self-closing tag
     const parent = stack[stack.length - 1];
     const parentLower = parent?.lowerTagName;
 
@@ -278,7 +277,6 @@ export function checkDocumentStructure(
       }
     }
     else if (parentLower === 'b:section') {
-      // Direct child of b:section must strictly be b:widget
       if (lower !== 'b:widget') {
         diagnostics.push({
           code: 'blogger.structure.invalid-section-child',

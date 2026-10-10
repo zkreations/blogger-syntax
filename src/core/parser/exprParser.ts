@@ -120,14 +120,12 @@ export function resolveCollectionProperty(
     }
   }
 
-  // Standard data expression
   const rawPath = trimmed.replace(/^data:/, '');
   const segments = rawPath.replace(/\[/g, '.').replace(/\]/g, '').split('.').filter(Boolean);
   if (segments.length === 0) {
     return undefined;
   }
 
-  // Direct navigation
   return navigatePropertyPath(segments, localVariables, bloggerGlobalRoot)?.target;
 }
 
@@ -599,7 +597,6 @@ export function inferExpressionType(
     }
   }
 
-  // Strip matched outer parentheses
   trimmed = unwrapOuterParens(trimmed);
 
   // 1. Top-level comparisons and logical/membership predicates -> boolean

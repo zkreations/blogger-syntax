@@ -71,7 +71,6 @@ describe('tag attribute completion & canonical data:widgets descriptors', () => 
       expect(names).not.toContain('mobile');
       expect(names).not.toContain('maxwidgets');
 
-      // Check snippet insertion
       const tagAttr = result!.suggestions.find(s => s.name === 'tag');
       expect(tagAttr?.insertText).toBe('tag="$1"');
       expect(tagAttr?.isSnippet).toBe(true);
