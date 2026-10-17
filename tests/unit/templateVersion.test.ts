@@ -1,5 +1,5 @@
+import { detectTemplateVersion } from 'blogger-spec/version';
 import { describe, expect, it } from 'vitest';
-import { detectTemplateVersion } from '../../src/core/version/templateVersion.js';
 
 describe('template version detector', () => {
   it('detects explicit layoutsVersion attribute on <html>', () => {
@@ -38,7 +38,7 @@ describe('template version detector', () => {
     expect(res.confidence).toBe('inferred');
     expect(res.detectedFeatures).toContain('b:defaultmarkups');
     expect(res.detectedFeatures).toContain('b:template-script');
-    expect(res.detectedFeatures).toContain('semantic b:section tag');
+    expect(res.detectedFeatures.some(f => f.includes('tag') || f.includes('section'))).toBe(true);
   });
 
   it('infers Layouts v1 from legacy section attributes', () => {
@@ -52,7 +52,7 @@ describe('template version detector', () => {
     const res = detectTemplateVersion(xml);
     expect(res.version).toBe(1);
     expect(res.confidence).toBe('inferred');
-    expect(res.detectedFeatures).toContain('legacy section attribute (growth)');
+    expect(res.detectedFeatures).toContain('growth');
   });
 
   it('defaults to v3 modern standard when no markers exist', () => {

@@ -3,7 +3,7 @@ import {
   bloggerSkinVariableTags,
   bloggerSkinVariableTypeDetails,
   bloggerSkinVariableTypes,
-} from '../../src/core/data/skinVariablesData.js';
+} from '../../src/core/resolver/tagAttributeResolver.js';
 import { cleanSnippetBody } from '../../src/core/utils/snippetFormatter.js';
 
 describe('blogger Skin Variables Data', () => {

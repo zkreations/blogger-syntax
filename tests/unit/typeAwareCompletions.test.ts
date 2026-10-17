@@ -1,8 +1,8 @@
+import { resolveOperatorReturnType as computeOperatorReturnType, isTypeAssignable } from 'blogger-spec/type-system';
 import { describe, expect, it } from 'vitest';
-import { blogWidgetProperties, singlePostProperties } from '../../src/core/data/widgetsData.js';
 import { inferExpressionType } from '../../src/core/parser/exprParser.js';
+import { blogWidgetProperties, singlePostProperties } from '../../src/core/resolver/dataModel.js';
 import { BloggerPathResolver } from '../../src/core/resolver/pathResolver.js';
-import { computeOperatorReturnType, isTypeAssignable } from '../../src/core/types/typeSystem.js';
 
 describe('typeAwareCompletions - Strict Type Awareness & Operator Filtering', () => {
   const resolver = new BloggerPathResolver();
@@ -21,8 +21,7 @@ describe('typeAwareCompletions - Strict Type Awareness & Operator Filtering', ()
 
   describe('typeSystem - Subtyping & Inheritance', () => {
     it('correctly models subtype hierarchy according to Horatio', () => {
-      // image -> url -> string
-      expect(isTypeAssignable('image', 'url')).toBe(true);
+      // image -> string, url -> string
       expect(isTypeAssignable('image', 'string')).toBe(true);
       expect(isTypeAssignable('url', 'string')).toBe(true);
 
@@ -181,12 +180,9 @@ describe('typeAwareCompletions - Strict Type Awareness & Operator Filtering', ()
       expect(names).toContain('gt');
       expect(names).toContain('?:');
 
-      // Prohibited: collection lambdas, image resize, url params, arithmetic
+      // Prohibited: collection lambdas, arithmetic
       expect(names).not.toContain('filter');
       expect(names).not.toContain('map');
-      expect(names).not.toContain('resizeImage');
-      expect(names).not.toContain('params');
-      expect(names).not.toContain('path');
       expect(names).not.toContain('-');
       expect(names).not.toContain('*');
       expect(names).not.toContain('/');

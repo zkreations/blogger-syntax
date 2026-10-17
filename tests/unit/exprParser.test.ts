@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { blogWidgetProperties, singlePostProperties } from '../../src/core/data/widgetsData.js';
 import {
   detectLambdaPreArrowContext,
   extractLeftOperandAtCursor,
@@ -11,6 +10,7 @@ import {
   resolveLambdaContextAtCursor,
   resolveLambdaHoverAtPosition,
 } from '../../src/core/parser/exprParser.js';
+import { blogWidgetProperties, singlePostProperties } from '../../src/core/resolver/dataModel.js';
 
 describe('exprParser - Expression Parsing & Lambda Scopes', () => {
   describe('getArrayElementProperty', () => {
@@ -181,7 +181,7 @@ describe('exprParser - Expression Parsing & Lambda Scopes', () => {
     });
 
     it('infers in and contains as boolean', () => {
-      expect(inferExpressionType('data:view.search.label in data:post.labels map (l => l.name)').type).toBe('boolean');
+      expect(inferExpressionType('data:view.search.label in (data:post.labels map (l => l.name))').type).toBe('boolean');
       expect(inferExpressionType('data:blog.url contains "https"').type).toBe('boolean');
     });
 

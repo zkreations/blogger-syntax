@@ -1,8 +1,11 @@
 import type { BloggerProperty } from '../models/types.js';
 import type { ForwardedIncludeItem } from './typeInferencer.js';
-import { messagesProperties, widgetMetaProperties } from '../data/globalData.js';
-import { WIDGET_DATA_DICTIONARIES } from '../data/widgetsData.js';
-import { scanDirectiveTokens } from '../parser/directiveScanner.js';
+import { scanDirectiveTokens } from 'blogger-spec/parser';
+import {
+  messagesProperties,
+  WIDGET_DATA_DICTIONARIES,
+  widgetMetaProperties,
+} from '../resolver/dataModel.js';
 import {
   inferIncludableVariables,
   inferLoopVariables,

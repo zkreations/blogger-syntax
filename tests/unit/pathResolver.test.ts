@@ -1,7 +1,7 @@
 import type { BloggerProperty } from '../../src/core/models/types.js';
+import { getSpecCatalog } from 'blogger-spec/catalogs';
 import { describe, expect, it } from 'vitest';
-import { bloggerDescriptions } from '../../src/core/data/descriptions.js';
-import { blogWidgetProperties, singlePostProperties } from '../../src/core/data/widgetsData.js';
+import { blogWidgetProperties, singlePostProperties } from '../../src/core/resolver/dataModel.js';
 import { BloggerPathResolver } from '../../src/core/resolver/pathResolver.js';
 import {
   resolveBloggerTagSuggestions,
@@ -9,6 +9,8 @@ import {
   resolveDescriptionsSuggestions,
   resolveWidgetTypesSuggestions,
 } from '../../src/core/resolver/tagAttributeResolver.js';
+
+const bloggerDescriptions = getSpecCatalog().getThemeDesignerDescriptions();
 
 describe('bloggerPathResolver', () => {
   const resolver = new BloggerPathResolver();

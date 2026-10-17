@@ -1,3 +1,4 @@
+import type { TemplateVersionResult } from 'blogger-spec/version';
 import type { BloggerDiagnostic, LinterOptions } from '../linter/linterTypes.js';
 import type {
   BloggerHoverInfo,
@@ -5,16 +6,15 @@ import type {
 } from '../models/types.js';
 import type { IncludableDefinitionMatch } from '../navigation/definitionResolver.js';
 import type { BloggerSymbolNode } from '../navigation/symbolIndexer.js';
-import type { TemplateVersionResult } from '../version/templateVersion.js';
+import { getNearestUnclosedTag } from 'blogger-spec/parser';
+import { detectTemplateVersion } from 'blogger-spec/version';
 import { lintBloggerDocument } from '../linter/linterEngine.js';
 import { findIncludableDefinition } from '../navigation/definitionResolver.js';
 import { indexDocumentSymbols } from '../navigation/symbolIndexer.js';
-import { getNearestUnclosedTag } from '../parser/directiveScanner.js';
 import { resolveHoverAtPosition } from '../resolver/hoverCardResolver.js';
 import { BloggerPathResolver } from '../resolver/pathResolver.js';
 import { hasAttributeValueCompletions } from '../resolver/tagAttributeResolver.js';
 import { BloggerScopeTracker } from '../scope/scopeTracker.js';
-import { detectTemplateVersion } from '../version/templateVersion.js';
 
 export interface TemplateSummary {
   readonly version: TemplateVersionResult;

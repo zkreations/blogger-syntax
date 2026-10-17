@@ -1,5 +1,6 @@
 import type { Token } from '../linter/linterEngine.js';
 import type {
+  BloggerDataType,
   BloggerHoverResult,
   BloggerProperty,
   BloggerResolveResult,
@@ -8,23 +9,10 @@ import type {
 import type { BloggerIncludablesInfo, BloggerResolverContext, LocalVariablesResolver } from './hoverCardResolver.js';
 import type { PropertyNavigationResult } from './propertyHierarchy.js';
 import type { TagAttributeContext } from './tagAttributeResolver.js';
-import { bloggerGlobalRoot } from '../data/globalData.js';
-import { getHtmlTagSuggestions } from '../data/htmlTagsData.js';
-import {
-  getMessageParamSuggestions,
-  getSystemMessageSuggestions,
-} from '../data/messagesCatalog.js';
-import {
-  bloggerOperatorsCatalog,
-  getFunctionalOperatorSuggestions,
-  getOperatorSuggestions,
-} from '../data/operatorsData.js';
-import { bloggerTags } from '../data/tagsData.js';
-import { getCategorizedPropertyMembers } from '../data/typeMembers.js';
-import { WIDGET_DATA_DICTIONARIES } from '../data/widgetsData.js';
-import { getWidgetSettingsSuggestions } from '../data/widgetSettingsData.js';
+import { getSpecCatalog } from 'blogger-spec/catalogs';
+import { getNearestUnclosedTag } from 'blogger-spec/parser';
+import { getCompatibleOperatorNames } from 'blogger-spec/type-system';
 import { tokenizeExpression } from '../linter/linterEngine.js';
-import { getNearestUnclosedTag } from '../parser/directiveScanner.js';
 import {
   detectLambdaPreArrowContext,
   extractLeftOperandAtCursor,
@@ -35,24 +23,18 @@ import {
   resolveLambdaContextAtCursor,
 } from '../parser/exprParser.js';
 import {
+  bloggerGlobalRoot,
+  getCategorizedPropertyMembers,
+  WIDGET_DATA_DICTIONARIES,
+} from './dataModel.js';
+import {
   normalizeDocUrls,
   resolveHoverAtPosition as resolveHoverAtPositionDirect,
   resolveLocalVariables,
 } from './hoverCardResolver.js';
-
 import { navigatePropertyPath } from './propertyHierarchy.js';
-import {
-  hasAttributeValueCompletions,
-  isExpressionAttribute,
-  parseTagAttributeContext,
-  resolveBloggerTagSuggestions,
-  resolveDefaultMarkupTypesSuggestions,
-  resolveDescriptionsSuggestions,
-  resolveSkinVariableTypesSuggestions,
-  resolveTagAttributeSuggestions,
-  resolveWidgetTypesSuggestions,
 
-} from './tagAttributeResolver.js';
+import { bloggerTags, hasAttributeValueCompletions, isExpressionAttribute, parseTagAttributeContext, resolveBloggerTagSuggestions, resolveDefaultMarkupTypesSuggestions, resolveDescriptionsSuggestions, resolveSkinVariableTypesSuggestions, resolveTagAttributeSuggestions, resolveWidgetTypesSuggestions } from './tagAttributeResolver.js';
 
 export {
   hasAttributeValueCompletions,
@@ -545,7 +527,7 @@ export class BloggerPathResolver {
         const paramName = hasParenSuffix ? 'item' : inferSingularParamName(opInfo.operand, colProp);
 
         const enriched = filtered.map((op) => {
-          const isLambda = bloggerOperatorsCatalog[op.name]?.isLambdaOperator;
+          const isLambda = getSpecCatalog().getOperator(op.name)?.family === 'lambda';
           if (isLambda && !hasParenSuffix) {
             return {
               ...op,
@@ -959,4 +941,341 @@ export class BloggerPathResolver {
       options,
     );
   }
+}
+
+export function getWidgetSettingsSuggestions(widgetType?: string): readonly BloggerSuggestion[] {
+  if (!widgetType) {
+    return [];
+  }
+  const settingsDef = getSpecCatalog().getWidgetSettings(widgetType);
+  if (!settingsDef?.canonical) {
+    return [];
+  }
+  return Object.entries(settingsDef.canonical).map(([name, setting]): BloggerSuggestion => ({
+    name,
+    type: 'string',
+    kind: 'property',
+    detail: `(${widgetType} Setting)`,
+    description: setting.description,
+    example: `<b:widget-setting name="${name}">${setting.default ?? ''}</b:widget-setting>`,
+  }));
+}
+
+export function getSystemMessageSuggestions(): readonly BloggerSuggestion[] {
+  const catalog = getSpecCatalog();
+  return Object.entries(catalog.getAllMessages()).map(([key, msg]): BloggerSuggestion => {
+    const isParam = msg.direct_invocation === false || (msg.parameters && msg.parameters.length > 0);
+    const canonicalName = `messages.${key}`;
+    return {
+      name: canonicalName,
+      type: 'string',
+      kind: 'property',
+      detail: isParam ? '(Parameterized System Message)' : '(System Message)',
+      description: isParam
+        ? `${msg.description} [Requires <b:param> tags; direct <data:messages...> output is prohibited.]`
+        : msg.description,
+      insertText: canonicalName,
+      isSnippet: false,
+      example: isParam
+        ? `<b:message name="${canonicalName}">\n  <b:param name="${msg.parameters?.[0]?.name ?? 'param'}" value="..."/>\n</b:message>`
+        : `<b:message name="${canonicalName}"/>`,
+      docUrl: 'https://bloggercode.orbiona.com/1979/12/Ressource-data-messages.html',
+    };
+  });
+}
+
+export function getMessageParamSuggestions(messageName?: string): readonly BloggerSuggestion[] {
+  if (messageName) {
+    const cleanKey = messageName.replace(/^messages\./, '');
+    const msg = getSpecCatalog().getMessage(cleanKey);
+    if (msg?.parameters && msg.parameters.length > 0) {
+      return msg.parameters.map((param, idx): BloggerSuggestion => ({
+        name: param.name,
+        type: 'string',
+        kind: 'property',
+        detail: `(Param Pos ${idx + 1} for messages.${cleanKey})`,
+        description: `${param.description} Positional replacement order: ${idx + 1}.`,
+        example: `<b:param name="${param.name}" value="..."/>`,
+      }));
+    }
+  }
+
+  const defaultParams = [
+    { name: 'authorName', position: 1, description: 'Author display name placeholder.', exampleValue: 'Author' },
+    { name: 'authorUrl', position: 2, description: 'Author profile URL placeholder.', exampleValue: 'https://www.blogger.com/profile/...' },
+    { name: 'bloggerUrl', position: 1, description: 'Blogger platform URL placeholder.', exampleValue: 'https://www.blogger.com/' },
+    { name: 'numComments', position: 1, description: 'Total number of comments placeholder.', exampleValue: '1' },
+  ];
+
+  return defaultParams.map((param): BloggerSuggestion => ({
+    name: param.name,
+    type: 'string',
+    kind: 'property',
+    detail: '(System Message Parameter)',
+    description: param.description,
+    example: `<b:param name="${param.name}" value="${param.exampleValue}"/>`,
+  }));
+}
+
+export const PARAMETERIZED_MESSAGE_KEYS: ReadonlySet<string> = new Set(
+  Object.entries(getSpecCatalog().getAllMessages())
+    .filter(([_, m]) => m.direct_invocation === false || (m.parameters && m.parameters.length > 0))
+    .map(([k]) => k),
+);
+
+export interface BloggerOperatorDefinition {
+  readonly name: string;
+  readonly aliases?: readonly string[] | undefined;
+  readonly isCollectionOperator: boolean;
+  readonly isLambdaOperator?: boolean | undefined;
+  readonly defaultParamName?: string | undefined;
+  readonly supportsFunctional: boolean;
+  readonly supportsVariadic?: boolean | undefined;
+  readonly returnType: BloggerDataType | 'same' | 'element';
+  readonly signature: string;
+  readonly signatureInfix: string;
+  readonly signatureFunctional?: string | undefined;
+  readonly functionalSnippet?: string | undefined;
+  readonly description: string;
+  readonly example: string;
+  readonly docUrl?: string | readonly string[] | undefined;
+}
+
+const XML_ESCAPED_OPERATORS = new Set(['<', '<=', '>', '>=', '&&', '||', '!']);
+
+const FUNCTIONAL_SNIPPETS: Record<string, string> = {
+  'take': 'take(${1:collection}, ${2:count})',
+  'limit': 'limit(${1:collection}, ${2:count})',
+  'skip': 'skip(${1:collection}, ${2:count})',
+  'offset': 'offset(${1:collection}, ${2:count})',
+  'in': 'in(${1:item}, ${2:collection})',
+  'contains': 'contains(${1:haystack}, ${2:needle})',
+  'params': 'params(${1:url}, { ${2:key}: ${3:value} })',
+  'appendParams': 'appendParams(${1:url}, { ${2:key}: ${3:value} })',
+  'path': 'path(${1:url}, "${2:/path}")',
+  'fragment': 'fragment(${1:url}, "${2:sectionId}")',
+  'format': 'format(${1:date}, "${2:YYYY-MM-dd}")',
+  'resizeImage': 'resizeImage(${1:imageUrl}, ${2:300}, "${3|1:1,4:3,16:9|}")',
+  'sourceSet': 'sourceSet(${1:imageUrl}, [${2:200, 400, 800}], "${3|16:9,4:3,1:1|}")',
+  'snippet': 'snippet(${1:text}, { length: ${2:150}, links: ${3:false}, linebreaks: ${4:false}, ellipsis: ${5:true} })',
+  'and': 'and(${1:condA}, ${2:condB})',
+  'or': 'or(${1:condA}, ${2:condB})',
+  '==': '==(${1:a}, ${2:b})',
+  '!=': '!=(${1:a}, ${2:b})',
+  'eq': 'eq(${1:a}, ${2:b})',
+  'neq': 'neq(${1:a}, ${2:b})',
+  'lt': 'lt(${1:a}, ${2:b})',
+  'lte': 'lte(${1:a}, ${2:b})',
+  'gt': 'gt(${1:a}, ${2:b})',
+  'gte': 'gte(${1:a}, ${2:b})',
+  '<': 'lt(${1:a}, ${2:b})',
+  '<=': 'lte(${1:a}, ${2:b})',
+  '>': 'gt(${1:a}, ${2:b})',
+  '>=': 'gte(${1:a}, ${2:b})',
+  '?:': '?:(${1:val1}, ${2:val2})',
+  '+': '+(${1:a}, ${2:b})',
+  '-': '-(${1:a}, ${2:b})',
+  '*': '*(${1:a}, ${2:b})',
+  '/': '/(${1:a}, ${2:b})',
+  '%': '%(${1:a}, ${2:b})',
+};
+
+function buildOperatorsCatalog(): Record<string, BloggerOperatorDefinition> {
+  const catalog = getSpecCatalog();
+  const allOps = catalog.getAllOperators();
+  const result: Record<string, BloggerOperatorDefinition> = {};
+
+  const allKeys = new Set(Object.keys(allOps));
+  for (const op of Object.values(allOps)) {
+    if (op.aliases) {
+      for (const a of op.aliases) {
+        allKeys.add(a);
+      }
+    }
+  }
+  allKeys.add('? :');
+
+  for (const key of allKeys) {
+    if (key === 'ne')
+      continue;
+    const op = catalog.getOperator(key);
+    if (!op)
+      continue;
+
+    const isLambda = op.family === 'lambda';
+    const isCollection = isLambda || op.family === 'collection' || ['in', 'contains', 'take', 'limit', 'skip', 'offset', 'to'].includes(key);
+    const returnType = op.return_type_rule === 'self_or_array' ? 'same' : (op.return_type as BloggerDataType);
+    const infix = op.syntax.infix ?? key;
+    const functional = op.syntax.functional ?? undefined;
+    const signature = (infix && functional) ? `${infix} | ${functional}` : (infix ?? functional ?? key);
+    const aliasesSet = new Set(op.aliases ?? []);
+    const bidirectionalMap: Record<string, string[]> = {
+      '<': ['lt'],
+      'lt': ['<'],
+      '<=': ['lte'],
+      'lte': ['<='],
+      '>': ['gt'],
+      'gt': ['>'],
+      '>=': ['gte'],
+      'gte': ['>='],
+      '==': ['eq'],
+      'eq': ['=='],
+      '!=': ['neq'],
+      'neq': ['!='],
+      'filter': ['where'],
+      'where': ['filter'],
+      'map': ['select'],
+      'select': ['map'],
+      'take': ['limit'],
+      'limit': ['take'],
+      'skip': ['offset'],
+      'offset': ['skip'],
+    };
+    if (bidirectionalMap[key]) {
+      for (const alias of bidirectionalMap[key]!) {
+        aliasesSet.add(alias);
+      }
+    }
+    const aliases = [...aliasesSet];
+
+    result[key] = {
+      name: key,
+      aliases,
+      isCollectionOperator: isCollection,
+      isLambdaOperator: isLambda,
+      defaultParamName: isLambda ? 'item' : undefined,
+      supportsFunctional: op.syntax.supports_functional,
+      supportsVariadic: op.syntax.variadic,
+      returnType,
+      signature,
+      signatureInfix: infix,
+      signatureFunctional: functional,
+      functionalSnippet: FUNCTIONAL_SNIPPETS[key],
+      description: op.description,
+      example: op.examples?.[0]?.expression ?? infix,
+      docUrl: 'https://bloggercode.orbiona.com/2016/04/operators-lambdas.html',
+    };
+  }
+
+  return result;
+}
+
+export const bloggerOperatorsCatalog: Record<string, BloggerOperatorDefinition> = buildOperatorsCatalog();
+
+export function getOperatorSuggestions(
+  context?: boolean | BloggerDataType,
+  isLoopContext: boolean = false,
+): readonly BloggerSuggestion[] {
+  let allowedNames: Set<string> | undefined;
+
+  if (typeof context === 'string') {
+    allowedNames = new Set(getCompatibleOperatorNames(context, isLoopContext));
+  }
+
+  return Object.values(bloggerOperatorsCatalog)
+    .filter((op) => {
+      if (XML_ESCAPED_OPERATORS.has(op.name)) {
+        return false;
+      }
+      if (allowedNames) {
+        return allowedNames.has(op.name) || (op.aliases?.some(alias => allowedNames.has(alias)) ?? false);
+      }
+      const isCollectionContext = typeof context === 'boolean' ? context : false;
+      return !isCollectionContext || op.isCollectionOperator;
+    })
+    .map((op) => {
+      let categoryBadge = 'Operator';
+      let sortPriority = 15;
+      if (op.isLambdaOperator) {
+        categoryBadge = 'Lambda';
+        sortPriority = 0;
+      }
+      else if (['resizeImage', 'sourceSet', 'snippet', 'format', 'params', 'path', 'fragment', 'appendParams'].includes(op.name)) {
+        categoryBadge = 'Transform';
+        sortPriority = 0;
+      }
+      else if (op.isCollectionOperator) {
+        categoryBadge = 'Collection';
+        sortPriority = 5;
+      }
+
+      return {
+        name: op.name,
+        type: (op.returnType === 'same' || op.returnType === 'element') ? 'object' : op.returnType,
+        kind: 'operator' as const,
+        detail: `(Blogger ${op.isCollectionOperator ? 'Collection ' : ''}Operator)`,
+        description: `${op.description}\n\n**Syntax:** \`${op.signatureInfix}\`${op.supportsFunctional ? `\n\n**Functional Syntax:** \`${op.signatureFunctional}\`` : ''}`,
+        example: op.example,
+        docUrl: op.docUrl,
+        categoryBadge,
+        sortPriority,
+      };
+    });
+}
+
+export function getFunctionalOperatorSuggestions(): readonly BloggerSuggestion[] {
+  return Object.values(bloggerOperatorsCatalog)
+    .filter(op => op.supportsFunctional && op.functionalSnippet && !XML_ESCAPED_OPERATORS.has(op.name))
+    .map((op) => {
+      const isTransform = ['resizeImage', 'sourceSet', 'snippet', 'format', 'params', 'path', 'fragment', 'appendParams', 'take', 'skip', 'limit', 'offset'].includes(op.name);
+      return {
+        name: op.name,
+        type: (op.returnType === 'same' || op.returnType === 'element') ? 'object' : op.returnType,
+        kind: 'operator' as const,
+        isSnippet: true,
+        insertText: op.functionalSnippet!,
+        detail: `(Blogger Operator${op.supportsVariadic ? ', Variadic' : ''})`,
+        description: `${op.description}\n\n**Functional Syntax:** \`${op.signatureFunctional}\`\n\n**Infix Syntax:** \`${op.signatureInfix}\``,
+        example: op.example,
+        docUrl: op.docUrl,
+        categoryBadge: isTransform ? 'Transform' : 'Operator',
+        sortPriority: isTransform ? 10 : 20,
+      };
+    });
+}
+
+export const RECOMMENDED_HTML_TAGS = [
+  'div',
+  'span',
+  'article',
+  'section',
+  'header',
+  'footer',
+  'aside',
+  'nav',
+  'main',
+  'h1',
+  'h2',
+  'h3',
+  'h4',
+  'h5',
+  'h6',
+  'p',
+  'button',
+  'a',
+  'ul',
+  'ol',
+  'li',
+  'figure',
+  'figcaption',
+  'time',
+  'img',
+  'blockquote',
+  'pre',
+  'code',
+] as const;
+
+export const htmlTagSuggestions: readonly BloggerSuggestion[] = Object.freeze(
+  RECOMMENDED_HTML_TAGS.map((tag): BloggerSuggestion => ({
+    name: tag,
+    type: 'string' as BloggerDataType,
+    kind: 'property',
+    detail: '(HTML Element — Recommended)',
+    description: `Standard HTML element <${tag}>. Note: <b:tag> dynamically generates any valid W3C HTML element.`,
+    example: `<b:tag name="${tag}">\n  $0\n</b:tag>`,
+  })),
+);
+
+export function getHtmlTagSuggestions(): readonly BloggerSuggestion[] {
+  return htmlTagSuggestions;
 }

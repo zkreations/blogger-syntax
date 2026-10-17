@@ -2,17 +2,14 @@
 
 ## Architecture Overview
 
-- `src/core/`: Pure TypeScript domain logic, data models, schemas, and resolution engines. No VS Code API dependencies.
-  - `data/`: Definitions for global data objects, widgets, tags, attributes, and Theme Designer variables.
+- `src/core/`: Pure TypeScript domain logic, language services, and resolution engines. Decoupled from VS Code APIs, consuming `blogger-spec` as the Single Source of Truth (SSOT).
   - `models/`: Type definitions and interfaces (`BloggerProperty`, `BloggerSuggestion`, etc.).
-  - `parser/`: Expression parser, lambda scope resolver, and directive token scanner (`exprParser.ts`, `directiveScanner.ts`, `tagTreeTracker.ts`).
-  - `resolver/`: Data path navigation, hover card resolution, and tag attribute completion (`pathResolver.ts`, `hoverCardResolver.ts`, `tagAttributeResolver.ts`, `propertyHierarchy.ts`).
+  - `parser/`: Expression parser, Pratt integration, and tag hierarchy tracking (`exprParser.ts`, `tagTreeTracker.ts`).
+  - `resolver/`: Data path navigation, hover cards, tag attribute completion, and enriched data models (`pathResolver.ts`, `hoverCardResolver.ts`, `tagAttributeResolver.ts`, `propertyHierarchy.ts`, `dataModel.ts`).
   - `scope/`: Context variable inference for `<b:loop>`, `<b:with>`, and `<b:includable>` (`scopeTracker.ts`, `typeInferencer.ts`).
   - `navigation/`: Definition resolver (`definitionResolver.ts`) and symbol indexer (`symbolIndexer.ts`).
   - `linter/`: Pure-TS linting rules and diagnostics engine (`linterEngine.ts`, `rules/`).
   - `service/`: Central template language service facade (`templateLanguageService.ts`).
-  - `types/`: Type definitions and structural contracts (`typeSystem.ts`).
-  - `version/`: Template and Layouts version detection (`templateVersion.ts`).
   - `utils/`: Text processing and snippet generation utilities (`textUtils.ts`, `snippetFormatter.ts`).
 - `src/vscode/`: VS Code integration adapters and providers.
   - `providers/`: Language feature providers (`completionProvider`, `hoverProvider`, `codeActionProvider`, `definitionProvider`, `diagnosticProvider`, `documentSymbolProvider`).
@@ -68,20 +65,10 @@ pnpm run lint:fix  # Fix formatting and linting issues automatically
 
 ## Adding New Blogger Properties or Tags
 
-1. Add properties or tags to the corresponding file in `src/core/data/`:
-   - `globalData.ts`: Universal `data:*` objects (e.g. `data:blog`, `data:view`).
-   - `widgetsData.ts`: Widget-specific properties (e.g. `Blog`, `Header`).
-   - `tagsData.ts`: Blogger XML tags (`<b:...>`).
-   - `skinVariablesData.ts` / `descriptions.ts`: Theme Designer `<Variable>` and `<Group>` definitions.
-   - `widgetTypes.ts`: Widget and default markup types.
-   - `messagesCatalog.ts`: Localized message names and parameters (`<b:message>`).
-   - `operatorsData.ts`: Template operators and functional lambda operators.
-   - `htmlTagsData.ts`: HTML5 elements and attribute definitions for `<b:tag>`.
-   - `widgetSettingsData.ts`: Supported widget setting key-value pairs.
-   - `widgetDescriptors.ts`: Widget capabilities, versions, and quota descriptors.
-2. Include a `docUrl` with official Google documentation or [BloggerCode](https://bloggercode.orbiona.com/) references when available.
-3. Add or update tests in `tests/unit/` to cover path resolution, completions, and hover tooltips.
-4. Verify with `pnpm test`, `pnpm run typecheck`, and `pnpm run lint`.
+1. Canonical Blogger domain specifications (tags, attributes, operators, messages, global datasets, widget schemas, and quotas) are managed upstream in **[`blogger-spec`](https://github.com/zkreations/blogger-spec)** as the Single Source of Truth (SSOT).
+2. For syntax-specific IDE metadata (such as rich markdown descriptions or local context resolution rules), update `src/core/resolver/dataModel.ts` or the relevant resolver adapter.
+3. Add or update unit tests under `tests/unit/` to verify completions, path navigation, and hover cards.
+4. Verify all checks with `pnpm test`, `pnpm run typecheck`, and `pnpm run lint`.
 
 ## Pull Request Guidelines
 

@@ -1,6 +1,6 @@
-import type { DirectiveToken } from '../../parser/directiveScanner.js';
+import type { BloggerDirectiveToken as DirectiveToken } from 'blogger-spec/parser';
 import type { BloggerDiagnostic } from '../linterTypes.js';
-import { scanDirectiveTokens } from '../../parser/directiveScanner.js';
+import { scanDirectiveTokens } from 'blogger-spec/parser';
 import { createRange } from '../linterUtils.js';
 
 const DEPRECATED_SECTION_ATTRS = new Set(['growth', 'mobile', 'maxwidgets']);

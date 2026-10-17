@@ -1,6 +1,6 @@
-import type { DirectiveToken } from '../../parser/directiveScanner.js';
+import type { BloggerDirectiveToken as DirectiveToken } from 'blogger-spec/parser';
 import type { BloggerDiagnostic } from '../linterTypes.js';
-import { scanDirectiveTokens } from '../../parser/directiveScanner.js';
+import { scanDirectiveTokens } from 'blogger-spec/parser';
 import { isExpressionAttribute } from '../../resolver/pathResolver.js';
 import { maskStringLiterals } from '../../utils/textUtils.js';
 

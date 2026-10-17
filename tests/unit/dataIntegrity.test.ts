@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { skinProperties, widgetsMapProperties } from '../../src/core/data/globalData.js';
-import { bloggerTags } from '../../src/core/data/tagsData.js';
-import { blogWidgetProperties } from '../../src/core/data/widgetsData.js';
+import {
+  blogWidgetProperties,
+  skinProperties,
+  widgetsMapProperties,
+} from '../../src/core/resolver/dataModel.js';
 import { BloggerPathResolver } from '../../src/core/resolver/pathResolver.js';
+import { bloggerTags } from '../../src/core/resolver/tagAttributeResolver.js';
 
 describe('plan 1: Data Model Integrity & Canonical Specifications', () => {
   const resolver = new BloggerPathResolver();

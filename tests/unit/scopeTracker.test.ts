@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { blogWidgetProperties, singlePostProperties } from '../../src/core/data/widgetsData.js';
+import { blogWidgetProperties, singlePostProperties } from '../../src/core/resolver/dataModel.js';
 import { BloggerScopeTracker } from '../../src/core/scope/scopeTracker.js';
 import { extractDataPathSegments, inferLoopVariables, inferWithVariables } from '../../src/core/scope/typeInferencer.js';
 

@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
+import { blogWidgetProperties } from '../../src/core/resolver/dataModel.js';
 import {
   bloggerOperatorsCatalog,
+  BloggerPathResolver,
   getFunctionalOperatorSuggestions,
   getOperatorSuggestions,
-} from '../../src/core/data/operatorsData.js';
-import { blogWidgetProperties } from '../../src/core/data/widgetsData.js';
-import { BloggerPathResolver } from '../../src/core/resolver/pathResolver.js';
+} from '../../src/core/resolver/pathResolver.js';
 
 describe('operators - Catalog Integrity, Dual Syntax & Autocompletion', () => {
   const resolver = new BloggerPathResolver();
@@ -476,7 +476,7 @@ describe('operators - Catalog Integrity, Dual Syntax & Autocompletion', () => {
       expect(hover).toBeDefined();
       expect(hover?.hover.category).toBe('operator');
       expect(hover?.hover.title).toBe('Operator: ==');
-      expect(hover?.hover.description).toContain('Strict equality');
+      expect(hover?.hover.description).toContain('Value equality test');
     });
 
     it('returns operator hover card when hovering over !=', () => {
@@ -485,7 +485,7 @@ describe('operators - Catalog Integrity, Dual Syntax & Autocompletion', () => {
       expect(hover).toBeDefined();
       expect(hover?.hover.category).toBe('operator');
       expect(hover?.hover.title).toBe('Operator: !=');
-      expect(hover?.hover.description).toContain('Strict inequality');
+      expect(hover?.hover.description).toContain('Value inequality test');
     });
 
     it('returns operator hover card when hovering over filter', () => {
@@ -494,7 +494,7 @@ describe('operators - Catalog Integrity, Dual Syntax & Autocompletion', () => {
       expect(hover).toBeDefined();
       expect(hover?.hover.category).toBe('operator');
       expect(hover?.hover.title).toBe('Operator: filter');
-      expect(hover?.hover.description).toContain('Filters a collection');
+      expect(hover?.hover.description).toContain('Filters an array');
     });
 
     it('returns operator hover card when hovering over first', () => {
@@ -504,7 +504,7 @@ describe('operators - Catalog Integrity, Dual Syntax & Autocompletion', () => {
       expect(hover).toBeDefined();
       expect(hover?.hover.category).toBe('operator');
       expect(hover?.hover.title).toBe('Operator: first');
-      expect(hover?.hover.description).toContain('collection first (item => boolean)');
+      expect(hover?.hover.description).toContain('array first (var => expr)');
     });
 
     it('returns operator hover card when hovering over snippet in functional syntax', () => {
@@ -513,7 +513,7 @@ describe('operators - Catalog Integrity, Dual Syntax & Autocompletion', () => {
       expect(hover).toBeDefined();
       expect(hover?.hover.category).toBe('operator');
       expect(hover?.hover.title).toBe('Operator: snippet');
-      expect(hover?.hover.description).toContain('Generates a clean');
+      expect(hover?.hover.description).toContain('Extracts a truncated plain-text snippet');
       expect(hover?.hover.description).toContain('Infix Syntax:');
       expect(hover?.hover.description).toContain('Functional Syntax:');
     });
@@ -532,7 +532,7 @@ describe('operators - Catalog Integrity, Dual Syntax & Autocompletion', () => {
       expect(hover).toBeDefined();
       expect(hover?.hover.category).toBe('operator');
       expect(hover?.hover.title).toBe('Operator: neq');
-      expect(hover?.hover.description).toContain('Strict inequality');
+      expect(hover?.hover.description).toContain('Value inequality test');
     });
 
     it('returns operator hover card when hovering over variadic and', () => {

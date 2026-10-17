@@ -1,14 +1,14 @@
 import type { BloggerDataType, BloggerProperty } from '../models/types.js';
-import { bloggerGlobalRoot } from '../data/globalData.js';
-import { createArrayProperties } from '../data/typeMembers.js';
+import { getArrayElementProperty, inferExpressionType } from '../parser/exprParser.js';
 import {
+  bloggerGlobalRoot,
   commentProperties,
+  createArrayProperties,
   labelItemProperties,
   linkItemProperties,
   singlePostProperties,
   WIDGET_DATA_DICTIONARIES,
-} from '../data/widgetsData.js';
-import { getArrayElementProperty, inferExpressionType } from '../parser/exprParser.js';
+} from '../resolver/dataModel.js';
 import { navigatePropertyPath } from '../resolver/propertyHierarchy.js';
 
 const PATH_EXTRACTOR_REGEX = /^(?:data:)?([\w.]+)/;

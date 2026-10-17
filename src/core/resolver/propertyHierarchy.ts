@@ -1,7 +1,16 @@
 import type { BloggerProperty } from '../models/types.js';
-import { bloggerGlobalRoot } from '../data/globalData.js';
-import { getPropertyMembers } from '../data/typeMembers.js';
-import { getWidgetDescriptor } from '../data/widgetDescriptors.js';
+import {
+  bloggerGlobalRoot,
+  getPropertyMembers,
+  getWidgetDescriptor,
+} from './dataModel.js';
+
+export {
+  createArrayProperties,
+  getCategorizedPropertyMembers,
+  getPropertyMembers,
+  getWidgetDescriptor,
+} from './dataModel.js';
 
 export interface PropertyNavigationResult {
   readonly target?: BloggerProperty | undefined;

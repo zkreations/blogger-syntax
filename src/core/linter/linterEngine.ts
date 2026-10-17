@@ -1,5 +1,5 @@
 import type { BloggerDiagnostic, LinterOptions } from './linterTypes.js';
-import { scanDirectiveTokens } from '../parser/directiveScanner.js';
+import { scanDirectiveTokens } from 'blogger-spec/parser';
 import { computeLineOffsets, maskComments } from './linterUtils.js';
 import { checkDirectiveAttributes } from './rules/attributeRules.js';
 import { checkContextAvailability } from './rules/contextRules.js';

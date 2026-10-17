@@ -1,5 +1,5 @@
 import type { Span } from '../utils/textUtils.js';
-import { scanDirectiveTokens } from '../parser/directiveScanner.js';
+import { scanDirectiveTokens } from 'blogger-spec/parser';
 
 export type { Span };
 

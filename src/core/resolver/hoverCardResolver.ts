@@ -2,13 +2,15 @@ import type {
   BloggerHoverResult,
   BloggerProperty,
 } from '../models/types.js';
-import { bloggerCommonAttributes, bloggerExprPrefixInfo } from '../data/attributesData.js';
-import { systemMessagesCatalog } from '../data/messagesCatalog.js';
-import { bloggerOperatorsCatalog } from '../data/operatorsData.js';
-import { bloggerTags } from '../data/tagsData.js';
-import { widgetSettingsCatalog } from '../data/widgetSettingsData.js';
+import { getSpecCatalog } from 'blogger-spec/catalogs';
 import { resolveLambdaHoverAtPosition } from '../parser/exprParser.js';
+import { bloggerOperatorsCatalog } from './pathResolver.js';
 import { navigatePropertyPath } from './propertyHierarchy.js';
+import {
+  bloggerCommonAttributes,
+  bloggerExprPrefixInfo,
+  bloggerTags,
+} from './tagAttributeResolver.js';
 
 export interface BloggerIncludablesInfo {
   readonly local?: readonly string[];
@@ -247,22 +249,29 @@ export function resolveHoverCardAtPosition(
 
       if (tagName === 'b:widget-setting' && attrName === 'name') {
         const widgetType = options?.widgetType;
-        let setting = widgetType ? widgetSettingsCatalog[widgetType]?.[val] : undefined;
+        const catalog = getSpecCatalog();
+        let setting = widgetType
+          ? (catalog.getWidgetSettings(widgetType)?.canonical?.[val] ?? catalog.getWidgetSettings(widgetType)?.deprecated?.[val])
+          : undefined;
+
         if (!setting) {
-          for (const dict of Object.values(widgetSettingsCatalog)) {
-            if (dict[val]) {
-              setting = dict[val];
+          for (const dict of Object.values(catalog.getAllWidgetSettings())) {
+            const found = dict.canonical?.[val] ?? dict.deprecated?.[val];
+            if (found) {
+              setting = found;
               break;
             }
           }
         }
         if (setting) {
+          const description = 'description' in setting ? setting.description : (setting.reason ?? 'Deprecated setting');
+          const defaultValue = 'default' in setting && setting.default !== undefined && setting.default !== null ? String(setting.default) : '';
           return {
             hover: {
               title: `${val} (${widgetType ? `${widgetType} Setting` : 'Widget Setting'})`,
               category: 'setting',
-              description: setting.description,
-              example: `<b:widget-setting name="${val}">${setting.default ?? ''}</b:widget-setting>`,
+              description,
+              example: `<b:widget-setting name="${val}">${defaultValue}</b:widget-setting>`,
               docUrls: ['https://bloggercode.orbiona.com/2018/02/tags-b-widget-settings.html'],
             },
             range: { start: valStart, end: valEnd },
@@ -272,18 +281,20 @@ export function resolveHoverCardAtPosition(
 
       if (tagName === 'b:message' && attrName === 'name') {
         const cleanKey = val.replace(/^messages\./, '');
-        const msg = systemMessagesCatalog[cleanKey];
+        const msg = getSpecCatalog().getMessage(cleanKey);
         if (msg) {
+          const isParameterized = msg.direct_invocation === false || (msg.parameters && msg.parameters.length > 0);
+          const canonicalName = val.startsWith('messages.') ? val : `messages.${cleanKey}`;
           return {
             hover: {
-              title: `${msg.canonicalName} (${msg.isParameterized ? 'Parameterized Message' : 'System Message'})`,
+              title: `${canonicalName} (${isParameterized ? 'Parameterized Message' : 'System Message'})`,
               category: 'message',
-              description: msg.isParameterized
+              description: isParameterized
                 ? `${msg.description} Requires child <b:param> tags; direct <data:messages...> output is prohibited.`
                 : msg.description,
-              example: msg.isParameterized
-                ? `<b:message name="${msg.canonicalName}">\n  <b:param name="${msg.params?.[0]?.name ?? 'param'}" value="..."/>\n</b:message>`
-                : `<b:message name="${msg.canonicalName}"/>`,
+              example: isParameterized
+                ? `<b:message name="${canonicalName}">\n  <b:param name="${msg.parameters?.[0]?.name ?? 'param'}" value="..."/>\n</b:message>`
+                : `<b:message name="${canonicalName}"/>`,
               docUrls: ['https://bloggercode.orbiona.com/1979/12/Ressource-data-messages.html'],
             },
             range: { start: valStart, end: valEnd },
@@ -294,13 +305,16 @@ export function resolveHoverCardAtPosition(
       if (tagName === 'b:param' && attrName === 'name') {
         const encMsg = options?.enclosingMessageName;
         const cleanKey = encMsg ? encMsg.replace(/^messages\./, '') : undefined;
-        const msg = cleanKey ? systemMessagesCatalog[cleanKey] : undefined;
-        let param = msg?.params?.find(p => p.name === val);
+        const catalog = getSpecCatalog();
+        const msg = cleanKey ? catalog.getMessage(cleanKey) : undefined;
+        let param = msg?.parameters?.find(p => p.name === val);
+        let paramPos = param ? (msg?.parameters?.indexOf(param) ?? 0) + 1 : 1;
         if (!param) {
-          for (const m of Object.values(systemMessagesCatalog)) {
-            const found = m.params?.find(p => p.name === val);
-            if (found) {
-              param = found;
+          for (const m of Object.values(catalog.getAllMessages())) {
+            const idx = m.parameters?.findIndex(p => p.name === val) ?? -1;
+            if (idx !== -1 && m.parameters) {
+              param = m.parameters[idx];
+              paramPos = idx + 1;
               break;
             }
           }
@@ -308,10 +322,10 @@ export function resolveHoverCardAtPosition(
         if (param) {
           return {
             hover: {
-              title: `${val} (Parameter Pos ${param.position})`,
+              title: `${val} (Parameter Pos ${paramPos})`,
               category: 'param',
-              description: `${param.description} (Positional substitution order: ${param.position}).`,
-              example: `<b:param name="${val}" value="${param.exampleValue}"/>`,
+              description: `${param.description} (Positional substitution order: ${paramPos}).`,
+              example: `<b:param name="${val}" value="${param.name}"/>`,
               docUrls: ['https://bloggercode.orbiona.com/2018/02/tag-b-message-b-param.html'],
             },
             range: { start: valStart, end: valEnd },

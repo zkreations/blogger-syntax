@@ -1,9 +1,9 @@
-import { describe, expect, it } from 'vitest';
 import {
   getNearestUnclosedTag,
   getUnclosedTagStack,
   isStrictlySelfClosingTag,
-} from '../../src/core/parser/directiveScanner.js';
+} from 'blogger-spec/parser';
+import { describe, expect, it } from 'vitest';
 
 describe('tagTreeTracker', () => {
   describe('isStrictlySelfClosingTag', () => {

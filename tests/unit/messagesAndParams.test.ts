@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { PARAMETERIZED_MESSAGE_KEYS } from '../../src/core/data/messagesCatalog.js';
-import { BloggerPathResolver } from '../../src/core/resolver/pathResolver.js';
+import { BloggerPathResolver, PARAMETERIZED_MESSAGE_KEYS } from '../../src/core/resolver/pathResolver.js';
 import { BloggerScopeTracker } from '../../src/core/scope/scopeTracker.js';
 
 describe('system messages and b:param contextual autocompletion', () => {

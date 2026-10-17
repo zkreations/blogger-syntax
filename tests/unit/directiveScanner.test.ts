@@ -1,11 +1,11 @@
-import { describe, expect, it } from 'vitest';
 import {
   getUnclosedDirectiveStack,
   isStrictlySelfClosingTag,
   maskXmlCommentsAndCdata,
   parseAttributes,
   scanDirectiveTokens,
-} from '../../src/core/parser/directiveScanner.js';
+} from 'blogger-spec/parser';
+import { describe, expect, it } from 'vitest';
 
 describe('directiveScanner', () => {
   describe('isStrictlySelfClosingTag', () => {

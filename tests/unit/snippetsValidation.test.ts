@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { bloggerTags } from '../../src/core/data/tagsData.js';
-import { resolveBloggerTagSuggestions } from '../../src/core/resolver/tagAttributeResolver.js';
+import {
+  bloggerTags,
+  resolveBloggerTagSuggestions,
+} from '../../src/core/resolver/tagAttributeResolver.js';
 
 describe('tags and snippets validation', () => {
   const allTagSuggestions = resolveBloggerTagSuggestions(false, false);

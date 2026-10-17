@@ -1,6 +1,6 @@
 import type { TextPosition, TextRange } from './linterTypes.js';
 
-import { maskXmlCommentsAndCdata, scanDirectiveTokens } from '../parser/directiveScanner.js';
+import { maskXmlCommentsAndCdata, scanDirectiveTokens } from 'blogger-spec/parser';
 
 /**
  * Computes an array of start offsets for each line in the text.

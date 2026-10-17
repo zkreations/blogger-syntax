@@ -51,7 +51,7 @@ export class BloggerStatusBarItem implements vscode.Disposable {
     const result = this.service.getTemplateVersion(text);
 
     this.statusBarItem.text = `$(symbol-structure) Blogger v${result.version}`;
-    this.statusBarItem.tooltip = `${result.summary}\nClick to view template structure & version details.`;
+    this.statusBarItem.tooltip = `Blogger Layouts v${result.version} - ${result.summary}\nClick to view template structure & version details.`;
     this.statusBarItem.show();
   }
 

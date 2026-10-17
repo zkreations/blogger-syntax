@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { blogWidgetProperties, singlePostProperties } from '../../src/core/data/widgetsData.js';
+import { blogWidgetProperties, singlePostProperties } from '../../src/core/resolver/dataModel.js';
 import { BloggerPathResolver } from '../../src/core/resolver/pathResolver.js';
 
 describe('bloggerPathResolver hover resolution', () => {

@@ -1,10 +1,11 @@
 import type { BloggerDiagnostic } from '../linterTypes.js';
-import { bloggerDefaultMarkupTypes, bloggerWidgetTypes } from '../../data/widgetTypes.js';
+import { getSpecCatalog } from 'blogger-spec/catalogs';
 import { isExpressionAttribute } from '../../resolver/tagAttributeResolver.js';
 import { createRange, scanXmlTags } from '../linterUtils.js';
 
-const WIDGET_TYPES_SET = new Set<string>(bloggerWidgetTypes);
-const DEFAULT_MARKUP_TYPES_SET = new Set<string>(bloggerDefaultMarkupTypes);
+const catalogWidgets = Object.keys(getSpecCatalog().getAllWidgets());
+const WIDGET_TYPES_SET = new Set<string>(catalogWidgets);
+const DEFAULT_MARKUP_TYPES_SET = new Set<string>(['All', 'Common', ...catalogWidgets]);
 
 const VALID_SECTION_TAGS = new Set([
   'div',

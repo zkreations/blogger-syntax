@@ -1,6 +1,5 @@
 import type { BloggerDiagnostic } from '../linterTypes.js';
-import { PARAMETERIZED_MESSAGE_KEYS } from '../../data/messagesCatalog.js';
-import { isExpressionAttribute } from '../../resolver/pathResolver.js';
+import { isExpressionAttribute, PARAMETERIZED_MESSAGE_KEYS } from '../../resolver/pathResolver.js';
 import { maskStringLiterals } from '../../utils/textUtils.js';
 import { createRange, scanXmlTags } from '../linterUtils.js';
 

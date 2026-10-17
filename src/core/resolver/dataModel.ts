@@ -1,5 +1,599 @@
-import type { BloggerProperty } from '../models/types.js';
-import { createArrayProperties } from './typeMembers.js';
+import type { BloggerDataType, BloggerProperty } from '../models/types.js';
+import { getSpecCatalog } from 'blogger-spec/catalogs';
+
+export const STRING_MEMBERS: Record<string, BloggerProperty> = Object.freeze({
+  escaped: {
+    name: 'escaped',
+    type: 'string',
+    description: 'HTML-escaped string representation.',
+    docUrl: 'https://bloggercode.orbiona.com/2016/04/data-parameters-escaped.html',
+  },
+  jsEscaped: {
+    name: 'jsEscaped',
+    type: 'string',
+    description: 'JavaScript string-escaped representation.',
+    docUrl: 'https://bloggercode.orbiona.com/2016/04/data-parameters-escaped.html',
+  },
+  jsonEscaped: {
+    name: 'jsonEscaped',
+    type: 'string',
+    description: 'JSON-escaped representation.',
+    docUrl: 'https://bloggercode.orbiona.com/2016/04/data-parameters-escaped.html',
+  },
+  cssEscaped: {
+    name: 'cssEscaped',
+    type: 'string',
+    description: 'CSS-escaped representation.',
+    docUrl: 'https://bloggercode.orbiona.com/2016/04/data-parameters-escaped.html',
+  },
+  length: {
+    name: 'length',
+    type: 'number',
+    description: 'The number of characters in the string.',
+  },
+  size: {
+    name: 'size',
+    type: 'number',
+    description: 'The number of characters in the string (alias of length).',
+  },
+});
+
+export const IMAGE_MEMBERS: Record<string, BloggerProperty> = Object.freeze({
+  width: {
+    name: 'width',
+    type: 'number',
+    description: 'Width of the image in pixels.',
+    docUrl: 'https://bloggercode.orbiona.com/2018/02/data-parameters-width-height.html',
+  },
+  height: {
+    name: 'height',
+    type: 'number',
+    description: 'Height of the image in pixels.',
+    docUrl: 'https://bloggercode.orbiona.com/2018/02/data-parameters-width-height.html',
+  },
+  originalWidth: {
+    name: 'originalWidth',
+    type: 'number',
+    description: 'Original width of the source image in pixels.',
+    docUrl: 'https://bloggercode.orbiona.com/2018/02/data-parameters-width-height.html',
+  },
+  originalHeight: {
+    name: 'originalHeight',
+    type: 'number',
+    description: 'Original height of the source image in pixels.',
+    docUrl: 'https://bloggercode.orbiona.com/2018/02/data-parameters-width-height.html',
+  },
+  isResizable: {
+    name: 'isResizable',
+    type: 'boolean',
+    description: 'Indicates whether the image is resizable via Blogger image service.',
+    docUrl: 'https://bloggercode.orbiona.com/2016/04/data-parameters-isResizable.html',
+  },
+  isYouTube: {
+    name: 'isYouTube',
+    type: 'boolean',
+    description: 'Indicates whether the image is a YouTube video thumbnail.',
+    docUrl: 'https://bloggercode.orbiona.com/2018/02/data-parameters-isYouTube-youtubeMaxResDefaultUrl.html',
+  },
+  youtubeMaxResDefaultUrl: {
+    name: 'youtubeMaxResDefaultUrl',
+    type: 'image',
+    description: 'High-resolution YouTube thumbnail image URL.',
+    docUrl: 'https://bloggercode.orbiona.com/2018/02/data-parameters-isYouTube-youtubeMaxResDefaultUrl.html',
+  },
+});
+
+export const LOCALE_MEMBERS: Record<string, BloggerProperty> = Object.freeze({
+  name: {
+    name: 'name',
+    type: 'string',
+    description: 'Full locale name representation (e.g. es_419, en_US).',
+    docUrl: 'https://bloggercode.orbiona.com/2018/02/data-parameters-locale-name-lang-country-variant-script.html',
+  },
+  language: {
+    name: 'language',
+    type: 'string',
+    description: 'Two-letter language code of the locale.',
+    docUrl: 'https://bloggercode.orbiona.com/2018/02/data-parameters-locale-name-lang-country-variant-script.html',
+  },
+  country: {
+    name: 'country',
+    type: 'string',
+    description: 'Two-letter country code of the locale.',
+    docUrl: 'https://bloggercode.orbiona.com/2018/02/data-parameters-locale-name-lang-country-variant-script.html',
+  },
+  variant: {
+    name: 'variant',
+    type: 'string',
+    description: 'Language/locale variant if specified.',
+    docUrl: 'https://bloggercode.orbiona.com/2018/02/data-parameters-locale-name-lang-country-variant-script.html',
+  },
+  script: {
+    name: 'script',
+    type: 'string',
+    description: 'Four-letter script code of the locale (e.g. Latn, Cyrl, Hant).',
+    docUrl: 'https://bloggercode.orbiona.com/2018/02/data-parameters-locale-name-lang-country-variant-script.html',
+  },
+  languageDirection: {
+    name: 'languageDirection',
+    type: 'string',
+    description: 'Text reading direction for locale (\'ltr\' or \'rtl\').',
+    docUrl: 'https://bloggercode.orbiona.com/2018/02/data-parameters-locale-direction-alignment.html',
+  },
+  languageAlignment: {
+    name: 'languageAlignment',
+    type: 'string',
+    description: 'Text alignment based on language (\'left\' or \'right\').',
+    docUrl: 'https://bloggercode.orbiona.com/2018/02/data-parameters-locale-direction-alignment.html',
+  },
+});
+
+export const DATE_MEMBERS: Record<string, BloggerProperty> = Object.freeze({
+  year: {
+    name: 'year',
+    type: 'number',
+    description: 'Four-digit year number.',
+    docUrl: 'https://bloggercode.orbiona.com/2018/02/data-parameters-day-month-year.html',
+  },
+  month: {
+    name: 'month',
+    type: 'number',
+    description: 'Month number (1-12).',
+    docUrl: 'https://bloggercode.orbiona.com/2018/02/data-parameters-day-month-year.html',
+  },
+  day: {
+    name: 'day',
+    type: 'number',
+    description: 'Day of the month number (1-31).',
+    docUrl: 'https://bloggercode.orbiona.com/2018/02/data-parameters-day-month-year.html',
+  },
+  dayOfWeek: {
+    name: 'dayOfWeek',
+    type: 'number',
+    description: 'Day of the week number (1-7).',
+    docUrl: 'https://bloggercode.orbiona.com/2018/02/data-parameters-day-month-year.html',
+  },
+  dayOfMonth: {
+    name: 'dayOfMonth',
+    type: 'number',
+    description: 'Day of the month number (1-31).',
+    docUrl: 'https://bloggercode.orbiona.com/2018/02/data-parameters-day-month-year.html',
+  },
+  dayOfYear: {
+    name: 'dayOfYear',
+    type: 'number',
+    description: 'Day of the year number (1-366).',
+    docUrl: 'https://bloggercode.orbiona.com/2018/02/data-parameters-day-month-year.html',
+  },
+  iso8601: {
+    name: 'iso8601',
+    type: 'string',
+    description: 'ISO 8601 formatted date string.',
+    docUrl: 'https://bloggercode.orbiona.com/2018/02/data-parameters-iso8601.html',
+  },
+});
+
+export const URL_MEMBERS: Record<string, BloggerProperty> = Object.freeze({
+  canonical: {
+    name: 'canonical',
+    type: 'url',
+    description: 'Canonical version of the URL.',
+    docUrl: 'https://bloggercode.orbiona.com/2016/04/data-parameters-canonical.html',
+  },
+  https: {
+    name: 'https',
+    type: 'url',
+    description: 'HTTPS version of the URL.',
+    docUrl: 'https://bloggercode.orbiona.com/2016/04/data-parameters-http-protocole.html',
+  },
+  http: {
+    name: 'http',
+    type: 'url',
+    description: 'HTTP version of the URL.',
+    docUrl: 'https://bloggercode.orbiona.com/2016/04/data-parameters-http-protocole.html',
+  },
+});
+
+export function createArrayProperties(
+  itemChildren?: Record<string, BloggerProperty>,
+  itemType: BloggerDataType = 'object',
+): Record<string, BloggerProperty> {
+  return {
+    size: {
+      name: 'size',
+      type: 'number',
+      description: 'The number of elements in the collection.',
+      docUrl: 'https://bloggercode.orbiona.com/2018/02/data-parameters-length-size-array.html',
+    },
+    length: {
+      name: 'length',
+      type: 'number',
+      description: 'The number of elements in the collection (alias of size).',
+      docUrl: 'https://bloggercode.orbiona.com/2018/02/data-parameters-length-size-array.html',
+    },
+    empty: {
+      name: 'empty',
+      type: 'boolean',
+      description: 'Indicates whether the collection is empty.',
+      docUrl: 'https://bloggercode.orbiona.com/2018/02/data-parameters-empty.html',
+    },
+    notEmpty: {
+      name: 'notEmpty',
+      type: 'boolean',
+      description: 'Indicates whether the collection contains at least one element.',
+      docUrl: 'https://bloggercode.orbiona.com/2018/02/data-parameters-empty.html',
+    },
+    any: {
+      name: 'any',
+      type: 'boolean',
+      description: 'Indicates whether the collection contains any elements.',
+      docUrl: 'https://bloggercode.orbiona.com/2018/02/data-parameters-empty.html',
+    },
+    first: {
+      name: 'first',
+      type: itemType,
+      description: 'The first element in the collection.',
+      docUrl: 'https://bloggercode.orbiona.com/2018/02/data-parameters-first-last.html',
+      children: itemChildren,
+    },
+    last: {
+      name: 'last',
+      type: itemType,
+      description: 'The last element in the collection.',
+      docUrl: 'https://bloggercode.orbiona.com/2018/02/data-parameters-first-last.html',
+      children: itemChildren,
+    },
+  };
+}
+
+export function getPropertyMembers(property: BloggerProperty): Record<string, BloggerProperty> | undefined {
+  if (property.type === 'array') {
+    const base = createArrayProperties(property.itemChildren, 'object');
+    if (property.children && Object.keys(property.children).length > 0) {
+      return { ...base, ...property.children };
+    }
+    return base;
+  }
+
+  if (property.type === 'string') {
+    return property.children ? { ...STRING_MEMBERS, ...property.children } : STRING_MEMBERS;
+  }
+
+  if (property.type === 'image') {
+    const base = { ...STRING_MEMBERS, ...IMAGE_MEMBERS };
+    return property.children ? { ...base, ...property.children } : base;
+  }
+
+  if (property.type === 'locale') {
+    return property.children ? { ...LOCALE_MEMBERS, ...property.children } : LOCALE_MEMBERS;
+  }
+
+  if (property.type === 'date') {
+    return property.children ? { ...DATE_MEMBERS, ...property.children } : DATE_MEMBERS;
+  }
+
+  if (property.type === 'url') {
+    const base = { ...STRING_MEMBERS, ...URL_MEMBERS };
+    return property.children ? { ...base, ...property.children } : base;
+  }
+
+  return property.children;
+}
+
+export interface CategorizedMember {
+  readonly property: BloggerProperty;
+  readonly originCategory: 'image' | 'url' | 'string' | 'date' | 'locale' | 'array' | 'custom';
+  readonly categoryBadge: string;
+  readonly sortPriority: number;
+}
+
+export function getCategorizedPropertyMembers(
+  property: BloggerProperty,
+): CategorizedMember[] | undefined {
+  if (property.type === 'image') {
+    const result: CategorizedMember[] = [];
+    for (const prop of Object.values(IMAGE_MEMBERS)) {
+      result.push({ property: prop, originCategory: 'image', categoryBadge: 'Image', sortPriority: 0 });
+    }
+    for (const prop of Object.values(STRING_MEMBERS)) {
+      result.push({ property: prop, originCategory: 'string', categoryBadge: 'String', sortPriority: 10 });
+    }
+    if (property.children) {
+      for (const prop of Object.values(property.children)) {
+        if (!result.some(r => r.property.name === prop.name)) {
+          result.push({ property: prop, originCategory: 'custom', categoryBadge: 'Property', sortPriority: 0 });
+        }
+      }
+    }
+    return result;
+  }
+
+  if (property.type === 'url') {
+    const result: CategorizedMember[] = [];
+    for (const prop of Object.values(URL_MEMBERS)) {
+      result.push({ property: prop, originCategory: 'url', categoryBadge: 'URL', sortPriority: 0 });
+    }
+    for (const prop of Object.values(STRING_MEMBERS)) {
+      result.push({ property: prop, originCategory: 'string', categoryBadge: 'String', sortPriority: 10 });
+    }
+    if (property.children) {
+      for (const prop of Object.values(property.children)) {
+        if (!result.some(r => r.property.name === prop.name)) {
+          result.push({ property: prop, originCategory: 'custom', categoryBadge: 'Property', sortPriority: 0 });
+        }
+      }
+    }
+    return result;
+  }
+
+  if (property.type === 'date') {
+    const result: CategorizedMember[] = [];
+    for (const prop of Object.values(DATE_MEMBERS)) {
+      result.push({ property: prop, originCategory: 'date', categoryBadge: 'Date', sortPriority: 0 });
+    }
+    if (property.children) {
+      for (const prop of Object.values(property.children)) {
+        if (!result.some(r => r.property.name === prop.name)) {
+          result.push({ property: prop, originCategory: 'custom', categoryBadge: 'Property', sortPriority: 0 });
+        }
+      }
+    }
+    return result;
+  }
+
+  if (property.type === 'locale') {
+    const result: CategorizedMember[] = [];
+    for (const prop of Object.values(LOCALE_MEMBERS)) {
+      result.push({ property: prop, originCategory: 'locale', categoryBadge: 'Locale', sortPriority: 0 });
+    }
+    if (property.children) {
+      for (const prop of Object.values(property.children)) {
+        if (!result.some(r => r.property.name === prop.name)) {
+          result.push({ property: prop, originCategory: 'custom', categoryBadge: 'Property', sortPriority: 0 });
+        }
+      }
+    }
+    return result;
+  }
+
+  if (property.type === 'array') {
+    const result: CategorizedMember[] = [];
+    const arrayProps = createArrayProperties(property.itemChildren, 'object');
+    const standardArrayKeys = new Set(Object.keys(arrayProps));
+
+    if (property.children) {
+      for (const prop of Object.values(property.children)) {
+        if (!standardArrayKeys.has(prop.name)) {
+          result.push({ property: prop, originCategory: 'custom', categoryBadge: 'Property', sortPriority: 0 });
+        }
+      }
+    }
+
+    const arrayPriority = result.length > 0 ? 10 : 0;
+    for (const prop of Object.values(arrayProps)) {
+      result.push({ property: prop, originCategory: 'array', categoryBadge: 'Array', sortPriority: arrayPriority });
+    }
+
+    return result;
+  }
+
+  if (property.type === 'string') {
+    const result: CategorizedMember[] = [];
+    for (const prop of Object.values(STRING_MEMBERS)) {
+      result.push({ property: prop, originCategory: 'string', categoryBadge: 'String', sortPriority: 0 });
+    }
+    if (property.children) {
+      for (const prop of Object.values(property.children)) {
+        if (!result.some(r => r.property.name === prop.name)) {
+          result.push({ property: prop, originCategory: 'custom', categoryBadge: 'Property', sortPriority: 0 });
+        }
+      }
+    }
+    return result;
+  }
+
+  if (property.children && Object.keys(property.children).length > 0) {
+    return Object.values(property.children).map(prop => ({
+      property: prop,
+      originCategory: 'custom' as const,
+      categoryBadge: 'Property',
+      sortPriority: 0,
+    }));
+  }
+
+  return undefined;
+}
+
+export const baseWidgetDescriptorProperties: Record<string, BloggerProperty> = Object.freeze({
+  id: {
+    name: 'id',
+    type: 'string',
+    description: 'Unique widget instance ID (e.g. "Blog1", "Header1").',
+    docUrl: 'https://bloggercode.orbiona.com/1978/02/data-widgets-id.html',
+  },
+  sectionId: {
+    name: 'sectionId',
+    type: 'string',
+    description: 'Parent <b:section> identifier containing the widget.',
+    docUrl: 'https://bloggercode.orbiona.com/1978/02/data-widgets-sectionId.html',
+  },
+  title: {
+    name: 'title',
+    type: 'string',
+    description: 'Configured widget header title.',
+    docUrl: 'https://bloggercode.orbiona.com/1978/02/data-widgets-title.html',
+  },
+  type: {
+    name: 'type',
+    type: 'string',
+    description: 'Canonical widget type name (e.g. "Blog", "AdSense").',
+    docUrl: 'https://bloggercode.orbiona.com/1978/02/data-widgets-type.html',
+  },
+});
+
+export const blogDescriptorPostSummaryProperties: Record<string, BloggerProperty> = Object.freeze({
+  id: {
+    name: 'id',
+    type: 'number',
+    description: 'Unique numerical post identifier.',
+    docUrl: 'https://bloggercode.orbiona.com/1978/02/data-widgets-posts-id.html',
+  },
+  title: {
+    name: 'title',
+    type: 'string',
+    description: 'Post title string.',
+    docUrl: 'https://bloggercode.orbiona.com/1978/02/data-widgets-posts-title.html',
+  },
+  featuredImage: {
+    name: 'featuredImage',
+    type: 'image',
+    description: 'Primary post hero image URL.',
+    docUrl: 'https://bloggercode.orbiona.com/1978/02/data-widgets-posts-featuredImage.html',
+  },
+  showInlineAds: {
+    name: 'showInlineAds',
+    type: 'boolean',
+    description: 'Inline ads display toggle.',
+    docUrl: 'https://bloggercode.orbiona.com/1978/02/data-widgets-posts-showInlineAds.html',
+  },
+});
+
+export const blogDescriptorBylineItemProperties: Record<string, BloggerProperty> = Object.freeze({
+  name: {
+    name: 'name',
+    type: 'string',
+    description: 'Byline item identifier (e.g. "author", "timestamp").',
+  },
+  label: {
+    name: 'label',
+    type: 'string',
+    description: 'Localized byline label prefix.',
+  },
+});
+
+export const blogDescriptorRegionProperties: Record<string, BloggerProperty> = Object.freeze({
+  regionName: {
+    name: 'regionName',
+    type: 'string',
+    description: 'Name of the byline region (e.g. "header-byline", "footer1").',
+  },
+  items: {
+    name: 'items',
+    type: 'array',
+    description: 'Byline item objects in region.',
+    itemChildren: blogDescriptorBylineItemProperties,
+    children: createArrayProperties(blogDescriptorBylineItemProperties),
+  },
+});
+
+export const blogDescriptorProperties: Record<string, BloggerProperty> = Object.freeze({
+  ...baseWidgetDescriptorProperties,
+  posts: {
+    name: 'posts',
+    type: 'array',
+    description: 'Summaries of blog posts rendered in the main blog gadget.',
+    docUrl: 'https://bloggercode.orbiona.com/1978/02/data-widgets-posts.html',
+    itemChildren: blogDescriptorPostSummaryProperties,
+    children: createArrayProperties(blogDescriptorPostSummaryProperties),
+  },
+  headerByline: {
+    name: 'headerByline',
+    type: 'object',
+    description: 'Header byline region descriptor.',
+    children: blogDescriptorRegionProperties,
+  },
+  footerBylines: {
+    name: 'footerBylines',
+    type: 'array',
+    description: 'Array of footer byline regions and item lists.',
+    itemChildren: blogDescriptorRegionProperties,
+    children: createArrayProperties(blogDescriptorRegionProperties),
+  },
+  allBylineItems: {
+    name: 'allBylineItems',
+    type: 'array',
+    description: 'Flat list of active byline items.',
+    itemChildren: blogDescriptorBylineItemProperties,
+    children: createArrayProperties(blogDescriptorBylineItemProperties),
+  },
+});
+
+export const featuredPostDescriptorProperties: Record<string, BloggerProperty> = Object.freeze({
+  ...baseWidgetDescriptorProperties,
+  postId: {
+    name: 'postId',
+    type: 'number',
+    description: 'Numerical identifier of the featured post.',
+    docUrl: 'https://bloggercode.orbiona.com/1978/02/data-widgets-postId.html',
+  },
+});
+
+export const popularPostsSummaryProperties: Record<string, BloggerProperty> = Object.freeze({
+  id: {
+    name: 'id',
+    type: 'number',
+    description: 'Unique numerical post identifier.',
+    docUrl: 'https://bloggercode.orbiona.com/1978/02/data-widgets-posts-id.html',
+  },
+  title: {
+    name: 'title',
+    type: 'string',
+    description: 'Post title string.',
+    docUrl: 'https://bloggercode.orbiona.com/1978/02/data-widgets-posts-title.html',
+  },
+});
+
+export const popularPostsDescriptorProperties: Record<string, BloggerProperty> = Object.freeze({
+  ...baseWidgetDescriptorProperties,
+  posts: {
+    name: 'posts',
+    type: 'array',
+    description: 'Summaries of popular posts in the gadget.',
+    docUrl: 'https://bloggercode.orbiona.com/1978/02/data-widgets-posts.html',
+    itemChildren: popularPostsSummaryProperties,
+    children: createArrayProperties(popularPostsSummaryProperties),
+  },
+});
+
+export const WIDGET_DESCRIPTORS_MAP: Record<string, Record<string, BloggerProperty>> = Object.freeze({
+  AdSense: baseWidgetDescriptorProperties,
+  Attribution: baseWidgetDescriptorProperties,
+  Blog: blogDescriptorProperties,
+  BlogArchive: baseWidgetDescriptorProperties,
+  BloggerButton: baseWidgetDescriptorProperties,
+  BlogList: baseWidgetDescriptorProperties,
+  BlogSearch: baseWidgetDescriptorProperties,
+  ContactForm: baseWidgetDescriptorProperties,
+  FeaturedPost: featuredPostDescriptorProperties,
+  Feed: baseWidgetDescriptorProperties,
+  Followers: baseWidgetDescriptorProperties,
+  Header: baseWidgetDescriptorProperties,
+  HTML: baseWidgetDescriptorProperties,
+  Image: baseWidgetDescriptorProperties,
+  Label: baseWidgetDescriptorProperties,
+  LinkList: baseWidgetDescriptorProperties,
+  PageList: baseWidgetDescriptorProperties,
+  PopularPosts: popularPostsDescriptorProperties,
+  Profile: baseWidgetDescriptorProperties,
+  ReportAbuse: baseWidgetDescriptorProperties,
+  Stats: baseWidgetDescriptorProperties,
+  Subscribe: baseWidgetDescriptorProperties,
+  Text: baseWidgetDescriptorProperties,
+  TextList: baseWidgetDescriptorProperties,
+  Translate: baseWidgetDescriptorProperties,
+  Wikipedia: baseWidgetDescriptorProperties,
+});
+
+export function getWidgetDescriptor(typeOrId: string): Record<string, BloggerProperty> {
+  if (WIDGET_DESCRIPTORS_MAP[typeOrId]) {
+    return WIDGET_DESCRIPTORS_MAP[typeOrId];
+  }
+  const typeWithoutIndex = typeOrId.replace(/\d+$/, '');
+  if (WIDGET_DESCRIPTORS_MAP[typeWithoutIndex]) {
+    return WIDGET_DESCRIPTORS_MAP[typeWithoutIndex];
+  }
+  return baseWidgetDescriptorProperties;
+}
 
 export const postAuthorPhotoProperties: Record<string, BloggerProperty> = {
   image: {
@@ -1745,5 +2339,730 @@ export const WIDGET_DATA_DICTIONARIES: Record<string, Record<string, BloggerProp
   Text: textWidgetProperties,
   TextList: textListWidgetProperties,
   Translate: translateWidgetProperties,
-  Wikipedia: wikipediaWidgetProperties,
+};
+
+export const sharingPlatformProperties: Record<string, BloggerProperty> = {
+  key: {
+    name: 'key',
+    type: 'string',
+    description: 'Identifier (\'facebook\', \'twitter\', \'pinterest\', \'email\', \'link\').',
+  },
+  name: {
+    name: 'name',
+    type: 'string',
+    description: 'Localized display name (\'Facebook\', \'Twitter\', etc.).',
+  },
+  shareMessage: {
+    name: 'shareMessage',
+    type: 'string',
+    description: 'Localized action label (\'Share to Facebook\').',
+  },
+  target: {
+    name: 'target',
+    type: 'string',
+    description: 'Outbound URL endpoint with pre-encoded sharing parameters.',
+  },
+};
+
+export const sharingProperties: Record<string, BloggerProperty> = {
+  platforms: {
+    name: 'platforms',
+    type: 'array',
+    description: 'List of active social sharing networks.',
+    itemChildren: sharingPlatformProperties,
+  },
+};
+
+export const blogProperties: Record<string, BloggerProperty> = {
+  adsenseAutoAds: {
+    name: 'adsenseAutoAds',
+    type: 'boolean',
+    description: 'True if auto ads are enabled for the blog.',
+    docUrl: 'https://bloggercode.orbiona.com/1978/08/data-blog-adsenseAutoAds.html',
+  },
+  adsenseClientId: {
+    name: 'adsenseClientId',
+    type: 'string',
+    description: 'The client ID for the blog\'s AdSense account.',
+    docUrl: 'https://bloggercode.orbiona.com/1978/10/data-blog-adsenseClientId.html',
+  },
+  adsenseHasAds: {
+    name: 'adsenseHasAds',
+    type: 'boolean',
+    description: 'True if the blog has AdSense ads enabled.',
+    docUrl: 'https://bloggercode.orbiona.com/1978/11/data-blog-adsenseHasAds.html',
+  },
+  adsenseHostId: {
+    name: 'adsenseHostId',
+    type: 'string',
+    description: 'The host ID for the blog\'s AdSense account.',
+    docUrl: 'https://bloggercode.orbiona.com/1978/11/data-blog-disableAdSenseWidget.html',
+  },
+  adultContent: {
+    name: 'adultContent',
+    type: 'boolean',
+    description: 'True if the blog is marked as containing adult content.',
+    docUrl: 'https://bloggercode.orbiona.com/1978/10/data-blog-adultContent.html',
+  },
+  analytics4: {
+    name: 'analytics4',
+    type: 'boolean',
+    description: 'True if the blog owner has entered a Google Analytics 4 (GA4) measurement ID.',
+    docUrl: 'https://bloggercode.orbiona.com/1978/08/blog-analytics4.html',
+  },
+  analyticsAccountNumber: {
+    name: 'analyticsAccountNumber',
+    type: 'string',
+    description: 'The Google Analytics account number for the blog.',
+    docUrl: 'https://bloggercode.orbiona.com/1978/10/data-blog-analyticsAccountNumber.html',
+  },
+  bloggerUrl: {
+    name: 'bloggerUrl',
+    type: 'url',
+    description: 'The URL of blogger.com.',
+    docUrl: 'https://bloggercode.orbiona.com/1978/10/data-blog-bloggerUrl.html',
+  },
+  blogId: {
+    name: 'blogId',
+    type: 'string',
+    description: 'The unique ID of the blog.',
+    docUrl: 'https://bloggercode.orbiona.com/1978/11/data-blog-blogId.html',
+  },
+  blogspotFaviconUrl: {
+    name: 'blogspotFaviconUrl',
+    type: 'url',
+    description: 'The URL of the blog\'s favicon.',
+    docUrl: 'https://bloggercode.orbiona.com/1978/10/data-blog-blogspotFaviconUrl.html',
+  },
+  encoding: {
+    name: 'encoding',
+    type: 'string',
+    description: 'Character encoding of the blog (e.g. UTF-8).',
+    docUrl: 'https://bloggercode.orbiona.com/1978/11/data-blog-encoding.html',
+  },
+  feedLinks: {
+    name: 'feedLinks',
+    type: 'string',
+    description: 'Auto-discovery link tags for RSS/Atom feeds.',
+    docUrl: 'https://bloggercode.orbiona.com/1978/11/data-blog-feedLinks.html',
+  },
+  hasCustomDomain: {
+    name: 'hasCustomDomain',
+    type: 'boolean',
+    description: 'True if the blog uses a custom domain.',
+    docUrl: 'https://bloggercode.orbiona.com/1978/12/data-blog-hasCustomDomain.html',
+  },
+  hasCustomJumpLinkMessage: {
+    name: 'hasCustomJumpLinkMessage',
+    type: 'boolean',
+    description: 'True if a custom "Read more" / jump link text is defined.',
+    docUrl: 'https://bloggercode.orbiona.com/1972/12/data-blog-hasCustomJumpLinkMessage.html',
+  },
+  homepageUrl: {
+    name: 'homepageUrl',
+    type: 'url',
+    description: 'The main homepage URL of the blog.',
+    docUrl: 'https://bloggercode.orbiona.com/1978/11/data-blog-homepageUrl.html',
+  },
+  httpsEnabled: {
+    name: 'httpsEnabled',
+    type: 'boolean',
+    description: 'True if HTTPS redirection is enabled on the blog.',
+    docUrl: 'https://bloggercode.orbiona.com/1978/12/data-blog-httpsEnabled.html',
+  },
+  isMobileRequest: {
+    name: 'isMobileRequest',
+    type: 'boolean',
+    description: 'True if the request comes from a mobile user agent.',
+    docUrl: 'https://bloggercode.orbiona.com/1978/10/data-blog-isMobileRequest.html',
+  },
+  isPrivate: {
+    name: 'isPrivate',
+    type: 'boolean',
+    description: 'True if the blog is restricted to author/reader permissions only.',
+    docUrl: 'https://bloggercode.orbiona.com/1978/11/data-blog-isPrivate.html',
+  },
+  isPrivateBlog: {
+    name: 'isPrivateBlog',
+    type: 'boolean',
+    description: 'True if the blog is configured as private.',
+    docUrl: 'https://bloggercode.orbiona.com/1978/10/data-blog-isPrivateBlog.html',
+  },
+  jumpLinkMessage: {
+    name: 'jumpLinkMessage',
+    type: 'string',
+    description: 'The text displayed for the jump link ("Read more").',
+    docUrl: 'https://bloggercode.orbiona.com/1978/11/data-blog-jumpLinkMessage.html',
+  },
+  languageDirection: {
+    name: 'languageDirection',
+    type: 'string',
+    description: 'Text direction of the current language (\'ltr\' or \'rtl\').',
+    docUrl: 'https://bloggercode.orbiona.com/1978/10/data-blog-languageDirection.html',
+  },
+  locale: {
+    name: 'locale',
+    type: 'locale',
+    description: 'Standard language/locale code of the blog (e.g. \'es\', \'en\').',
+    docUrl: 'https://bloggercode.orbiona.com/1978/10/data-blog-locale.html',
+  },
+  localeUnderscoreDelimited: {
+    name: 'localeUnderscoreDelimited',
+    type: 'string',
+    description: 'Locale code formatted with an underscore (e.g. \'es_419\', \'en_US\').',
+    docUrl: 'https://bloggercode.orbiona.com/1978/10/data-blog-localeUnderscoreDelimited.html',
+  },
+  metaDescription: {
+    name: 'metaDescription',
+    type: 'string',
+    description: 'Search meta description configured for the current page or blog.',
+    docUrl: 'https://bloggercode.orbiona.com/1978/10/data-blog-metaDescription.html',
+  },
+  pageId: {
+    name: 'pageId',
+    type: 'string',
+    description: 'The unique ID of the static page (when on a static page).',
+    docUrl: 'https://bloggercode.orbiona.com/2021/11/blog-pageId.html',
+  },
+  pageName: {
+    name: 'pageName',
+    type: 'string',
+    description: 'Name or title of the current post, static page, label, or archive.',
+    docUrl: 'https://bloggercode.orbiona.com/1978/11/data-blog-pageName.html',
+  },
+  pageTitle: {
+    name: 'pageTitle',
+    type: 'string',
+    description: 'Formatted title string intended for the HTML <title> tag.',
+    docUrl: 'https://bloggercode.orbiona.com/1978/11/data-blog-pageTitle.html',
+  },
+  pageType: {
+    name: 'pageType',
+    type: 'string',
+    description: 'Current page type (\'item\', \'static_page\', \'index\', \'archive\', \'error_page\').',
+    docUrl: 'https://bloggercode.orbiona.com/1978/11/data-blog-pageType.html',
+  },
+  postId: {
+    name: 'postId',
+    type: 'string',
+    description: 'The unique ID of the post (when on a post page).',
+    docUrl: 'https://bloggercode.orbiona.com/2021/11/blog-postId.html',
+  },
+  postImageThumbnailUrl: {
+    name: 'postImageThumbnailUrl',
+    type: 'string',
+    description: 'URL of the thumbnail of the primary post image.',
+    docUrl: 'https://bloggercode.orbiona.com/1978/10/data-blog-postImageThumbnailUrl.html',
+  },
+  postImageUrl: {
+    name: 'postImageUrl',
+    type: 'string',
+    description: 'Full-size URL of the primary image in the post.',
+    docUrl: 'https://bloggercode.orbiona.com/1978/10/data-blog-postImageUrl.html',
+  },
+  searchLabel: {
+    name: 'searchLabel',
+    type: 'string',
+    description: 'Label term when viewing a label search page.',
+    docUrl: 'https://bloggercode.orbiona.com/2021/11/blog-searchLabel.html',
+  },
+  searchQuery: {
+    name: 'searchQuery',
+    type: 'string',
+    description: 'Search query keyword when viewing a query result page.',
+    docUrl: 'https://bloggercode.orbiona.com/2021/11/blog-searchQuery.html',
+  },
+  searchUrl: {
+    name: 'searchUrl',
+    type: 'url',
+    description: 'Base URL for internal blog search queries.',
+    docUrl: 'https://bloggercode.orbiona.com/1978/12/data-blog-searchUrl.html',
+  },
+  sharing: {
+    name: 'sharing',
+    type: 'object',
+    description: 'Container for social sharing targets and platforms.',
+    docUrl: 'https://bloggercode.orbiona.com/1978/11/data-blog-sharing.html',
+    children: sharingProperties,
+  },
+  title: {
+    name: 'title',
+    type: 'string',
+    description: 'The general name / main title of the blog.',
+    docUrl: 'https://bloggercode.orbiona.com/1978/11/data-blog-title.html',
+  },
+  url: {
+    name: 'url',
+    type: 'url',
+    description: 'Current canonical URL of the requested page.',
+    docUrl: 'https://bloggercode.orbiona.com/1978/11/data-blog-url.html',
+  },
+  view: {
+    name: 'view',
+    type: 'string',
+    description: 'Contains the name of the current view.',
+    docUrl:
+      'https://bloggercode.orbiona.com/1978/10/data-blog-view.html',
+  },
+};
+
+const messageNames = [
+  'adsGoHere',
+  'archive',
+  'at',
+  'authorSaid',
+  'authorSaidWithLink',
+  'blogArchive',
+  'blogAuthors',
+  'by',
+  'byAuthor',
+  'byAuthorLink',
+  'comments',
+  'configurationRequired',
+  'copy',
+  'copyToClipboard',
+  'deleteComment',
+  'dynamicViewsNotAvailable',
+  'edit',
+  'emailAddress',
+  'emailPost',
+  'euCookieNotice',
+  'euCookieNotice2018',
+  'euCookieResponsibility',
+  'euCookieResponsibility2018',
+  'featured',
+  'getEmailNotifications',
+  'gotIt',
+  'hidden',
+  'home',
+  'image',
+  'joinTheConversation',
+  'keepReading',
+  'labels',
+  'latestPosts',
+  'learnMore',
+  'linkCopiedToClipboard',
+  'loadMorePosts',
+  'loading',
+  'moreEllipsis',
+  'morePosts',
+  'myBlogList',
+  'myFavoriteSites',
+  'myPhoto',
+  'newer',
+  'newerPosts',
+  'newest',
+  'noResultsFound',
+  'noTitle',
+  'numberOfComments',
+  'ok',
+  'older',
+  'olderPosts',
+  'oldest',
+  'onlyTeamMembersCanComment',
+  'on',
+  'photo',
+  'popularPosts',
+  'popularPostsFromThisBlog',
+  'postAComment',
+  'postLink',
+  'postedBy',
+  'postedByAuthor',
+  'postedByAuthorLink',
+  'posts',
+  'poweredByBlogger',
+  'poweredByBloggerLink',
+  'readMore',
+  'recentPosts',
+  'reportAbuse',
+  'search',
+  'searchBlog',
+  'searchThisBlog',
+  'share',
+  'shareOtherApps',
+  'shareToOtherApps',
+  'showAll',
+  'showLess',
+  'showMore',
+  'skipToMainContent',
+  'someOfMyFavoriteSites',
+  'subscribe',
+  'subscribeTo',
+  'subscribeToThisBlog',
+  'templateImagesBy',
+  'templateImagesByLink',
+  'theresNothingHere',
+  'title',
+  'viewAll',
+  'viewMyCompleteProfile',
+  'visible',
+  'visitProfile',
+  'visitSite',
+  'widget',
+  'widgetNotAvailableInPreview',
+  'widgetNotAvailableOnHttps',
+  'youMayLikeThesePosts',
+] as const;
+
+export const messagesProperties: Record<string, BloggerProperty>
+  = Object.fromEntries(
+    messageNames.map((name) => {
+      const msg = getSpecCatalog().getMessage(name);
+      const isParam = msg?.direct_invocation === false || Boolean(msg?.parameters && msg.parameters.length > 0);
+      return [
+        name,
+        {
+          name,
+          type: 'message',
+          description: isParam
+            ? `Blogger localized UI message: ${name}. [Requires <b:message> and <b:param>; direct invocation via <data:messages.${name}/> is prohibited.]`
+            : `Blogger localized UI message: ${name}`,
+          docUrl: 'https://bloggercode.orbiona.com/1979/12/Ressource-data-messages.html',
+        },
+      ];
+    }),
+  );
+
+export const skinProperties: Record<string, BloggerProperty> = {
+  override: {
+    name: 'override',
+    type: 'string',
+    description: 'Custom CSS injected via Theme Designer ("Add CSS"). Empty if none added.',
+    docUrl: 'https://bloggercode.orbiona.com/1972/12/data-skin.html',
+  },
+  vars: {
+    name: 'vars',
+    type: 'object',
+    description: 'Theme Designer variables dictionary populated from <Variable> tags in <b:skin>.',
+    docUrl: 'https://bloggercode.orbiona.com/1972/12/data-skin.html',
+  },
+};
+
+export const viewProperties: Record<string, BloggerProperty> = {
+  archive: {
+    name: 'archive',
+    type: 'object',
+    description: 'Archive view metadata (rangeMessage, day, month, year).',
+    docUrl: 'https://bloggercode.orbiona.com/1978/10/data-view-archive.html',
+    children: {
+      rangeMessage: {
+        name: 'rangeMessage',
+        type: 'string',
+        description: 'Human readable date range message.',
+      },
+      day: {
+        name: 'day',
+        type: 'number',
+        description: 'Archive day number.',
+      },
+      month: {
+        name: 'month',
+        type: 'number',
+        description: 'Archive month number (1-12).',
+      },
+      year: {
+        name: 'year',
+        type: 'number',
+        description: 'Archive year number.',
+      },
+    },
+  },
+  description: {
+    name: 'description',
+    type: 'string',
+    description: 'View page description.',
+    docUrl: 'https://bloggercode.orbiona.com/1978/05/data-view-description.html',
+  },
+  featuredImage: {
+    name: 'featuredImage',
+    type: 'image',
+    description: 'Featured image URL for the current view.',
+    docUrl: 'https://bloggercode.orbiona.com/1978/05/data-view-featuredImage.html',
+  },
+  isArchive: {
+    name: 'isArchive',
+    type: 'boolean',
+    description: 'True when viewing an archive period.',
+    docUrl: 'https://bloggercode.orbiona.com/1978/10/data-view-isArchive.html',
+  },
+  isError: {
+    name: 'isError',
+    type: 'boolean',
+    description: 'True when viewing a 404 error page.',
+    docUrl: 'https://bloggercode.orbiona.com/1978/10/data-view-isError.html',
+  },
+  isHomepage: {
+    name: 'isHomepage',
+    type: 'boolean',
+    description: 'True when viewing the blog homepage.',
+    docUrl: 'https://bloggercode.orbiona.com/1978/10/data-view-isHomepage.html',
+  },
+  isLabelSearch: {
+    name: 'isLabelSearch',
+    type: 'boolean',
+    description: 'True when filtering by a specific label.',
+    docUrl: 'https://bloggercode.orbiona.com/1978/10/data-view-isLabelSearch.html',
+  },
+  isLayoutMode: {
+    name: 'isLayoutMode',
+    type: 'boolean',
+    description: 'True when rendered inside Blogger Layout editor.',
+    docUrl: 'https://bloggercode.orbiona.com/1978/05/data-view-isLayoutMode.html',
+  },
+  isMultipleItems: {
+    name: 'isMultipleItems',
+    type: 'boolean',
+    description: 'True on index, archive, or search views with multiple posts.',
+    docUrl: 'https://bloggercode.orbiona.com/1978/10/data-view-isMultipleItems.html',
+  },
+  isPage: {
+    name: 'isPage',
+    type: 'boolean',
+    description: 'True when viewing a static page.',
+    docUrl: 'https://bloggercode.orbiona.com/1978/10/data-view-isPage.html',
+  },
+  isPost: {
+    name: 'isPost',
+    type: 'boolean',
+    description: 'True when viewing a single post item.',
+    docUrl: 'https://bloggercode.orbiona.com/1978/10/data-view-isPost.html',
+  },
+  isPreview: {
+    name: 'isPreview',
+    type: 'boolean',
+    description: 'True when viewing template in designer preview mode.',
+    docUrl: 'https://bloggercode.orbiona.com/1978/05/data-view-isPreview.html',
+  },
+  isSearch: {
+    name: 'isSearch',
+    type: 'boolean',
+    description: 'True when viewing search results or label pages.',
+    docUrl: 'https://bloggercode.orbiona.com/1978/10/data-view-isSearch.html',
+  },
+  isSingleItem: {
+    name: 'isSingleItem',
+    type: 'boolean',
+    description: 'True on single item pages (post or static page).',
+    docUrl: 'https://bloggercode.orbiona.com/1978/10/data-view-isSingleItem.html',
+  },
+  pageId: {
+    name: 'pageId',
+    type: 'number',
+    description: 'Static page ID in current view.',
+    docUrl: 'https://bloggercode.orbiona.com/1978/10/data-view-pageId.html',
+  },
+  postId: {
+    name: 'postId',
+    type: 'number',
+    description: 'Post ID in current view.',
+    docUrl: 'https://bloggercode.orbiona.com/1978/10/data-view-postId.html',
+  },
+  search: {
+    name: 'search',
+    type: 'object',
+    description: 'Search view details (resultsMessageHtml, resultsMessage, query, label).',
+    docUrl: 'https://bloggercode.orbiona.com/1978/10/data-view-search.html',
+    children: {
+      resultsMessageHtml: {
+        name: 'resultsMessageHtml',
+        type: 'string',
+        description: 'HTML formatted results count message.',
+      },
+      resultsMessage: {
+        name: 'resultsMessage',
+        type: 'string',
+        description: 'Plain text results count message.',
+      },
+      query: {
+        name: 'query',
+        type: 'string',
+        description: 'Search term query string.',
+      },
+      label: {
+        name: 'label',
+        type: 'string',
+        description: 'Label filter name.',
+      },
+    },
+  },
+  title: {
+    name: 'title',
+    type: 'string',
+    description: 'View page title.',
+    docUrl: 'https://bloggercode.orbiona.com/1978/05/data-view-title.html',
+  },
+  type: {
+    name: 'type',
+    type: 'string',
+    description: 'Current view type identifier.',
+    docUrl: 'https://bloggercode.orbiona.com/1978/10/data-view-type.html',
+  },
+  url: {
+    name: 'url',
+    type: 'url',
+    description: 'Canonical URL for current view.',
+    docUrl: 'https://bloggercode.orbiona.com/1978/10/data-view-url.html',
+  },
+};
+
+export const widgetMetaProperties: Record<string, BloggerProperty> = {
+  instanceId: {
+    name: 'instanceId',
+    type: 'string',
+    description: 'Unique widget instance ID.',
+    docUrl: 'https://bloggercode.orbiona.com/1978/12/data-widget-instanceId.html',
+  },
+  sectionId: {
+    name: 'sectionId',
+    type: 'string',
+    description: 'Parent b:section ID containing this widget.',
+    docUrl: 'https://bloggercode.orbiona.com/1978/12/data-widget-sectionId.html',
+  },
+  type: {
+    name: 'type',
+    type: 'string',
+    description: 'Widget type (e.g. Blog, Header, HTML).',
+    docUrl: 'https://bloggercode.orbiona.com/1978/12/data-widget-type.html',
+  },
+  version: {
+    name: 'version',
+    type: 'number',
+    description: 'Widget syntax version (1 or 2).',
+    docUrl: 'https://bloggercode.orbiona.com/1978/01/data-widget-version.html',
+  },
+};
+
+function createWidgetCollectionEntry(
+  name: string,
+  description: string,
+  docUrl?: string,
+): BloggerProperty {
+  const itemChildren = WIDGET_DESCRIPTORS_MAP[name] ?? baseWidgetDescriptorProperties;
+  return {
+    name,
+    type: 'array',
+    description,
+    docUrl,
+    itemChildren,
+    children: createArrayProperties(itemChildren),
+  };
+}
+
+export const widgetsMapProperties: Record<string, BloggerProperty> = {
+  AdSense: createWidgetCollectionEntry('AdSense', 'Collection of visible AdSense gadget descriptors.', 'https://bloggercode.orbiona.com/1979/08/Ressource-AdSense.html'),
+  Attribution: createWidgetCollectionEntry('Attribution', 'Collection of visible Attribution gadget descriptors.', 'https://bloggercode.orbiona.com/1979/08/Ressource-Attribution.html'),
+  Blog: createWidgetCollectionEntry('Blog', 'Collection of visible Blog gadget descriptors.', 'https://bloggercode.orbiona.com/1979/07/Ressource-Blog.html'),
+  BlogArchive: createWidgetCollectionEntry('BlogArchive', 'Collection of visible BlogArchive gadget descriptors.', 'https://bloggercode.orbiona.com/1979/07/Ressource-BlogArchive.html'),
+  BloggerButton: createWidgetCollectionEntry('BloggerButton', 'Collection of visible BloggerButton gadget descriptors.', 'https://bloggercode.orbiona.com/1979/07/Ressource-BloggerButton.html'),
+  BlogList: createWidgetCollectionEntry('BlogList', 'Collection of visible BlogList gadget descriptors.', 'https://bloggercode.orbiona.com/1979/07/Ressource-BlogList.html'),
+  BlogSearch: createWidgetCollectionEntry('BlogSearch', 'Collection of visible BlogSearch gadget descriptors.', 'https://bloggercode.orbiona.com/1979/07/Ressources-CustomSearch.html'),
+  ContactForm: createWidgetCollectionEntry('ContactForm', 'Collection of visible ContactForm gadget descriptors.', 'https://bloggercode.orbiona.com/1979/07/Ressource-ContactForm.html'),
+  FeaturedPost: createWidgetCollectionEntry('FeaturedPost', 'Collection of visible FeaturedPost gadget descriptors.', 'https://bloggercode.orbiona.com/1979/07/Ressource-FeaturedPost.html'),
+  Feed: createWidgetCollectionEntry('Feed', 'Collection of visible Feed gadget descriptors.', 'https://bloggercode.orbiona.com/1979/07/Ressources-Feed.html'),
+  Followers: createWidgetCollectionEntry('Followers', 'Collection of visible Followers gadget descriptors.', 'https://bloggercode.orbiona.com/1979/07/Ressource-Followers.html'),
+  Header: createWidgetCollectionEntry('Header', 'Collection of visible Header gadget descriptors.', 'https://bloggercode.orbiona.com/1979/07/Ressource-Header.html'),
+  HTML: createWidgetCollectionEntry('HTML', 'Collection of visible HTML gadget descriptors.', 'https://bloggercode.orbiona.com/1979/08/Ressource-HTML-Text.html'),
+  Image: createWidgetCollectionEntry('Image', 'Collection of visible Image gadget descriptors.', 'https://bloggercode.orbiona.com/1979/07/Ressource-Image.html'),
+  Label: createWidgetCollectionEntry('Label', 'Collection of visible Label gadget descriptors.', 'https://bloggercode.orbiona.com/1979/07/Ressource-Label.html'),
+  LinkList: createWidgetCollectionEntry('LinkList', 'Collection of visible LinkList gadget descriptors.', 'https://bloggercode.orbiona.com/1979/07/Ressource-LinkList.html'),
+  PageList: createWidgetCollectionEntry('PageList', 'Collection of visible PageList gadget descriptors.', 'https://bloggercode.orbiona.com/1979/07/Ressource-PageList.html'),
+  PopularPosts: createWidgetCollectionEntry('PopularPosts', 'Collection of visible PopularPosts gadget descriptors.', 'https://bloggercode.orbiona.com/1979/07/Ressource-PopularPosts.html'),
+  Profile: createWidgetCollectionEntry('Profile', 'Collection of visible Profile gadget descriptors.', 'https://bloggercode.orbiona.com/1979/07/Ressource-Profile.html'),
+  ReportAbuse: createWidgetCollectionEntry('ReportAbuse', 'Collection of visible ReportAbuse gadget descriptors.', 'https://bloggercode.orbiona.com/2019/04/widget-reportAbuse.html'),
+  Stats: createWidgetCollectionEntry('Stats', 'Collection of visible Stats gadget descriptors.', 'https://bloggercode.orbiona.com/1979/07/Ressource-Stats.html'),
+  Subscribe: createWidgetCollectionEntry('Subscribe', 'Collection of visible Subscribe gadget descriptors.', 'https://bloggercode.orbiona.com/1979/07/Ressource-Subscribe.html'),
+  Text: createWidgetCollectionEntry('Text', 'Collection of visible Text gadget descriptors.', 'https://bloggercode.orbiona.com/1979/08/Ressource-HTML-Text.html'),
+  TextList: createWidgetCollectionEntry('TextList', 'Collection of visible TextList gadget descriptors.', 'https://bloggercode.orbiona.com/1979/07/Ressource-TextList.html'),
+  Translate: createWidgetCollectionEntry('Translate', 'Collection of visible Translate gadget descriptors.', 'https://bloggercode.orbiona.com/1979/07/Ressource-Translate.html'),
+  Wikipedia: createWidgetCollectionEntry('Wikipedia', 'Collection of visible Wikipedia gadget descriptors.', 'https://bloggercode.orbiona.com/1979/07/Ressource-Wikipedia.html'),
+};
+
+export const templateProperties: Record<string, BloggerProperty> = {
+  isAlternateRendering: {
+    name: 'isAlternateRendering',
+    type: 'boolean',
+    description: 'Indicates alternate mobile or dynamic rendering mode.',
+  },
+  isCustom: {
+    name: 'isCustom',
+    type: 'boolean',
+    description: 'True if theme XML was modified; false for unedited official themes.',
+  },
+  isResponsive: {
+    name: 'isResponsive',
+    type: 'boolean',
+    description: 'True if the theme declares b:responsive=\'true\' on <html>.',
+  },
+  localizedName: {
+    name: 'localizedName',
+    type: 'string',
+    description: 'Localized theme display name matching blog language.',
+  },
+  name: {
+    name: 'name',
+    type: 'string',
+    description: 'Official Blogger base theme name (e.g. \'Notable\', \'Contempo\', \'Simple\', \'Custom\').',
+  },
+  variant: {
+    name: 'variant',
+    type: 'string',
+    description: 'Theme colorway or style variant label (e.g. \'Light\', \'Dark\').',
+  },
+  variantId: {
+    name: 'variantId',
+    type: 'string',
+    description: 'Programmatic identifier for variant (e.g. \'light\', \'dark\').',
+  },
+};
+
+export const bloggerGlobalRoot: Record<string, BloggerProperty> = {
+  blog: {
+    name: 'blog',
+    type: 'object',
+    description: 'Global blog information and settings.',
+    docUrl: 'https://bloggercode.orbiona.com/1979/12/Ressource-data-blog.html',
+    children: blogProperties,
+  },
+  messages: {
+    name: 'messages',
+    type: 'object',
+    description: 'Localized Blogger UI message dictionary.',
+    docUrl: 'https://bloggercode.orbiona.com/1979/12/Ressource-data-messages.html',
+    children: messagesProperties,
+  },
+  skin: {
+    name: 'skin',
+    type: 'object',
+    description: 'Theme skin CSS variables.',
+    docUrl: 'https://bloggercode.orbiona.com/1972/12/data-skin.html',
+    children: skinProperties,
+  },
+  template: {
+    name: 'template',
+    type: 'object',
+    description: 'Active theme package manifest and compiler version flags.',
+    children: templateProperties,
+  },
+  view: {
+    name: 'view',
+    type: 'object',
+    description: 'Current request view state and conditionals.',
+    docUrl: 'https://bloggercode.orbiona.com/1979/12/Ressource-data-view.html',
+    children: viewProperties,
+  },
+  widget: {
+    name: 'widget',
+    type: 'object',
+    description: 'Current enclosing widget properties.',
+    docUrl: 'https://bloggercode.orbiona.com/1979/12/Ressource-data-widget.html',
+    children: widgetMetaProperties,
+  },
+  widgets: {
+    name: 'widgets',
+    type: 'array',
+    description: 'Global cross-widget layout registry in Layouts v3. Exposes descriptor objects ({ id, sectionId, title, type }) for visible widgets; does NOT provide access to the full private widget data dictionaries.',
+    docUrl: 'https://bloggercode.orbiona.com/1979/12/Ressource-data-widgets.html',
+    itemChildren: baseWidgetDescriptorProperties,
+    children: widgetsMapProperties,
+  },
 };

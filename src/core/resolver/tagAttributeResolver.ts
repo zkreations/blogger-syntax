@@ -1,21 +1,168 @@
 import type {
   BloggerDataType,
   BloggerSuggestion,
+  BloggerTagAttribute,
+  BloggerTagDefinition,
 } from '../models/types.js';
-import { bloggerDescriptions } from '../data/descriptions.js';
-import {
-  bloggerSkinVariableTags,
-  bloggerSkinVariableTypeDetails,
-  bloggerSkinVariableTypes,
-} from '../data/skinVariablesData.js';
-import { bloggerTags } from '../data/tagsData.js';
-import {
-  bloggerDefaultMarkupTypeDetails,
-  bloggerDefaultMarkupTypes,
-  bloggerWidgetTypeDetails,
-  bloggerWidgetTypes,
-} from '../data/widgetTypes.js';
-import { isStrictlySelfClosingTag } from '../parser/directiveScanner.js';
+import { getSpecCatalog } from 'blogger-spec/catalogs';
+import { isStrictlySelfClosingTag } from 'blogger-spec/parser';
+
+export const bloggerSkinVariableTypes = [
+  'color',
+  'font',
+  'length',
+  'background',
+  'string',
+  'url',
+  'automatic',
+] as const;
+
+export type BloggerSkinVariableType = (typeof bloggerSkinVariableTypes)[number];
+
+export interface BloggerSkinVariableTypeDetail {
+  readonly type: BloggerSkinVariableType;
+  readonly skinTypeLabel: string;
+  readonly description: string;
+  readonly docUrl: string;
+  readonly example: string;
+  readonly snippetBody: string;
+  readonly attributes: Record<string, BloggerTagAttribute>;
+}
+
+export const bloggerSkinVariableTypeDetails: Record<BloggerSkinVariableType, BloggerSkinVariableTypeDetail> = {
+  color: {
+    type: 'color',
+    skinTypeLabel: 'color(skin)',
+    description: 'Defines a color skin variable for Blogger Template Designer CSS.',
+    docUrl: 'https://bloggercode.orbiona.com/2016/09/skin-type-color.html',
+    example: '<Variable name="text.color" description="Text Color" type="color" default="#333333" value="#333333" hideEditor="false"/>',
+    snippetBody: 'Variable name="$1" description="$2" type="color" default="$3" value="$4"/>$0',
+    attributes: {
+      name: { name: 'name', type: 'string', required: true, description: 'Unique variable identifier name. Letters, numbers, and dots are allowed.' },
+      description: { name: 'description', type: 'string', required: true, description: 'Variable label shown in Template Designer.' },
+      type: { name: 'type', type: 'string', required: true, description: 'Variable type: color(skin).' },
+      default: { name: 'default', type: 'string', required: true, description: 'Default color value (hex, rgb, rgba).' },
+      value: { name: 'value', type: 'string', required: true, description: 'Current color value.' },
+      hideEditor: { name: 'hideEditor', type: 'string', required: false, description: 'Hides the variable form in the design tool (true or false).' },
+    },
+  },
+  font: {
+    type: 'font',
+    skinTypeLabel: 'font(skin)',
+    description: 'Defines a font skin variable with font family, size, and styling options.',
+    docUrl: 'https://bloggercode.orbiona.com/2016/09/skin-type-font.html',
+    example: '<Variable name="body.font" description="Body Font" type="font" family="Arial, sans-serif" size="14px" default="normal normal 14px Arial, sans-serif" value="normal normal 14px Arial, sans-serif" hideEditor="false"/>',
+    snippetBody: 'Variable name="$1" description="$2" type="font" default="$3" value="$4"/>$0',
+    attributes: {
+      name: { name: 'name', type: 'string', required: true, description: 'Unique variable identifier name. Letters, numbers, and dots are allowed.' },
+      description: { name: 'description', type: 'string', required: true, description: 'Variable label shown in Template Designer.' },
+      type: { name: 'type', type: 'string', required: true, description: 'Variable type: font(skin).' },
+      family: { name: 'family', type: 'string', required: false, description: 'Specifies the font family (e.g. Arial, "Roboto", sans-serif).' },
+      size: { name: 'size', type: 'string', required: false, description: 'Specifies the font size (e.g. 14px, 1rem).' },
+      default: { name: 'default', type: 'string', required: true, description: 'Default font value.' },
+      value: { name: 'value', type: 'string', required: true, description: 'Current font value.' },
+      hideEditor: { name: 'hideEditor', type: 'string', required: false, description: 'Hides the variable form in the design tool (true or false).' },
+    },
+  },
+  length: {
+    type: 'length',
+    skinTypeLabel: 'length(skin)',
+    description: 'Defines a length / dimension skin variable with optional min and max boundaries.',
+    docUrl: 'https://bloggercode.orbiona.com/2016/09/skin-type-length.html',
+    example: '<Variable name="content.width" description="Content Width" type="length" min="600px" max="1200px" default="960px" value="960px" hideEditor="false"/>',
+    snippetBody: 'Variable name="$1" description="$2" type="length" default="$3" value="$4"/>$0',
+    attributes: {
+      name: { name: 'name', type: 'string', required: true, description: 'Unique variable identifier name. Letters, numbers, and dots are allowed.' },
+      description: { name: 'description', type: 'string', required: true, description: 'Variable label shown in Template Designer.' },
+      type: { name: 'type', type: 'string', required: true, description: 'Variable type: length(skin).' },
+      min: { name: 'min', type: 'string', required: false, description: 'Minimum value accepted by length(skin) variable.' },
+      max: { name: 'max', type: 'string', required: false, description: 'Maximum value accepted by length(skin) variable.' },
+      default: { name: 'default', type: 'string', required: true, description: 'Default length value (must be within min and max).' },
+      value: { name: 'value', type: 'string', required: true, description: 'Current length value (must be within min and max).' },
+      hideEditor: { name: 'hideEditor', type: 'string', required: false, description: 'Hides or forces display of variable form in design tool (true or false).' },
+    },
+  },
+  background: {
+    type: 'background',
+    skinTypeLabel: 'background(skin)',
+    description: 'Defines a background skin variable containing color, image url, alignment, or positioning.',
+    docUrl: 'https://bloggercode.orbiona.com/2016/09/skin-type-background.html',
+    example: '<Variable name="body.background" description="Body Background" type="background" color="#ffffff" default="$(color) url(https://...) repeat fixed top left" value="$(color) url(https://...) repeat fixed top left"/>',
+    snippetBody: 'Variable name="$1" description="$2" type="background" default="$3" value="$4"/>$0',
+    attributes: {
+      name: { name: 'name', type: 'string', required: true, description: 'Unique variable identifier name. Letters, numbers, and dots are allowed.' },
+      description: { name: 'description', type: 'string', required: true, description: 'Variable label shown in Template Designer.' },
+      type: { name: 'type', type: 'string', required: true, description: 'Variable type: background(skin).' },
+      color: { name: 'color', type: 'string', required: false, description: 'Background color code or $color variable reference.' },
+      default: { name: 'default', type: 'string', required: true, description: 'Default background CSS value.' },
+      value: { name: 'value', type: 'string', required: true, description: 'Current background CSS value.' },
+      hideEditor: { name: 'hideEditor', type: 'string', required: false, description: 'Hides the variable form in the design tool (true or false).' },
+    },
+  },
+  string: {
+    type: 'string',
+    skinTypeLabel: 'string(skin)',
+    description: 'Defines a string skin variable for text or custom CSS values. Note: Distinct from runtime data:string.',
+    docUrl: 'https://bloggercode.orbiona.com/2016/09/skin-type-string.html',
+    example: '<Variable name="custom.text" description="Custom Text" type="string" default="Sample text" value="Sample text"/>',
+    snippetBody: 'Variable name="$1" description="$2" type="string" default="$3" value="$4"/>$0',
+    attributes: {
+      name: { name: 'name', type: 'string', required: true, description: 'Unique variable identifier name. Letters, numbers, and dots are allowed.' },
+      description: { name: 'description', type: 'string', required: true, description: 'Variable label shown in Template Designer.' },
+      type: { name: 'type', type: 'string', required: true, description: 'Variable type: string(skin) (template skin variable, distinct from runtime data:string).' },
+      default: { name: 'default', type: 'string', required: false, description: 'Default string value.' },
+      value: { name: 'value', type: 'string', required: true, description: 'Current string value.' },
+      hideEditor: { name: 'hideEditor', type: 'string', required: false, description: 'Hides the variable form in the design tool (true or false).' },
+    },
+  },
+  url: {
+    type: 'url',
+    skinTypeLabel: 'url(skin)',
+    description: 'Defines a URL skin variable containing an image or resource URL. Note: Distinct from runtime data:url.',
+    docUrl: 'https://bloggercode.orbiona.com/2016/09/skin-type-url.html',
+    example: '<Variable name="header.image" description="Header Image" type="url" default="url(https://...)" value="url(https://...)"/>',
+    snippetBody: 'Variable name="$1" description="$2" type="url" default="$3" value="$4"/>$0',
+    attributes: {
+      name: { name: 'name', type: 'string', required: true, description: 'Unique variable identifier name. Letters, numbers, and dots are allowed.' },
+      description: { name: 'description', type: 'string', required: true, description: 'Variable label shown in Template Designer.' },
+      type: { name: 'type', type: 'string', required: true, description: 'Variable type: url(skin) (template skin variable, distinct from runtime data:url).' },
+      default: { name: 'default', type: 'string', required: true, description: 'Default URL value (typically wrapped in url(...)).' },
+      value: { name: 'value', type: 'string', required: true, description: 'Current URL value (typically wrapped in url(...)).' },
+      hideEditor: { name: 'hideEditor', type: 'string', required: false, description: 'Hides the variable form in the design tool (true or false).' },
+    },
+  },
+  automatic: {
+    type: 'automatic',
+    skinTypeLabel: 'automatic(skin)',
+    description: 'Defines an automatic skin variable computed or generated automatically by the theme engine.',
+    docUrl: 'https://bloggercode.orbiona.com/2016/09/skin-type-automatic.html',
+    example: '<Variable name="body.rule" description="Body Rule" type="automatic" default="" value=""/>',
+    snippetBody: 'Variable name="$1" description="$2" type="automatic" default="$3" value="$4"/>$0',
+    attributes: {
+      name: { name: 'name', type: 'string', required: true, description: 'Unique variable identifier name. Letters, numbers, and dots are allowed.' },
+      description: { name: 'description', type: 'string', required: true, description: 'Variable label shown in Template Designer.' },
+      type: { name: 'type', type: 'string', required: true, description: 'Variable type: automatic(skin).' },
+      default: { name: 'default', type: 'string', required: false, description: 'Default automatic variable value.' },
+      value: { name: 'value', type: 'string', required: true, description: 'Current automatic variable value.' },
+      hideEditor: { name: 'hideEditor', type: 'string', required: false, description: 'Hides the variable form in the design tool (true or false).' },
+    },
+  },
+};
+
+export const bloggerSkinVariableTags: readonly BloggerTagDefinition[] = Object.freeze(
+  bloggerSkinVariableTypes.map((type) => {
+    const detail = bloggerSkinVariableTypeDetails[type];
+    return {
+      name: `Variable (${type})`,
+      description: detail.description,
+      detail: detail.skinTypeLabel,
+      snippetBody: detail.snippetBody,
+      attributes: detail.attributes,
+      example: detail.example,
+      docUrl: detail.docUrl,
+    };
+  }),
+);
 
 export interface TagAttributeContext {
   readonly tagName: string;
@@ -23,8 +170,440 @@ export interface TagAttributeContext {
   readonly existingAttrs: ReadonlySet<string>;
 }
 
+const specCatalog = getSpecCatalog();
+
+const catalogWidgets = Object.keys(specCatalog.getAllWidgets());
+const bloggerDefaultMarkupTypes = ['All', 'Common', ...catalogWidgets];
+const bloggerWidgetTypes = catalogWidgets;
+
+export const bloggerCommonAttributes: Record<string, BloggerTagAttribute> = {
+  cond: {
+    name: 'cond',
+    type: 'string',
+    description: 'Conditional expression.',
+    docUrl: 'https://bloggercode.orbiona.com/2018/02/attribute-cond.html',
+  },
+  data: {
+    name: 'data',
+    type: 'string',
+    description: 'Define a dataset to be transmitted to the child nodes.',
+    docUrl: 'https://bloggercode.orbiona.com/2018/02/attribute-data.html',
+  },
+  index: {
+    name: 'index',
+    type: 'string',
+    description: 'Index variable name for the current iteration in a b:loop.',
+    docUrl: 'https://bloggercode.orbiona.com/2021/10/attribute-index.html',
+  },
+  locked: {
+    name: 'locked',
+    type: 'string',
+    description: 'Prevents the widget from being removed in the Layout editor.',
+    docUrl: 'https://bloggercode.orbiona.com/2021/10/attribute-locked.html',
+  },
+  maxwidgets: {
+    name: 'maxwidgets',
+    type: 'number',
+    description: 'Maximum number of widgets allowed in a b:section.',
+    docUrl: 'https://bloggercode.orbiona.com/2021/11/attribute-maxwidgets.html',
+  },
+  var: {
+    name: 'var',
+    type: 'string',
+    description: 'Variable name parameter for the loop, includable, or with scope.',
+  },
+  values: {
+    name: 'values',
+    type: 'string',
+    description: 'Array data expression to iterate over in a b:loop.',
+    docUrl: 'https://bloggercode.orbiona.com/2016/03/tag-b-loop.html',
+  },
+  value: {
+    name: 'value',
+    type: 'string',
+    description: 'Value to assign to the attribute or compare against in b:case.',
+  },
+  name: {
+    name: 'name',
+    type: 'string',
+    description: 'The name identifier for the tag, attribute, or message key.',
+  },
+  id: {
+    name: 'id',
+    type: 'string',
+    description: 'Unique section, widget, or includable identifier ID.',
+  },
+  type: {
+    name: 'type',
+    type: 'string',
+    description: 'Type identifier for the widget or default markup.',
+  },
+  reverse: {
+    name: 'reverse',
+    type: 'string',
+    description: 'Whether to iterate the collection in reverse order (true or false).',
+    docUrl: 'https://bloggercode.orbiona.com/2016/03/tag-b-loop.html',
+  },
+  render: {
+    name: 'render',
+    type: 'string',
+    description: 'When true, renders content as an HTML comment in output instead of omitting it.',
+    docUrl: 'https://bloggercode.orbiona.com/2018/02/tag-b-comments.html',
+  },
+  expr: {
+    name: 'expr',
+    type: 'string',
+    description: 'Blogger expression evaluating to attribute value.',
+    docUrl: [
+      'https://support.google.com/blogger/answer/46995#zippy=%2Cattribute-expressions-expr',
+      'https://bloggercode.orbiona.com/2016/03/prefix-expr.html',
+    ],
+  },
+};
+
+export const bloggerExprPrefixInfo = {
+  name: 'expr:*',
+  type: 'Attribute Prefix',
+  description: 'Evaluates a Blogger expression and assigns the result to the attribute.',
+  docUrl: [
+    'https://support.google.com/blogger/answer/46995#zippy=%2Cattribute-expressions-expr',
+    'https://bloggercode.orbiona.com/2016/03/prefix-expr.html',
+  ],
+} as const;
+
+export const bloggerTags: Record<string, BloggerTagDefinition> = {
+  'b:attr': {
+    name: 'b:attr',
+    description: 'Adds an attribute with its corresponding value to the parent node.',
+    snippetBody: 'b:attr name="$1" value="$2"/>$0',
+    docUrl: 'https://bloggercode.orbiona.com/2018/02/tag-b-attr.html',
+    attributes: {
+      name: { name: 'name', type: 'string', required: true, description: 'The name of the attribute to set on parent node.' },
+      value: { name: 'value', type: 'string', required: true, description: 'The value to assign to the attribute.' },
+      cond: { name: 'cond', type: 'string', required: false, description: 'Conditional expression governing attribute emission.' },
+    },
+  },
+  'b:class': {
+    name: 'b:class',
+    description: 'Adds or appends CSS classes to the parent node.',
+    snippetBody: 'b:class name="$1"/>$0',
+    docUrl: 'https://bloggercode.orbiona.com/2018/01/tag-b-class.html',
+    attributes: {
+      name: { name: 'name', type: 'string', required: true, description: 'CSS class name or list of classes to append.' },
+      cond: { name: 'cond', type: 'string', required: false, description: 'Conditional expression governing class emission.' },
+    },
+  },
+  'b:comment': {
+    name: 'b:comment',
+    description: 'Creates comments that can be rendered or omitted in the client output.',
+    snippetBody: 'b:comment>\n\t$0\n</b:comment>',
+    docUrl: 'https://bloggercode.orbiona.com/2018/02/tag-b-comments.html',
+    attributes: {
+      render: { name: 'render', type: 'string', required: false, description: 'When true, renders content as an HTML comment in output instead of omitting it.', values: ['true', 'false'], docUrl: 'https://bloggercode.orbiona.com/2018/02/tag-b-comments.html' },
+    },
+  },
+  'b:defaultmarkups': {
+    name: 'b:defaultmarkups',
+    description: 'Configures default markup includes for template widgets.',
+    snippetBody: 'b:defaultmarkups>\n\t$0\n</b:defaultmarkups>',
+    docUrl: 'https://bloggercode.orbiona.com/2017/05/tag-b-defaultmarkups.html',
+  },
+  'b:defaultmarkup': {
+    name: 'b:defaultmarkup',
+    description: 'Configures default template includes for a specific widget type.',
+    snippetBody: 'b:defaultmarkup type="$1">\n\t$0\n</b:defaultmarkup>',
+    docUrl: 'https://bloggercode.orbiona.com/2017/05/tag-b-defaultmarkups.html',
+    attributes: {
+      type: { name: 'type', type: 'string', required: true, description: 'Widget type to define default markup for.', values: bloggerDefaultMarkupTypes },
+    },
+  },
+  'data:': {
+    name: 'data:',
+    description: 'Outputs a resolved Blogger data expression directly into output HTML.',
+    snippetBody: 'data:${1}/>$0',
+    docUrl: 'https://bloggercode.orbiona.com/2016/03/tag-data.html',
+  },
+  'CDATA': {
+    name: 'CDATA',
+    description: 'Character data block escaping XML parsing, used for scripts and CSS styles within <b:skin> or <b:template-skin>.',
+    snippetBody: '<![CDATA[\n\t$0\n]]>',
+    docUrl: 'https://bloggercode.orbiona.com/2014/06/tag-b-skin-b-template-skin.html',
+  },
+  'b:eval': {
+    name: 'b:eval',
+    description: 'Evaluates a Blogger expression and explicitly outputs the result.',
+    snippetBody: 'b:eval expr="$1"/>$0',
+    docUrl: [
+      'https://support.google.com/blogger/answer/46995#zippy=%2Cevaluated-expressions-beval',
+      'https://bloggercode.orbiona.com/2016/03/tag-b-eval.html',
+    ],
+    attributes: {
+      expr: { name: 'expr', type: 'string', required: true, description: 'Blogger expression to evaluate.' },
+    },
+  },
+  'b:if': {
+    name: 'b:if',
+    description: 'Renders child content if the condition evaluates to true.',
+    snippetBody: 'b:if cond="$1">\n\t$0\n</b:if>',
+    docUrl: [
+      'https://support.google.com/blogger/answer/46995#zippy=%2Cif-elseif-else-bif',
+      'https://bloggercode.orbiona.com/2016/03/tag-b-if-b-else-b-elseif.html',
+    ],
+    attributes: {
+      cond: { name: 'cond', type: 'string', required: true, description: 'Blogger boolean condition expression.', docUrl: 'https://bloggercode.orbiona.com/2018/02/attribute-cond.html' },
+    },
+  },
+  'b:elseif': {
+    name: 'b:elseif',
+    description: 'Alternative condition branch inside a b:if block.',
+    snippetBody: 'b:elseif cond="$1"/>$0',
+    docUrl: [
+      'https://support.google.com/blogger/answer/46995#zippy=%2Cif-elseif-else-bif',
+      'https://bloggercode.orbiona.com/2016/03/tag-b-if-b-else-b-elseif.html',
+    ],
+    attributes: {
+      cond: { name: 'cond', type: 'string', required: true, description: 'Blogger boolean condition expression.', docUrl: 'https://bloggercode.orbiona.com/2018/02/attribute-cond.html' },
+    },
+  },
+  'b:else': {
+    name: 'b:else',
+    description: 'Fallback branch inside a b:if block.',
+    snippetBody: 'b:else/>$0',
+    docUrl: [
+      'https://support.google.com/blogger/answer/46995#zippy=%2Cif-elseif-else-bif',
+      'https://bloggercode.orbiona.com/2016/03/tag-b-if-b-else-b-elseif.html',
+    ],
+  },
+  'b:includable': {
+    name: 'b:includable',
+    description: 'Defines a reusable template section / macro that can be called by b:include.',
+    snippetBody: 'b:includable id="$1">\n\t$0\n</b:includable>',
+    docUrl: [
+      'https://support.google.com/blogger/answer/46995#zippy=%2Cincludes-binclude',
+      'https://bloggercode.orbiona.com/2016/03/tag-b-includable-b-include.html',
+    ],
+    attributes: {
+      id: { name: 'id', type: 'string', required: true, description: 'Unique identifier name for this includable section.' },
+      var: { name: 'var', type: 'string', required: false, description: 'Variable parameter name passed to this includable.' },
+    },
+  },
+  'b:include': {
+    name: 'b:include',
+    description: 'Executes and renders a b:includable section by name.',
+    snippetBody: 'b:include name="$1"/>$0',
+    docUrl: [
+      'https://support.google.com/blogger/answer/46995#zippy=%2Cincludes-binclude',
+      'https://bloggercode.orbiona.com/2016/03/tag-b-includable-b-include.html',
+    ],
+    attributes: {
+      name: { name: 'name', type: 'string', required: true, description: 'ID of the b:includable section to call.' },
+      data: { name: 'data', type: 'string', required: false, description: 'Data expression to pass into the includable var parameter.', docUrl: 'https://bloggercode.orbiona.com/2018/02/attribute-data.html' },
+      cond: { name: 'cond', type: 'string', required: false, description: 'Conditional expression governing subroutine execution.' },
+    },
+  },
+  'b:loop': {
+    name: 'b:loop',
+    description: 'Iterates through an array expression.',
+    snippetBody: 'b:loop values="$1" var="$2">\n\t$0\n</b:loop>',
+    docUrl: [
+      'https://support.google.com/blogger/answer/46995#zippy=%2Cloops-bloop',
+      'https://bloggercode.orbiona.com/2016/03/tag-b-loop.html',
+    ],
+    attributes: {
+      values: { name: 'values', type: 'string', required: true, description: 'Array data expression to iterate over.' },
+      var: { name: 'var', type: 'string', required: true, description: 'Variable name representing the current item in the loop.' },
+      index: { name: 'index', type: 'string', required: false, description: 'Variable name for the zero-based iteration index.', docUrl: 'https://bloggercode.orbiona.com/2021/10/attribute-index.html' },
+      reverse: { name: 'reverse', type: 'string', required: false, description: 'Whether to iterate the collection in reverse order (true / false).', values: ['true', 'false'], docUrl: 'https://bloggercode.orbiona.com/2016/03/tag-b-loop.html' },
+    },
+  },
+  'b:message': {
+    name: 'b:message',
+    description: 'Renders a localized message from the Blogger message dictionary.',
+    snippetBody: 'b:message name="$1"/>$0',
+    docUrl: 'https://bloggercode.orbiona.com/2018/02/tag-b-message-b-param.html',
+    attributes: {
+      name: { name: 'name', type: 'string', required: true, description: 'Name key of the message to render.' },
+    },
+  },
+  'b:param': {
+    name: 'b:param',
+    description: 'Passes a parameter value to a parent b:message tag.',
+    snippetBody: 'b:param name="$1" value="$2"/>$0',
+    docUrl: 'https://bloggercode.orbiona.com/2018/02/tag-b-message-b-param.html',
+    attributes: {
+      name: { name: 'name', type: 'string', required: true, description: 'Parameter name identifier matching the placeholder in the message.' },
+      value: { name: 'value', type: 'string', required: true, description: 'Value to substitute for the parameter.' },
+    },
+  },
+  'b:section': {
+    name: 'b:section',
+    description: 'Defines a layout section that can contain b:widget tags.',
+    snippetBody: 'b:section id="$1">\n\t$0\n</b:section>',
+    docUrl: [
+      'https://support.google.com/blogger/answer/46888',
+      'https://bloggercode.orbiona.com/2016/03/tag-b-section.html',
+    ],
+    attributes: {
+      id: { name: 'id', type: 'string', required: true, description: 'Unique section container ID.' },
+      class: { name: 'class', type: 'string', required: false, description: 'CSS class names for the section wrapper.' },
+      tag: { name: 'tag', type: 'string', required: false, description: 'Semantic HTML5 container element to generate for the section (e.g. main, aside, header, footer).', values: ['main', 'section', 'article', 'aside', 'header', 'footer', 'nav', 'div'], docUrl: 'https://bloggercode.orbiona.com/2016/03/tag-b-section.html' },
+      name: { name: 'name', type: 'string', required: false, description: 'Display label for the section in Blogger layout editor.' },
+      showaddelement: { name: 'showaddelement', type: 'string', required: false, description: 'Whether to show the Add a Gadget button in layout editor (yes / no).', values: ['yes', 'no'] },
+      preferred: { name: 'preferred', type: 'string', required: false, description: 'Designates this section as preferred target for new gadgets in layout editor (yes / no).', values: ['yes', 'no'] },
+      cond: { name: 'cond', type: 'string', required: false, description: 'Conditional expression governing section rendering.' },
+      ads: { name: 'ads', type: 'string', required: false, description: 'Designates whether the section is reserved exclusively for AdSense ads (true / false).', values: ['true', 'false'] },
+    },
+  },
+  'b:skin': {
+    name: 'b:skin',
+    description: 'Contains CSS styles and variables for the Blogger Template Designer.',
+    snippetBody: 'b:skin>\n\t<![CDATA[\n\t\t$0\n\t]]>\n</b:skin>',
+    docUrl: [
+      'https://support.google.com/blogger/answer/46871',
+      'https://bloggercode.orbiona.com/2014/06/tag-b-skin-b-template-skin.html',
+    ],
+  },
+  'b:template-skin': {
+    name: 'b:template-skin',
+    description: 'Contains layout mode specific CSS styles.',
+    snippetBody: 'b:template-skin>\n\t<![CDATA[\n\t\t$0\n\t]]>\n</b:template-skin>',
+    docUrl: 'https://bloggercode.orbiona.com/2014/06/tag-b-skin-b-template-skin.html',
+  },
+  'b:template-script': {
+    name: 'b:template-script',
+    description: 'Declares and asynchronously initializes Blogger platform scripts in Layouts v3.',
+    snippetBody: 'b:template-script name="$1"/>$0',
+    docUrl: 'https://bloggercode.orbiona.com/2018/02/tag-b-template-script.html',
+    attributes: {
+      name: { name: 'name', type: 'string', required: true, description: 'Registered platform script identifier.' },
+    },
+  },
+  'b:switch': {
+    name: 'b:switch',
+    description: 'Evaluates an expression and switches between b:case branches.',
+    snippetBody: 'b:switch var="$1">\n\t$0\n</b:switch>',
+    docUrl: [
+      'https://support.google.com/blogger/answer/46995#zippy=%2Cswitches-bswitch',
+      'https://bloggercode.orbiona.com/2016/03/tag-b-switch-b-case-b-default.html',
+    ],
+    attributes: {
+      var: { name: 'var', type: 'string', required: true, description: 'Expression to evaluate against cases.' },
+    },
+  },
+  'b:case': {
+    name: 'b:case',
+    description: 'Branch inside a b:switch statement matching a specific value.',
+    snippetBody: 'b:case value="$1"/>$0',
+    docUrl: [
+      'https://support.google.com/blogger/answer/46995#zippy=%2Cswitches-bswitch',
+      'https://bloggercode.orbiona.com/2016/03/tag-b-switch-b-case-b-default.html',
+    ],
+    attributes: {
+      value: { name: 'value', type: 'string', required: true, description: 'Value to match.' },
+    },
+  },
+  'b:default': {
+    name: 'b:default',
+    description: 'Default fallback branch inside a b:switch statement.',
+    snippetBody: 'b:default/>$0',
+    docUrl: [
+      'https://support.google.com/blogger/answer/46995#zippy=%2Cswitches-bswitch',
+      'https://bloggercode.orbiona.com/2016/03/tag-b-switch-b-case-b-default.html',
+    ],
+  },
+  'b:tag': {
+    name: 'b:tag',
+    description: 'Dynamically generates any HTML tag by name.',
+    snippetBody: 'b:tag name="$1">\n\t$0\n</b:tag>',
+    docUrl: 'https://bloggercode.orbiona.com/2018/02/tags-b-tag.html',
+    attributes: {
+      name: { name: 'name', type: 'string', required: true, description: 'Name of HTML tag to generate.' },
+      cond: { name: 'cond', type: 'string', required: false, description: 'Condition under which to emit the tag.', docUrl: 'https://bloggercode.orbiona.com/2018/02/attribute-cond.html' },
+    },
+  },
+  'b:widget': {
+    name: 'b:widget',
+    description: 'Defines a Blogger widget component.',
+    snippetBody: 'b:widget id="$1" type="$2" title="$3">\n\t$0\n</b:widget>',
+    docUrl: [
+      'https://support.google.com/blogger/answer/46888',
+      'https://bloggercode.orbiona.com/2016/03/tag-b-widget.html',
+    ],
+    attributes: {
+      id: { name: 'id', type: 'string', required: true, description: 'Unique widget ID (e.g. Blog1, Header1).' },
+      type: { name: 'type', type: 'string', required: true, description: 'Widget type (e.g. Blog, Header, HTML).', values: bloggerWidgetTypes },
+      title: { name: 'title', type: 'string', required: true, description: 'Widget display title.' },
+      locked: { name: 'locked', type: 'string', required: false, description: 'Lock widget position in layout editor (true / false).', docUrl: 'https://bloggercode.orbiona.com/2021/10/attribute-locked.html', values: ['true', 'false'] },
+      version: { name: 'version', type: 'string', required: false, description: 'Widget syntax version (1 or 2).', values: ['1', '2'] },
+      cond: { name: 'cond', type: 'string', required: false, description: 'Conditional expression governing widget rendering.' },
+      visible: { name: 'visible', type: 'string', required: false, description: 'Widget visibility in layout editor (true / false).', values: ['true', 'false'] },
+    },
+  },
+  'b:widget-settings': {
+    name: 'b:widget-settings',
+    description: 'Configuration container for a widget settings list.',
+    snippetBody: 'b:widget-settings>\n\t$0\n</b:widget-settings>',
+    docUrl: 'https://bloggercode.orbiona.com/2018/02/tags-b-widget-settings.html',
+  },
+  'b:widget-setting': {
+    name: 'b:widget-setting',
+    description: 'Single setting key-value pair for a widget.',
+    snippetBody: 'b:widget-setting name="$1">\n\t$0\n</b:widget-setting>',
+    docUrl: 'https://bloggercode.orbiona.com/2018/02/tags-b-widget-settings.html',
+    attributes: {
+      name: { name: 'name', type: 'string', required: true, description: 'Setting name identifier.' },
+    },
+  },
+  'b:with': {
+    name: 'b:with',
+    description: 'Assigns an expression value to a local alias variable scope.',
+    snippetBody: 'b:with value="$1" var="$2">\n\t$0\n</b:with>',
+    docUrl: [
+      'https://support.google.com/blogger/answer/46995#zippy=%2Cvariable-alias-bwith',
+      'https://bloggercode.orbiona.com/2016/03/tag-b-with.html',
+    ],
+    attributes: {
+      value: { name: 'value', type: 'string', required: true, description: 'Expression value to bind.' },
+      var: { name: 'var', type: 'string', required: true, description: 'Variable name to hold the bound value.' },
+    },
+  },
+  'Group': {
+    name: 'Group',
+    description: 'Groups variables and creates a section in the Blogger Template Designer.',
+    snippetBody: 'Group description="$1">\n\t$0\n</Group>',
+    docUrl: 'https://bloggercode.orbiona.com/2014/06/tag-b-skin-b-template-skin.html',
+    attributes: {
+      description: { name: 'description', type: 'string', required: true, description: 'Variable group description in Template Designer.' },
+      selector: { name: 'selector', type: 'string', required: false, description: 'CSS selector targeted by the variable group.' },
+    },
+  },
+  'Variable': {
+    name: 'Variable',
+    description: 'Creates customization options for the Blogger Template Designer.',
+    snippetBody: 'Variable name="$1" description="$2" type="$3" default="$4" value="$5"/>$0',
+    docUrl: 'https://bloggercode.orbiona.com/2014/06/tag-b-skin-b-template-skin.html',
+    attributes: {
+      name: { name: 'name', type: 'string', required: true, description: 'Unique variable identifier name.' },
+      description: { name: 'description', type: 'string', required: true, description: 'Variable label shown in Template Designer.' },
+      type: { name: 'type', type: 'string', required: true, description: 'Variable type (color, font, length, background, string, url).' },
+      default: { name: 'default', type: 'string', required: true, description: 'Default CSS value.' },
+      value: { name: 'value', type: 'string', required: true, description: 'Current CSS value.' },
+      color: { name: 'color', type: 'string', required: false, description: 'Base color code or $color reference for background variable.' },
+      family: { name: 'family', type: 'string', required: false, description: 'Font family list for font variable.' },
+      size: { name: 'size', type: 'string', required: false, description: 'Font size with CSS unit for font variable.' },
+      min: { name: 'min', type: 'string', required: false, description: 'Minimum value boundary for length variable.' },
+      max: { name: 'max', type: 'string', required: false, description: 'Maximum value boundary for length variable.' },
+      hideEditor: { name: 'hideEditor', type: 'string', required: false, description: 'Whether to hide the control in Theme Designer UI (true / false).' },
+      red: { name: 'red', type: 'string', required: false, description: 'Red color channel value (0-255).' },
+      green: { name: 'green', type: 'string', required: false, description: 'Green color channel value (0-255).' },
+      blue: { name: 'blue', type: 'string', required: false, description: 'Blue color channel value (0-255).' },
+      alpha: { name: 'alpha', type: 'string', required: false, description: 'Alpha opacity channel value (0-1).' },
+    },
+  },
+};
+
 const STATIC_DESCRIPTIONS_SUGGESTIONS: readonly BloggerSuggestion[] = Object.freeze(
-  bloggerDescriptions.map(desc => ({
+  specCatalog.getThemeDesignerDescriptions().map(desc => ({
     name: desc,
     type: 'string' as BloggerDataType,
     description: `Blogger Skin Variable / Group description: "${desc}"`,
@@ -34,31 +613,35 @@ const STATIC_DESCRIPTIONS_SUGGESTIONS: readonly BloggerSuggestion[] = Object.fre
 );
 
 const STATIC_WIDGET_TYPES_SUGGESTIONS: readonly BloggerSuggestion[] = Object.freeze(
-  bloggerWidgetTypes.map((widgetType) => {
-    const details = bloggerWidgetTypeDetails[widgetType];
-    return {
-      name: widgetType,
-      type: 'string' as BloggerDataType,
-      kind: 'enumMember' as const,
-      detail: '(Blogger Widget Type)',
-      description: details?.description ?? `Blogger ${widgetType} widget.`,
-      example: `<b:widget id="${widgetType}1" type="${widgetType}" version="2">\n\t<b:includable id="main">\n\t\t\n\t</b:includable>\n</b:widget>`,
-      docUrl: details?.docUrl ?? 'https://bloggercode.orbiona.com/2016/03/tag-b-widget.html',
-    };
-  }),
+  Object.entries(specCatalog.getAllWidgets()).map(([widgetType, details]) => ({
+    name: widgetType,
+    type: 'string' as BloggerDataType,
+    kind: 'enumMember' as const,
+    detail: '(Blogger Widget Type)',
+    description: details?.description ?? `Blogger ${widgetType} widget.`,
+    example: `<b:widget id="${widgetType}1" type="${widgetType}" version="2">\n\t<b:includable id="main">\n\t\t\n\t</b:includable>\n</b:widget>`,
+    docUrl: widgetType === 'Blog'
+      ? 'https://bloggercode.orbiona.com/1979/07/Ressource-Blog.html'
+      : `https://bloggercode.orbiona.com/1979/08/Ressource-${widgetType}.html`,
+  })),
 );
 
+const DEFAULT_MARKUP_EXTRA: Record<string, string> = {
+  All: 'Default template markup applied globally to all widgets.',
+  Common: 'Default template markup applied across common widget layouts.',
+};
+
 const STATIC_DEFAULT_MARKUP_SUGGESTIONS: readonly BloggerSuggestion[] = Object.freeze(
-  bloggerDefaultMarkupTypes.map((markupType) => {
-    const details = bloggerDefaultMarkupTypeDetails[markupType] ?? bloggerWidgetTypeDetails[markupType];
+  ['All', 'Common', ...Object.keys(specCatalog.getAllWidgets())].map((markupType) => {
+    const widgetDef = specCatalog.getWidget(markupType);
     return {
       name: markupType,
       type: 'string' as BloggerDataType,
       kind: 'enumMember' as const,
       detail: '(Blogger Default Markup Type)',
-      description: details?.description ?? `Default template markup for ${markupType} widget type.`,
+      description: DEFAULT_MARKUP_EXTRA[markupType] ?? widgetDef?.description ?? `Default template markup for ${markupType} widget type.`,
       example: `<b:defaultmarkup type="${markupType}">\n\t<b:includable id="main">\n\t\t\n\t</b:includable>\n</b:defaultmarkup>`,
-      docUrl: details?.docUrl ?? 'https://bloggercode.orbiona.com/2017/05/tag-b-defaultmarkups.html',
+      docUrl: 'https://bloggercode.orbiona.com/2017/05/tag-b-defaultmarkups.html',
     };
   }),
 );

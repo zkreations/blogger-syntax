@@ -1,6 +1,10 @@
 blockExoticSubdeps: true
+
 minimumReleaseAge: 10080
 minimumReleaseAgeExcludePrune: true
+minimumReleaseAgeExclude:
+  - blogger-spec
+
 trustPolicy: no-downgrade
 shellEmulator: true
 

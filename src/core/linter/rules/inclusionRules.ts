@@ -1,8 +1,8 @@
-import type { DirectiveToken } from '../../parser/directiveScanner.js';
+import type { BloggerDirectiveToken as DirectiveToken } from 'blogger-spec/parser';
 import type { BloggerDiagnostic } from '../linterTypes.js';
-import { isServerInclusion } from '../../data/serverInclusions.js';
+import { getSpecCatalog } from 'blogger-spec/catalogs';
+import { scanDirectiveTokens } from 'blogger-spec/parser';
 import { findIncludableDefinition } from '../../navigation/definitionResolver.js';
-import { scanDirectiveTokens } from '../../parser/directiveScanner.js';
 import { createRange } from '../linterUtils.js';
 
 interface ContainerScope {
@@ -139,7 +139,7 @@ export function checkUnresolvedInclusions(
       continue;
     }
 
-    if (isServerInclusion(name)) {
+    if (getSpecCatalog().isServerInclusion(name)) {
       continue;
     }
 

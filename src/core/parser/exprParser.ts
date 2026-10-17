@@ -1,12 +1,13 @@
 import type { BloggerDataType, BloggerProperty } from '../models/types.js';
-import { bloggerGlobalRoot } from '../data/globalData.js';
+import { parseExpression } from 'blogger-spec/ast';
+import { getTypeModifiers, inferExpressionType as specInferType } from 'blogger-spec/type-system';
 import {
+  bloggerGlobalRoot,
   commentProperties,
   postLabelItemProperties,
   singlePostProperties,
-} from '../data/widgetsData.js';
+} from '../resolver/dataModel.js';
 import { navigatePropertyPath } from '../resolver/propertyHierarchy.js';
-import { getTypeModifiers } from '../types/typeSystem.js';
 
 export interface ActiveLambdaContext {
   readonly paramName: string;
@@ -422,51 +423,6 @@ function unwrapOuterParens(str: string): string {
   return s;
 }
 
-function findTopLevelOperator(
-  str: string,
-  opRegex: RegExp,
-): { index: number; op: string } | undefined {
-  let depth = 0;
-  let inDouble = false;
-  let inSingle = false;
-
-  for (let i = 0; i < str.length; i++) {
-    const ch = str[i];
-    if (ch === '"' && !inSingle) {
-      inDouble = !inDouble;
-    }
-    else if (ch === '\'' && !inDouble) {
-      inSingle = !inSingle;
-    }
-    else if (!inDouble && !inSingle) {
-      if (ch === '(' || ch === '[' || ch === '{') {
-        depth++;
-      }
-      else if (ch === ')' || ch === ']' || ch === '}') {
-        depth--;
-      }
-      else if (depth === 0) {
-        if (i > 0 && /[\w.:]/.test(str[i - 1]!)) {
-          continue;
-        }
-        const sub = str.slice(i);
-        const match = opRegex.exec(sub);
-        if (match && match.index === 0) {
-          const opStr = match[0];
-          if (/\w/.test(opStr.slice(-1))) {
-            const nextChar = str[i + opStr.length];
-            if (nextChar && /\w/.test(nextChar)) {
-              continue;
-            }
-          }
-          return { index: i, op: opStr };
-        }
-      }
-    }
-  }
-  return undefined;
-}
-
 function findEffectiveOperand(beforeOp: string): string {
   let depth = 0;
   let inDouble = false;
@@ -586,42 +542,49 @@ export function inferExpressionType(
     const inner = parenMemberMatch[1].trim();
     const modName = parenMemberMatch[2];
     const innerRes = inferExpressionType(inner, localVariables, lambdaScopes);
-    const modifiers = getTypeModifiers(innerRes.type, innerRes.itemChildren);
+    const modifiers = getTypeModifiers(innerRes.type as any);
     if (modifiers && modifiers[modName]) {
-      const prop = modifiers[modName]!;
+      const mod = modifiers[modName]!;
+      const outType = (mod.output_type === 'child_item' || mod.output_type === 'object')
+        ? 'object'
+        : (mod.output_type as BloggerDataType);
       return {
-        type: prop.type,
-        targetProperty: prop,
-        children: prop.children,
+        type: outType,
+        targetProperty: {
+          name: modName,
+          type: outType,
+          description: mod.description,
+        },
+        children: mod.output_type === 'child_item' ? innerRes.itemChildren : undefined,
       };
     }
   }
 
   trimmed = unwrapOuterParens(trimmed);
 
-  // 1. Top-level comparisons and logical/membership predicates -> boolean
-  if (
-    findTopLevelOperator(trimmed, /^(?:in|contains|and|or|not|eq|neq|lt|lte|gt|gte)\b/i)
-    || findTopLevelOperator(trimmed, /^(?:==|!=|<=|>=|<|>)/)
-    || findTopLevelOperator(trimmed, /^(?:any|all|none)\s*\(/i)
-  ) {
+  if (trimmed === 'true' || trimmed === 'false') {
     return { type: 'boolean' };
   }
 
-  // 2. Numeric Range: "1 to 10" or "start to end"
-  if (findTopLevelOperator(trimmed, /^to\b/i)) {
-    return {
-      type: 'array',
-      itemChildren: undefined,
-    };
+  // 1. Direct collection or property path (e.g. data:posts, data:post.title, p.labels)
+  const isDirectDataPath = /^data:[a-z_]\w*(?:\.[\w[\]]+)*$/i.test(trimmed)
+    || /^[a-z_]\w*(?:\.[\w[\]]+)+$/i.test(trimmed)
+    || Boolean(localVariables?.[trimmed] || lambdaScopes?.[trimmed]);
+
+  if (isDirectDataPath) {
+    const directProp = resolveCollectionProperty(trimmed, localVariables, lambdaScopes);
+    if (directProp) {
+      return {
+        type: directProp.type,
+        targetProperty: directProp,
+        children: directProp.children,
+        itemChildren: directProp.itemChildren,
+      };
+    }
+    return { type: 'unknown' };
   }
 
-  // 3. Count operation: "... count (...)" -> number
-  if (findTopLevelOperator(trimmed, /^count\s*\(/i)) {
-    return { type: 'number' };
-  }
-
-  // 4. Collection pipeline (filter / where / take / limit / skip / offset)
+  // 2. Collection pipeline with metadata preservation (filter / where / take / limit / skip / offset)
   const filterKeywordMatch = /\s+(?:filter|where)\s*\(/i.exec(trimmed);
   if (filterKeywordMatch && filterKeywordMatch.index > 0) {
     const sourceExpr = trimmed.slice(0, filterKeywordMatch.index).trim();
@@ -632,11 +595,6 @@ export function inferExpressionType(
       children: source.targetProperty?.children,
       itemChildren: source.itemChildren,
     };
-  }
-
-  const mapKeywordMatch = /\s+(?:map|select)\s*\(/i.exec(trimmed);
-  if (mapKeywordMatch && mapKeywordMatch.index > 0) {
-    return { type: 'array' };
   }
 
   const firstLambdaMatch = /\s+first\s*\(/i.exec(trimmed);
@@ -663,7 +621,6 @@ export function inferExpressionType(
     };
   }
 
-  // 5. Element navigation: .first or .last
   const elementNavMatch = /(?:\.(?:first|last)|\s+(?:first|last))$/i.exec(trimmed);
   if (elementNavMatch && elementNavMatch.index > 0) {
     const sourceExpr = trimmed.slice(0, elementNavMatch.index).trim();
@@ -676,97 +633,21 @@ export function inferExpressionType(
     };
   }
 
-  // 6. Elvis operator: "a ?: b"
-  if (trimmed.includes('?:')) {
-    const elvisIdx = trimmed.indexOf('?:');
-    const leftBranch = trimmed.slice(0, elvisIdx).trim();
-    const rightBranch = trimmed.slice(elvisIdx + 2).trim();
-    const leftRes = inferExpressionType(leftBranch, localVariables, lambdaScopes);
-    if (leftRes.type !== 'unknown') {
-      return leftRes;
-    }
-    return inferExpressionType(rightBranch, localVariables, lambdaScopes);
-  }
-
-  // 7. Ternary operation: "cond ? branchA : branchB"
-  const questionIdx = trimmed.indexOf('?');
-  const colonIdx = trimmed.lastIndexOf(':');
-  if (questionIdx > 0 && colonIdx > questionIdx && trimmed[questionIdx + 1] !== ':') {
-    const branchA = trimmed.slice(questionIdx + 1, colonIdx).trim();
-    if ((branchA.startsWith('"') && branchA.endsWith('"')) || (branchA.startsWith('\'') && branchA.endsWith('\''))) {
-      return { type: 'string' };
-    }
-    if (/^\d+(?:\.\d+)?$/.test(branchA)) {
-      return { type: 'number' };
-    }
-    if (branchA === 'true' || branchA === 'false') {
-      return { type: 'boolean' };
-    }
-    return inferExpressionType(branchA, localVariables, lambdaScopes);
-  }
-
-  // 8. String concatenation or string literal
-  if ((trimmed.startsWith('"') && trimmed.endsWith('"')) || (trimmed.startsWith('\'') && trimmed.endsWith('\''))) {
-    return { type: 'string' };
-  }
-  if (/^\d+(?:\.\d+)?$/.test(trimmed)) {
-    return { type: 'number' };
-  }
-  if (trimmed === 'true' || trimmed === 'false') {
-    return { type: 'boolean' };
-  }
-  if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
-    return { type: 'array' };
-  }
-  if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
-    return { type: 'object' };
-  }
-
-  // 9. Text transforms, dates, images, and URL operators
-  if (/\bsnippet\s*[({]/i.test(trimmed) || /\bsnippet\b/i.test(trimmed)) {
-    return { type: 'string' };
-  }
-  if (/\bformat\s*[( ]/i.test(trimmed) || /\s+format\s+["']/i.test(trimmed)) {
-    return { type: 'string' };
-  }
-  if (/\bsourceSet\s*[([]/i.test(trimmed)) {
-    return { type: 'string' };
-  }
-  if (/\bresizeImage\s*[( ]/i.test(trimmed)) {
-    return { type: 'image' };
-  }
-  if (/\s+(?:path|params|appendParams|fragment)\s+/i.test(trimmed) || /\b(?:path|params|appendParams|fragment)\s*\(/i.test(trimmed)) {
-    return { type: 'url' };
-  }
-
-  // 10. Binary arithmetic (+, -, *, /, %)
-  const plusMatch = findTopLevelOperator(trimmed, /^\+/);
-  if (plusMatch) {
-    const leftPart = trimmed.slice(0, plusMatch.index).trim();
-    const rightPart = trimmed.slice(plusMatch.index + 1).trim();
-    const leftRes = inferExpressionType(leftPart, localVariables, lambdaScopes);
-    const rightRes = inferExpressionType(rightPart, localVariables, lambdaScopes);
-    if (leftRes.type === 'number' && rightRes.type === 'number') {
-      return { type: 'number' };
-    }
-    if (leftRes.type !== 'unknown' || rightRes.type !== 'unknown') {
-      return { type: 'string' };
+  // 3. Delegate formal Pratt parsing and type inference to blogger-spec
+  try {
+    const ast = parseExpression(trimmed, { tolerant: true });
+    if (ast && ast.type !== 'Error') {
+      const inferred = specInferType(ast);
+      if (inferred && inferred !== 'unknown') {
+        const baseType: BloggerDataType = (inferred.startsWith('array[') || inferred === 'array')
+          ? 'array'
+          : (inferred as BloggerDataType);
+        return { type: baseType };
+      }
     }
   }
-
-  if (findTopLevelOperator(trimmed, /^[-*/%]/)) {
-    return { type: 'number' };
-  }
-
-  // 11. Direct collection or property path
-  const targetProp = resolveCollectionProperty(trimmed, localVariables, lambdaScopes);
-  if (targetProp) {
-    return {
-      type: targetProp.type,
-      targetProperty: targetProp,
-      children: targetProp.children,
-      itemChildren: targetProp.itemChildren,
-    };
+  catch {
+    // Tolerant fallback for partially typed syntax
   }
 
   return { type: 'unknown' };
