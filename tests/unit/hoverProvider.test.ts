@@ -21,7 +21,7 @@ describe('bloggerHoverProvider', () => {
 
     const markdown = hover.contents[0] as vscode.MarkdownString;
     expect(markdown.value).toContain('(data: String) **`data:blog.title`**');
-    expect(markdown.value).toContain('The general name / main title of the blog.');
+    expect(markdown.value).toContain('Blog title configured in basic settings');
   });
 
   it('should provide Hover for <b:if> tag with markdown description', () => {

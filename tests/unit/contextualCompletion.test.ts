@@ -267,7 +267,7 @@ describe('contextualCompletion and Hover', () => {
       expect(hover.contents).toBeDefined();
       const contentStr = hover.contents.map(c => typeof c === 'string' ? c : c.value).join('\n');
       expect(contentStr).toContain('data:item.title');
-      expect(contentStr).toContain('Post title.');
+      expect(contentStr).toContain('Post headline title string.');
     });
 
     it('should provide hover information for contextual with variable (data:writer.name)', () => {
@@ -289,7 +289,7 @@ describe('contextualCompletion and Hover', () => {
       expect(hover).toBeDefined();
       const contentStr = hover.contents.map(c => typeof c === 'string' ? c : c.value).join('\n');
       expect(contentStr).toContain('data:writer.name');
-      expect(contentStr).toContain('Display name of the post author.');
+      expect(contentStr).toContain('Display name of post author.');
     });
   });
 

@@ -26,7 +26,7 @@ describe('bloggerPathResolver hover resolution', () => {
       expect(result?.hover.title).toBe('data:blog.title');
       expect(result?.hover.category).toBe('data');
       expect(result?.hover.type).toBe('string');
-      expect(result?.hover.description).toBe('The general name / main title of the blog.');
+      expect(result?.hover.description).toBe('Blog title configured in basic settings (e.g. data:blog.title.escaped).');
       expect(result?.hover.docUrls).toContain('https://bloggercode.orbiona.com/1978/11/data-blog-title.html');
       expect(result?.range.start).toBe(line.indexOf('data:blog.title'));
       expect(result?.range.end).toBe(line.indexOf('data:blog.title') + 'data:blog.title'.length);
