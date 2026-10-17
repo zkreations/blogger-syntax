@@ -11,17 +11,14 @@ VS Code extension adding IntelliSense, validation, diagnostics, and snippets for
 
 ## Architecture
 
-- `src/core/`: Domain logic, AST/expression parser, path resolver, scope tracker, data schemas, and linter. Decoupled from the VS Code API.
-  - `data/`: Definitions for global data, widgets, tags, attributes, and Theme Designer variables.
+- `src/core/`: Domain logic, AST/expression resolver, path resolver, scope tracker, and linter. Decoupled from VS Code APIs, consuming `blogger-spec` as the Single Source of Truth (SSOT).
   - `models/`: Domain interfaces (`BloggerProperty`, `BloggerSuggestion`, etc.).
-  - `parser/`: Expression parser, lambda scope resolver, and directive token scanner (`exprParser.ts`, `directiveScanner.ts`).
-  - `resolver/`: Data path navigation, property hierarchy, and expression resolution (`pathResolver.ts`, `hoverCardResolver.ts`, `tagAttributeResolver.ts`).
+  - `parser/`: Expression parser, Pratt integration, and tag hierarchy tracking (`exprParser.ts`, `tagTreeTracker.ts`).
+  - `resolver/`: Data path navigation, property hierarchy, enriched data models, and expression resolution (`pathResolver.ts`, `hoverCardResolver.ts`, `tagAttributeResolver.ts`, `propertyHierarchy.ts`, `dataModel.ts`).
   - `scope/`: Context variable inference for `<b:loop>`, `<b:with>`, and `<b:includable>` (`scopeTracker.ts`, `typeInferencer.ts`).
   - `navigation/`: Definition resolver (`definitionResolver.ts`) and symbol indexer (`symbolIndexer.ts`).
   - `linter/`: Pure-TS linting rules and diagnostics engine (`linterEngine.ts`, `rules/`).
   - `service/`: Central template language service facade (`templateLanguageService.ts`).
-  - `types/`: Type definitions and structural contracts (`typeSystem.ts`).
-  - `version/`: Template and Layouts version detection (`templateVersion.ts`).
   - `utils/`: Text processing and snippet generation utilities (`textUtils.ts`, `snippetFormatter.ts`).
 - `src/vscode/`: VS Code integration layer implementing extension providers and listeners.
   - `providers/`: Completion, Hover, CodeAction, Definition, Diagnostic, DocumentSymbol.
