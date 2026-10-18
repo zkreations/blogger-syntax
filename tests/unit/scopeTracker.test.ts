@@ -401,4 +401,37 @@ describe('bloggerScopeTracker', () => {
       expect(vars.item?.children?.count).toBeDefined();
     });
   });
+
+  describe('getScopeEnvironmentAt', () => {
+    it('should return a ScopeEnvironment with widgetType and scoped symbols', () => {
+      const code = [
+        '<b:widget id="Blog1" type="Blog">',
+        '  <b:includable id="main" var="top">',
+        '    <b:loop values="data:posts" var="post" index="i">',
+        '      <span><data:post.title/></span>',
+        '    </b:loop>',
+        '  </b:includable>',
+        '</b:widget>',
+      ].join('\n');
+
+      const insideLoopOffset = code.indexOf('<data:post.title/>');
+      const env = tracker.getScopeEnvironmentAt('testDoc', 1, code, insideLoopOffset);
+
+      expect(env).toBeDefined();
+      expect(env.getActiveWidgetType()).toBe('Blog');
+      expect(env.hasSymbol('post')).toBe(true);
+      expect(env.hasSymbol('i')).toBe(true);
+      expect(env.hasSymbol('top')).toBe(true);
+      expect(env.resolveIdentifier('post')?.scopeType).toBe('loop');
+      expect(env.resolveIdentifier('i')?.type).toBe('number');
+    });
+
+    it('should return empty/default ScopeEnvironment outside any tags', () => {
+      const code = '<div><span>Free text</span></div>';
+      const env = tracker.getScopeEnvironmentAt('plainDoc', 1, code, 10);
+      expect(env).toBeDefined();
+      expect(env.hasSymbol('post')).toBe(false);
+      expect(env.hasSymbol('top')).toBe(false);
+    });
+  });
 });

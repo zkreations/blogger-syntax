@@ -1,6 +1,8 @@
 import type { BloggerProperty } from '../models/types.js';
 import type { ForwardedIncludeItem } from './typeInferencer.js';
+import { getSpecCatalog } from 'blogger-spec/catalogs';
 import { scanDirectiveTokens } from 'blogger-spec/parser';
+import { ScopeEnvironment } from 'blogger-spec/scope';
 import {
   messagesProperties,
   WIDGET_DATA_DICTIONARIES,
@@ -30,6 +32,7 @@ export interface BloggerScopeBlock {
   readonly variables: Record<string, BloggerProperty>;
   readonly children: BloggerScopeBlock[];
   readonly parent?: BloggerScopeBlock | undefined;
+  readonly scopeEnvironment?: ScopeEnvironment | undefined;
 }
 
 function mergeStackVariables(stack: readonly BloggerScopeBlock[]): Record<string, BloggerProperty> {
@@ -56,6 +59,7 @@ export class BloggerScopeTracker {
   public parseScopes(text: string): BloggerScopeBlock[] {
     const rootBlocks: BloggerScopeBlock[] = [];
     const stack: BloggerScopeBlock[] = [];
+    const scopeEnv = new ScopeEnvironment(getSpecCatalog());
     let blockCounter = 0;
 
     const tokens = scanDirectiveTokens(text);
@@ -100,7 +104,11 @@ export class BloggerScopeTracker {
           const current = stack[i];
           if (current && current.tag === fullTag) {
             current.endOffset = tagStartOffset;
-            stack.splice(i, stack.length - i);
+            const popCount = stack.length - i;
+            stack.splice(i, popCount);
+            for (let p = 0; p < popCount; p++) {
+              scopeEnv.popScope();
+            }
             break;
           }
         }
@@ -129,6 +137,10 @@ export class BloggerScopeTracker {
           description: 'Current enclosing widget properties.',
           children: widgetMetaProperties,
         };
+        scopeEnv.pushScope('widget', {
+          ...(widgetId ? { id: widgetId } : {}),
+          ...(widgetType ? { widgetType } : {}),
+        });
       }
       else if (fullTag === 'b:defaultmarkup') {
         const markupType = attrs.type?.value;
@@ -153,6 +165,9 @@ export class BloggerScopeTracker {
           description: 'Current enclosing widget properties.',
           children: widgetMetaProperties,
         };
+        scopeEnv.pushScope('widget', {
+          ...(widgetType ? { widgetType } : {}),
+        });
       }
       else if (fullTag === 'b:includable') {
         includableId = attrs.id?.value;
@@ -166,17 +181,30 @@ export class BloggerScopeTracker {
           activeVarsAtOpen,
           widgetType,
         );
+        scopeEnv.pushScope('includable', {
+          ...(includableId ? { id: includableId } : {}),
+          ...(varName ? { symbols: { [varName]: { name: varName, scopeType: 'includable' } } } : {}),
+        });
       }
       else if (fullTag === 'b:loop') {
         const values = attrs.values?.value ?? '';
         const varName = attrs.var?.value;
         const indexName = attrs.index?.value;
         variables = inferLoopVariables(values, varName, indexName, activeVarsAtOpen);
+        scopeEnv.pushScope('loop', {
+          symbols: {
+            ...(varName ? { [varName]: { name: varName, scopeType: 'loop' } } : {}),
+            ...(indexName ? { [indexName]: { name: indexName, type: 'number', scopeType: 'loop' } } : {}),
+          },
+        });
       }
       else if (fullTag === 'b:with') {
         const value = attrs.value?.value ?? '';
         const varName = attrs.var?.value;
         variables = inferWithVariables(value, varName, activeVarsAtOpen);
+        scopeEnv.pushScope('with', {
+          ...(varName ? { symbols: { [varName]: { name: varName, scopeType: 'with' } } } : {}),
+        });
       }
 
       const parent = stack[stack.length - 1];
@@ -191,6 +219,7 @@ export class BloggerScopeTracker {
         variables,
         children: [],
         parent,
+        scopeEnvironment: scopeEnv.clone(),
       };
 
       if (fullTag === 'b:includable') {
@@ -401,6 +430,19 @@ export class BloggerScopeTracker {
   ): Record<string, BloggerProperty> {
     const { localVariables, widgetVariables } = this.getActiveScopedVariables(documentKey, version, text, offset);
     return { ...widgetVariables, ...localVariables };
+  }
+
+  public getScopeEnvironmentAt(
+    documentKey: string,
+    version: number,
+    text: string,
+    offset: number,
+  ): ScopeEnvironment {
+    const block = this.getInnermostBlockAtOffset(documentKey, version, text, offset);
+    if (block?.scopeEnvironment) {
+      return block.scopeEnvironment;
+    }
+    return new ScopeEnvironment(getSpecCatalog());
   }
 
   public clearCache(documentKey?: string): void {

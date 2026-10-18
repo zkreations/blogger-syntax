@@ -70,4 +70,16 @@ describe('propertyHierarchy', () => {
     expect(navigatePropertyPath(['nonExistentProperty'])).toBeUndefined();
     expect(navigatePropertyPath(['blog', 'nonExistentChild'])).toBeUndefined();
   });
+
+  it('should resolve canonical properties via resolveDataPath fallback', () => {
+    const result = navigatePropertyPath(['data:view', 'isPost']);
+    expect(result).toBeDefined();
+    expect(result?.target?.name).toBe('isPost');
+    expect(result?.target?.type).toBe('boolean');
+  });
+
+  it('should isolate widget properties when navigated outside widget context', () => {
+    const result = navigatePropertyPath(['posts']);
+    expect(result).toBeUndefined();
+  });
 });

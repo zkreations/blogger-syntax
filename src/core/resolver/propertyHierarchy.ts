@@ -1,4 +1,6 @@
-import type { BloggerProperty } from '../models/types.js';
+import type { BloggerDataType, BloggerProperty } from '../models/types.js';
+import { getSpecCatalog } from 'blogger-spec/catalogs';
+import { resolveDataPath } from 'blogger-spec/data-path';
 import {
   bloggerGlobalRoot,
   getPropertyMembers,
@@ -43,6 +45,16 @@ export function navigatePropertyPath(
     = localVariables?.[firstSegment] ?? rootTree[firstSegment];
 
   if (!targetProperty) {
+    const specResolved = resolveDataPath(normalizedSegments, { catalog: getSpecCatalog(), widgetType: '' });
+    if (specResolved) {
+      targetProperty = {
+        name: specResolved.name,
+        type: (specResolved.type === 'array[object]' ? 'array' : (specResolved.type as BloggerDataType)),
+        description: specResolved.description,
+        deprecated: specResolved.isDeprecated,
+      };
+      return { target: targetProperty, children: getPropertyMembers(targetProperty) };
+    }
     return undefined;
   }
 
@@ -71,11 +83,12 @@ export function navigatePropertyPath(
     // Handle widget ID lookup on data:widgets (e.g. data:widgets.Blog1 or data:widgets.Header1)
     if (!nextProp && targetProperty.name === 'widgets') {
       const cleanSegment = segment.replace(/^\[['"]?/, '').replace(/['"]?\]$/, '');
+      const specWidgetResolved = resolveDataPath(['widgets', cleanSegment], { catalog: getSpecCatalog() });
       const descriptorProps = getWidgetDescriptor(cleanSegment);
       nextProp = {
         name: cleanSegment,
         type: 'object',
-        description: `Layout descriptor object for widget "${cleanSegment}".`,
+        description: specWidgetResolved?.description ?? `Layout descriptor object for widget "${cleanSegment}".`,
         children: descriptorProps,
       };
     }
