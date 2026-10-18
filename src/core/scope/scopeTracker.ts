@@ -190,7 +190,9 @@ export class BloggerScopeTracker {
         const values = attrs.values?.value ?? '';
         const varName = attrs.var?.value;
         const indexName = attrs.index?.value;
-        variables = inferLoopVariables(values, varName, indexName, activeVarsAtOpen);
+        const enclosingBlock = findEnclosingWidgetOrMarkup(stack);
+        const loopWidgetType = enclosingBlock?.widgetType;
+        variables = inferLoopVariables(values, varName, indexName, activeVarsAtOpen, loopWidgetType);
         scopeEnv.pushScope('loop', {
           symbols: {
             ...(varName ? { [varName]: { name: varName, scopeType: 'loop' } } : {}),

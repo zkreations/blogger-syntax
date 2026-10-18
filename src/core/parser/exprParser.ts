@@ -1,13 +1,11 @@
 import type { BloggerDataType, BloggerProperty } from '../models/types.js';
 import { parseExpression } from 'blogger-spec/ast';
+import { getSpecCatalog } from 'blogger-spec/catalogs';
+import { resolveDataPath } from 'blogger-spec/data-path';
 import { getTypeModifiers, inferExpressionType as specInferType } from 'blogger-spec/type-system';
-import {
-  bloggerGlobalRoot,
-  commentProperties,
-  postLabelItemProperties,
-  singlePostProperties,
-} from '../resolver/dataModel.js';
+import { bloggerGlobalRoot } from '../resolver/dataModel.js';
 import { navigatePropertyPath } from '../resolver/propertyHierarchy.js';
+import { buildPropertiesFromSpec } from '../resolver/specModelAdapter.js';
 
 export interface ActiveLambdaContext {
   readonly paramName: string;
@@ -64,26 +62,30 @@ export function getArrayElementProperty(arrayProp?: BloggerProperty): BloggerPro
     }
   }
 
-  // Fallbacks for well-known collections
-  if (arrayProp.name === 'posts' || arrayProp.name.endsWith('.posts')) {
+  // Canonical spec resolution for collections lacking itemChildren
+  const rawBaseName = arrayProp.name.split('.').pop() ?? arrayProp.name;
+  const lookupPath = rawBaseName === 'labels'
+    ? 'posts.labels'
+    : rawBaseName === 'comments'
+      ? 'posts.comments'
+      : arrayProp.name;
+
+  const specResolved = resolveDataPath(lookupPath, { catalog: getSpecCatalog(), widgetType: 'Blog' })
+    ?? resolveDataPath(lookupPath, { catalog: getSpecCatalog(), widgetType: '' });
+
+  if (specResolved?.definition?.item_properties) {
+    const singularName = rawBaseName === 'posts'
+      ? 'post'
+      : rawBaseName === 'labels'
+        ? 'label'
+        : rawBaseName === 'comments'
+          ? 'comment'
+          : (rawBaseName.endsWith('s') ? rawBaseName.slice(0, -1) : `${rawBaseName}_item`);
+
     return {
-      name: 'post',
+      name: singularName,
       type: 'object',
-      children: singlePostProperties,
-    };
-  }
-  if (arrayProp.name === 'labels' || arrayProp.name.endsWith('.labels')) {
-    return {
-      name: 'label',
-      type: 'object',
-      children: postLabelItemProperties,
-    };
-  }
-  if (arrayProp.name === 'comments' || arrayProp.name.endsWith('.comments')) {
-    return {
-      name: 'comment',
-      type: 'object',
-      children: commentProperties,
+      children: buildPropertiesFromSpec(specResolved.definition.item_properties, arrayProp.name),
     };
   }
 

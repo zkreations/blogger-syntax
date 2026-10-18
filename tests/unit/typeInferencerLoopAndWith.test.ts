@@ -33,6 +33,14 @@ describe('typeInferencer - Loop and With Variable Inference', () => {
       expect(vars.i).toBeDefined();
       expect(vars.i?.type).toBe('number');
     });
+
+    it('infers collection item properties using enclosingWidgetType without manual variables', () => {
+      const vars = inferLoopVariables('data:links', 'link', undefined, undefined, 'LinkList');
+      expect(vars.link).toBeDefined();
+      expect(vars.link?.type).toBe('object');
+      expect(vars.link?.children?.name).toBeDefined();
+      expect(vars.link?.children?.target).toBeDefined();
+    });
   });
 
   describe('inferWithVariables', () => {

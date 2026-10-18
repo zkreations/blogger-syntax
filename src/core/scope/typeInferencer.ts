@@ -1,4 +1,6 @@
 import type { BloggerDataType, BloggerProperty } from '../models/types.js';
+import { getSpecCatalog } from 'blogger-spec/catalogs';
+import { resolveDataPath } from 'blogger-spec/data-path';
 import { getArrayElementProperty, inferExpressionType } from '../parser/exprParser.js';
 import {
   bloggerGlobalRoot,
@@ -10,6 +12,7 @@ import {
   WIDGET_DATA_DICTIONARIES,
 } from '../resolver/dataModel.js';
 import { navigatePropertyPath } from '../resolver/propertyHierarchy.js';
+import { buildPropertiesFromSpec } from '../resolver/specModelAdapter.js';
 
 const PATH_EXTRACTOR_REGEX = /^(?:data:)?([\w.]+)/;
 
@@ -44,6 +47,7 @@ export function inferLoopVariables(
   varName?: string,
   indexName?: string,
   localVariables?: Record<string, BloggerProperty>,
+  enclosingWidgetType?: string,
 ): Record<string, BloggerProperty> {
   const result: Record<string, BloggerProperty> = {};
 
@@ -58,14 +62,40 @@ export function inferLoopVariables(
     }
     else {
       const segments = extractDataPathSegments(valuesExpr);
-      const resolvedProp = resolvePropertyFromScope(segments, localVariables);
+      let resolvedProp = resolvePropertyFromScope(segments, localVariables);
+
+      if (!resolvedProp) {
+        const specResolved = resolveDataPath(segments, {
+          catalog: getSpecCatalog(),
+          widgetType: enclosingWidgetType ?? '',
+        });
+        if (specResolved) {
+          let itemChildren: Record<string, BloggerProperty> | undefined;
+          let children: Record<string, BloggerProperty> | undefined;
+
+          if (specResolved.definition?.item_properties) {
+            itemChildren = buildPropertiesFromSpec(specResolved.definition.item_properties, specResolved.path);
+          }
+          if (specResolved.definition?.properties) {
+            children = buildPropertiesFromSpec(specResolved.definition.properties, specResolved.path);
+          }
+
+          resolvedProp = {
+            name: specResolved.name,
+            type: specResolved.type === 'array[object]' || specResolved.isCollection ? 'array' : (specResolved.type as BloggerDataType),
+            description: specResolved.description,
+            ...(children ? { children } : {}),
+            ...(itemChildren ? { itemChildren } : {}),
+          };
+        }
+      }
 
       let children = resolvedProp?.children;
       let type: BloggerDataType = resolvedProp?.type ?? 'object';
 
       if (resolvedProp?.type === 'array') {
         const itemProp = getArrayElementProperty(resolvedProp);
-        children = itemProp?.children;
+        children = itemProp?.children ?? resolvedProp.itemChildren;
         type = itemProp?.type ?? 'object';
       }
 
@@ -334,43 +364,48 @@ export function inferIncludableVariables(
     return result;
   }
 
-  // 3. Fallback semantic conventions by parameter name
+  // 3. Fallback semantic conventions by parameter name resolved via canonical blogger-spec
+  const catalog = getSpecCatalog();
   if (cleanVarName === 'post') {
+    const postItemProps = catalog.getWidget('Blog')?.canonical?.posts?.item_properties;
     result[cleanVarName] = {
       name: 'post',
       type: 'object',
       description: 'Current post object context.',
-      children: singlePostProperties,
+      children: postItemProps ? buildPropertiesFromSpec(postItemProps, 'widget.Blog.posts[]') : singlePostProperties,
     };
     return result;
   }
 
   if (cleanVarName === 'comment') {
+    const commentItemProps = catalog.getWidget('Blog')?.canonical?.posts?.item_properties?.comments?.item_properties;
     result[cleanVarName] = {
       name: 'comment',
       type: 'object',
       description: 'Current comment item context.',
-      children: commentProperties,
+      children: commentItemProps ? buildPropertiesFromSpec(commentItemProps, 'widget.Blog.posts[].comments[]') : commentProperties,
     };
     return result;
   }
 
   if (cleanVarName === 'label') {
+    const labelItemProps = catalog.getWidget('Label')?.canonical?.labels?.item_properties;
     result[cleanVarName] = {
       name: 'label',
       type: 'object',
       description: 'Current label item context.',
-      children: labelItemProperties,
+      children: labelItemProps ? buildPropertiesFromSpec(labelItemProps, 'widget.Label.labels[]') : labelItemProperties,
     };
     return result;
   }
 
   if (cleanVarName === 'link') {
+    const linkItemProps = catalog.getWidget('LinkList')?.canonical?.links?.item_properties;
     result[cleanVarName] = {
       name: 'link',
       type: 'object',
       description: 'Current link item context.',
-      children: linkItemProperties,
+      children: linkItemProps ? buildPropertiesFromSpec(linkItemProps, 'widget.LinkList.links[]') : linkItemProperties,
     };
     return result;
   }
