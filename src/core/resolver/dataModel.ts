@@ -1,6 +1,5 @@
 import type { BloggerDataType, BloggerProperty } from '../models/types.js';
 import { getSpecCatalog } from 'blogger-spec/catalogs';
-import { getModelDocUrl } from './docUrlCatalog.js';
 import {
   buildMessagesProperties,
   buildPropertiesFromSpec,
@@ -9,11 +8,11 @@ import {
   buildWidgetsDataDictionaries,
 } from './specModelAdapter.js';
 
-export const STRING_MEMBERS: Record<string, BloggerProperty> = buildTypeMembersFromSpec('string', 'string');
-export const IMAGE_MEMBERS: Record<string, BloggerProperty> = buildTypeMembersFromSpec('image', 'image');
-export const LOCALE_MEMBERS: Record<string, BloggerProperty> = buildTypeMembersFromSpec('locale', 'locale');
-export const DATE_MEMBERS: Record<string, BloggerProperty> = buildTypeMembersFromSpec('date', 'date');
-export const URL_MEMBERS: Record<string, BloggerProperty> = buildTypeMembersFromSpec('url', 'url');
+export const STRING_MEMBERS: Record<string, BloggerProperty> = buildTypeMembersFromSpec('string');
+export const IMAGE_MEMBERS: Record<string, BloggerProperty> = buildTypeMembersFromSpec('image');
+export const LOCALE_MEMBERS: Record<string, BloggerProperty> = buildTypeMembersFromSpec('locale');
+export const DATE_MEMBERS: Record<string, BloggerProperty> = buildTypeMembersFromSpec('date');
+export const URL_MEMBERS: Record<string, BloggerProperty> = buildTypeMembersFromSpec('url');
 
 export function createArrayProperties(
   itemChildren?: Record<string, BloggerProperty>,
@@ -24,44 +23,37 @@ export function createArrayProperties(
       name: 'size',
       type: 'number',
       description: 'The number of elements in the collection.',
-      docUrl: getModelDocUrl('array.size'),
     },
     length: {
       name: 'length',
       type: 'number',
       description: 'The number of elements in the collection (alias of size).',
-      docUrl: getModelDocUrl('array.length'),
     },
     empty: {
       name: 'empty',
       type: 'boolean',
       description: 'Indicates whether the collection is empty.',
-      docUrl: getModelDocUrl('array.empty'),
     },
     notEmpty: {
       name: 'notEmpty',
       type: 'boolean',
       description: 'Indicates whether the collection contains at least one element.',
-      docUrl: getModelDocUrl('array.notEmpty'),
     },
     any: {
       name: 'any',
       type: 'boolean',
       description: 'Indicates whether the collection contains any elements.',
-      docUrl: getModelDocUrl('array.any'),
     },
     first: {
       name: 'first',
       type: itemType,
       description: 'The first element in the collection.',
-      docUrl: getModelDocUrl('array.first'),
       children: itemChildren,
     },
     last: {
       name: 'last',
       type: itemType,
       description: 'The last element in the collection.',
-      docUrl: getModelDocUrl('array.last'),
       children: itemChildren,
     },
   };
@@ -271,15 +263,7 @@ export const translateWidgetProperties = WIDGET_DATA_DICTIONARIES.Translate!;
 export const wikipediaWidgetProperties = WIDGET_DATA_DICTIONARIES.Wikipedia!;
 
 export const singlePostProperties: Record<string, BloggerProperty> = (blogWidgetProperties.posts?.itemChildren ?? {}) as Record<string, BloggerProperty>;
-export const commentProperties: Record<string, BloggerProperty> = {
-  ...((singlePostProperties.comments?.itemChildren ?? {}) as Record<string, BloggerProperty>),
-  date: {
-    name: 'date',
-    type: 'date',
-    description: 'Native date object for the comment submission time.',
-    docUrl: getModelDocUrl('widget.Blog.posts[].comments[].date'),
-  },
-};
+export const commentProperties: Record<string, BloggerProperty> = (singlePostProperties.comments?.itemChildren ?? {}) as Record<string, BloggerProperty>;
 export const postLabelItemProperties: Record<string, BloggerProperty> = (singlePostProperties.labels?.itemChildren ?? {}) as Record<string, BloggerProperty>;
 export const labelItemProperties: Record<string, BloggerProperty> = (labelWidgetProperties.labels?.itemChildren ?? {}) as Record<string, BloggerProperty>;
 export const linkItemProperties: Record<string, BloggerProperty> = (linkListWidgetProperties.links?.itemChildren ?? {}) as Record<string, BloggerProperty>;
@@ -319,12 +303,10 @@ function buildWidgetsMap(): Record<string, BloggerProperty> {
 
   for (const name of Object.keys(allWidgets)) {
     const itemChildren = WIDGET_DESCRIPTORS_MAP[name] ?? baseWidgetDescriptorProperties;
-    const docUrl = getModelDocUrl(`data.widgets.${name}`);
     result[name] = {
       name,
       type: 'array',
       description: `Collection of visible ${name} gadget descriptors.`,
-      ...(docUrl ? { docUrl } : {}),
       itemChildren,
       children: createArrayProperties(itemChildren),
     };
@@ -340,28 +322,24 @@ export const bloggerGlobalRoot: Record<string, BloggerProperty> = {
     name: 'blog',
     type: 'object',
     description: 'Global blog information, URL structure, and configuration state.',
-    docUrl: getModelDocUrl('data.blog'),
     children: blogProperties,
   },
   view: {
     name: 'view',
     type: 'object',
     description: 'Current request routing and page classification state.',
-    docUrl: getModelDocUrl('data.view'),
     children: viewProperties,
   },
   skin: {
     name: 'skin',
     type: 'object',
     description: 'Theme Designer skin variables, dynamic CSS rules, and user-configured styling.',
-    docUrl: getModelDocUrl('data.skin'),
     children: skinProperties,
   },
   widgets: {
     name: 'widgets',
     type: 'array',
     description: 'Global cross-widget layout registry in Layouts v3. Exposes descriptor objects ({ id, sectionId, title, type }) for visible widgets; does NOT provide access to the full private widget data dictionaries.',
-    docUrl: getModelDocUrl('data.widgets'),
     itemChildren: baseWidgetDescriptorProperties,
     children: widgetsMapProperties,
   },
@@ -369,21 +347,18 @@ export const bloggerGlobalRoot: Record<string, BloggerProperty> = {
     name: 'messages',
     type: 'object',
     description: 'Localized UI messages dictionary.',
-    docUrl: getModelDocUrl('data.messages'),
     children: messagesProperties,
   },
   template: {
     name: 'template',
     type: 'object',
     description: 'Template layout engine metadata and skin skin configuration.',
-    docUrl: getModelDocUrl('data.template'),
     children: templateProperties,
   },
   widget: {
     name: 'widget',
     type: 'object',
     description: 'Host widget contextual metadata and state.',
-    docUrl: getModelDocUrl('data.widget'),
     children: widgetMetaProperties,
   },
 };

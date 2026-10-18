@@ -1,6 +1,5 @@
 import type { BloggerDataType, BloggerProperty } from '../models/types.js';
 import { getSpecCatalog } from 'blogger-spec/catalogs';
-import { getModelDocUrl } from './docUrlCatalog.js';
 
 const CANONICAL_PROPERTY_ORDERS: Record<string, readonly string[]> = {
   'string': ['escaped', 'jsEscaped', 'jsonEscaped', 'cssEscaped', 'length', 'size'],
@@ -79,7 +78,6 @@ export function buildPropertiesFromSpec(
     }
     const currentPath = pathPrefix ? `${pathPrefix}.${name}` : name;
     const type = toBloggerDataType(propDef.type);
-    const docUrl = getModelDocUrl(currentPath);
 
     let children: Record<string, BloggerProperty> | undefined;
     let itemChildren: Record<string, BloggerProperty> | undefined;
@@ -96,7 +94,6 @@ export function buildPropertiesFromSpec(
       name,
       type,
       description: propDef.description,
-      ...(docUrl ? { docUrl } : {}),
       ...(children ? { children } : {}),
       ...(itemChildren ? { itemChildren } : {}),
     };
@@ -107,7 +104,6 @@ export function buildPropertiesFromSpec(
 
 export function buildTypeMembersFromSpec(
   typeName: string,
-  pathPrefix: string,
 ): Record<string, BloggerProperty> {
   const typeDef = getSpecCatalog().getType(typeName);
   if (!typeDef?.modifiers) {
@@ -136,13 +132,10 @@ export function buildTypeMembersFromSpec(
     if (!modDef) {
       continue;
     }
-    const fullPath = `${pathPrefix}.${modName}`;
-    const docUrl = getModelDocUrl(fullPath);
     result[modName] = {
       name: modName,
       type: toBloggerDataType(modDef.output_type),
       description: modDef.description,
-      ...(docUrl ? { docUrl } : {}),
     };
   }
 
@@ -194,7 +187,6 @@ export function buildMessagesProperties(): Record<string, BloggerProperty> {
       description: isParam
         ? `Blogger localized UI message: ${name}. [Requires <b:message> and <b:param>; direct invocation via <data:messages.${name}/> is prohibited.]`
         : `Blogger localized UI message: ${name}`,
-      docUrl: 'https://bloggercode.orbiona.com/1979/12/Ressource-data-messages.html',
     };
   }
 

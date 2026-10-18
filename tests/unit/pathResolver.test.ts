@@ -351,7 +351,6 @@ describe('bloggerPathResolver', () => {
       const blogWidget = suggestions.find(s => s.name === 'Blog');
       expect(blogWidget).toBeDefined();
       expect(blogWidget!.example).toContain('<b:widget id="Blog1" type="Blog"');
-      expect(blogWidget!.docUrl).toBe('https://bloggercode.orbiona.com/1979/07/Ressource-Blog.html');
     });
   });
 
@@ -609,12 +608,10 @@ describe('bloggerPathResolver', () => {
       const stringSug = result!.suggestions.find(s => s.name === 'string');
       expect(stringSug).toBeDefined();
       expect(stringSug!.detail).toBe('string(skin)');
-      expect(stringSug!.docUrl).toBe('https://bloggercode.orbiona.com/2016/09/skin-type-string.html');
 
       const urlSug = result!.suggestions.find(s => s.name === 'url');
       expect(urlSug).toBeDefined();
       expect(urlSug!.detail).toBe('url(skin)');
-      expect(urlSug!.docUrl).toBe('https://bloggercode.orbiona.com/2016/09/skin-type-url.html');
     });
 
     it('should resolve skin variable types with correct replacement length when typing mid-word', () => {

@@ -273,7 +273,6 @@ describe('tag attribute completion & canonical data:widgets descriptors', () => 
       expect(hover?.hover.title).toBe('tag');
       expect(hover?.hover.category).toBe('attribute');
       expect(hover?.hover.description).toContain('Semantic HTML5 container element');
-      expect(hover?.hover.docUrls).toContain('https://bloggercode.orbiona.com/2016/03/tag-b-section.html');
     });
 
     it('should show hover card for reverse in <b:loop reverse="true">', () => {
@@ -283,7 +282,6 @@ describe('tag attribute completion & canonical data:widgets descriptors', () => 
       expect(hover?.hover.title).toBe('reverse');
       expect(hover?.hover.category).toBe('attribute');
       expect(hover?.hover.description).toContain('reverse order');
-      expect(hover?.hover.docUrls).toContain('https://bloggercode.orbiona.com/2016/03/tag-b-loop.html');
     });
 
     it('should show hover card for render in <b:comment render="true">', () => {
@@ -293,7 +291,6 @@ describe('tag attribute completion & canonical data:widgets descriptors', () => 
       expect(hover?.hover.title).toBe('render');
       expect(hover?.hover.category).toBe('attribute');
       expect(hover?.hover.description).toContain('HTML comment');
-      expect(hover?.hover.docUrls).toContain('https://bloggercode.orbiona.com/2018/02/tag-b-comments.html');
     });
   });
 

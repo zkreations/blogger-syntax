@@ -2,62 +2,6 @@ import type { BloggerHoverInfo, BloggerSuggestion } from '../../core/models/type
 import * as vscode from 'vscode';
 import { cleanSnippetBody } from '../../core/utils/snippetFormatter.js';
 
-export function getDocUrlLabel(url: string, index: number = 0, total: number = 1): string {
-  try {
-    const parsed = new URL(url);
-    const host = parsed.hostname;
-    if (host.includes('support.google.com') || host.includes('google.com')) {
-      return 'Google Documentation';
-    }
-    if (host.includes('orbiona.com') || host.includes('bloggercode')) {
-      return 'BloggerCode Reference';
-    }
-    if (host.includes('zkreations.com')) {
-      return 'zkreations Reference';
-    }
-  }
-  catch {}
-
-  if (total === 1) {
-    return 'Documentation Reference';
-  }
-  return `Reference ${index + 1}`;
-}
-
-export function formatDocLinks(docUrls?: string | readonly string[]): string | undefined {
-  if (!docUrls) {
-    return undefined;
-  }
-
-  const urls = Array.isArray(docUrls) ? docUrls : [docUrls];
-  const validUrls = urls.filter(u => typeof u === 'string' && u.trim().length > 0);
-
-  if (validUrls.length === 0) {
-    return undefined;
-  }
-
-  const baseLabels = validUrls.map((url, i) => getDocUrlLabel(url, i, validUrls.length));
-  const labelCounts = new Map<string, number>();
-  for (const label of baseLabels) {
-    labelCounts.set(label, (labelCounts.get(label) ?? 0) + 1);
-  }
-
-  const labelIndex = new Map<string, number>();
-  const links = validUrls.map((url, i) => {
-    const base = baseLabels[i]!;
-    const count = labelCounts.get(base) ?? 1;
-    let label = base;
-    if (count > 1) {
-      const currentIdx = (labelIndex.get(base) ?? 0) + 1;
-      labelIndex.set(base, currentIdx);
-      label = `${base} ${currentIdx}`;
-    }
-    return `[${label}](${url.trim()})`;
-  });
-
-  return links.join(' • ');
-}
-
 export function getSuggestionExample(suggestion: BloggerSuggestion): string | undefined {
   if (suggestion.example) {
     return suggestion.example;
@@ -104,11 +48,6 @@ export function buildCompletionDocumentation(suggestion: BloggerSuggestion): vsc
     }
   }
 
-  const linksMarkdown = formatDocLinks(suggestion.docUrl);
-  if (linksMarkdown) {
-    markdown.appendMarkdown(`\n\n${linksMarkdown}\n`);
-  }
-
   return markdown;
 }
 
@@ -142,11 +81,6 @@ export function buildHoverDocumentation(hoverInfo: BloggerHoverInfo): vscode.Mar
     if (cleaned) {
       markdown.appendCodeblock(cleaned, 'xml');
     }
-  }
-
-  const linksMarkdown = formatDocLinks(hoverInfo.docUrls);
-  if (linksMarkdown) {
-    markdown.appendMarkdown(`${linksMarkdown}\n`);
   }
 
   return markdown;

@@ -19,5 +19,6 @@ export default antfu({
     '.vscode/**',
     '.vscode-test/**',
     'node_modules/**',
+    'esbuild.js',
   ],
 });

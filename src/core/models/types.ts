@@ -17,7 +17,6 @@ export interface BloggerProperty {
   readonly description?: string | undefined;
   readonly deprecated?: boolean | undefined;
   readonly example?: string | undefined;
-  readonly docUrl?: string | readonly string[] | undefined;
   readonly children?: Record<string, BloggerProperty> | undefined;
   readonly itemChildren?: Record<string, BloggerProperty> | undefined;
 }
@@ -35,7 +34,6 @@ export interface BloggerSuggestion {
   readonly example?: string | undefined;
   readonly attributes?: Record<string, BloggerTagAttribute> | undefined;
   readonly deprecated?: boolean | undefined;
-  readonly docUrl?: string | readonly string[] | undefined;
   readonly categoryBadge?: string | undefined;
   readonly sortPriority?: number | undefined;
 }
@@ -51,7 +49,6 @@ export interface BloggerTagAttribute {
   readonly required?: boolean | undefined;
   readonly description?: string | undefined;
   readonly values?: readonly string[] | undefined;
-  readonly docUrl?: string | readonly string[] | undefined;
 }
 
 export interface BloggerTagDefinition {
@@ -61,7 +58,6 @@ export interface BloggerTagDefinition {
   readonly detail?: string | undefined;
   readonly attributes?: Record<string, BloggerTagAttribute> | undefined;
   readonly example?: string | undefined;
-  readonly docUrl?: string | readonly string[] | undefined;
 }
 
 export interface BloggerHoverInfo {
@@ -70,7 +66,6 @@ export interface BloggerHoverInfo {
   readonly type?: BloggerDataType | string | undefined;
   readonly description?: string | undefined;
   readonly example?: string | undefined;
-  readonly docUrls?: readonly string[] | undefined;
 }
 
 export interface BloggerHoverResult {

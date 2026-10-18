@@ -26,7 +26,6 @@ describe('blogger Skin Variables Data', () => {
       expect(detail.type).toBe(type);
       expect(detail.skinTypeLabel).toBe(`${type}(skin)`);
       expect(detail.description.length).toBeGreaterThan(10);
-      expect(detail.docUrl).toMatch(/^https:\/\/bloggercode\.orbiona\.com\/2016\/09\/skin-type-/);
       expect(detail.example).toContain(`<Variable `);
       expect(detail.example).toContain(`type="${type}"`);
       expect(detail.snippetBody).toContain(`type="${type}"`);

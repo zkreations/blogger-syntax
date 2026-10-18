@@ -27,7 +27,6 @@ describe('bloggerPathResolver hover resolution', () => {
       expect(result?.hover.category).toBe('data');
       expect(result?.hover.type).toBe('string');
       expect(result?.hover.description).toBe('Blog title configured in basic settings (e.g. data:blog.title.escaped).');
-      expect(result?.hover.docUrls).toContain('https://bloggercode.orbiona.com/1978/11/data-blog-title.html');
       expect(result?.range.start).toBe(line.indexOf('data:blog.title'));
       expect(result?.range.end).toBe(line.indexOf('data:blog.title') + 'data:blog.title'.length);
     });
@@ -40,7 +39,6 @@ describe('bloggerPathResolver hover resolution', () => {
       expect(result).toBeDefined();
       expect(result?.hover.title).toBe('data:post.author.authorPhoto.width');
       expect(result?.hover.type).toBe('number');
-      expect(result?.hover.docUrls).toContain('https://bloggercode.orbiona.com/1971/03/data-posts-author-authorPhoto-width.html');
     });
 
     it('should resolve hover on data:posts root collection inside Blog widget', () => {
@@ -50,7 +48,6 @@ describe('bloggerPathResolver hover resolution', () => {
 
       expect(result).toBeDefined();
       expect(result?.hover.title).toBe('data:posts');
-      expect(result?.hover.docUrls).toContain('https://bloggercode.orbiona.com/1971/08/data-posts.html');
     });
 
     it('should NOT resolve hover on data:posts outside widget context', () => {
@@ -69,7 +66,6 @@ describe('bloggerPathResolver hover resolution', () => {
       expect(result).toBeDefined();
       expect(result?.hover.title).toBe('data:view.isHomepage');
       expect(result?.hover.type).toBe('boolean');
-      expect(result?.hover.docUrls).toContain('https://bloggercode.orbiona.com/1978/10/data-view-isHomepage.html');
     });
   });
 
@@ -83,7 +79,6 @@ describe('bloggerPathResolver hover resolution', () => {
       expect(result?.hover.title).toBe('<b:if>');
       expect(result?.hover.category).toBe('tag');
       expect(result?.hover.description).toBe('Renders child content if the condition evaluates to true.');
-      expect(result?.hover.docUrls).toContain('https://bloggercode.orbiona.com/2016/03/tag-b-if-b-else-b-elseif.html');
     });
 
     it('should resolve hover on <b:param>', () => {
@@ -95,7 +90,6 @@ describe('bloggerPathResolver hover resolution', () => {
       expect(result?.hover.title).toBe('<b:param>');
       expect(result?.hover.category).toBe('tag');
       expect(result?.hover.description).toContain('b:message');
-      expect(result?.hover.docUrls).toContain('https://bloggercode.orbiona.com/2018/02/tag-b-message-b-param.html');
     });
 
     it('should resolve hover on closing tag </b:loop>', () => {
@@ -108,17 +102,14 @@ describe('bloggerPathResolver hover resolution', () => {
       expect(result?.hover.category).toBe('tag');
     });
 
-    it('should resolve multiple doc URLs for <b:eval>', () => {
+    it('should resolve hover for <b:eval>', () => {
       const line = '<b:eval expr="data:blog.title" />';
       const charIndex = line.indexOf('b:eval');
       const result = resolver.resolveHoverAtPosition(line, charIndex);
 
       expect(result).toBeDefined();
-      expect(result?.hover.docUrls?.length).toBe(2);
-      expect(result?.hover.docUrls).toEqual([
-        'https://support.google.com/blogger/answer/46995#zippy=%2Cevaluated-expressions-beval',
-        'https://bloggercode.orbiona.com/2016/03/tag-b-eval.html',
-      ]);
+      expect(result?.hover.title).toBe('<b:eval>');
+      expect(result?.hover.category).toBe('tag');
     });
 
     it('should resolve hover on <Variable>', () => {
@@ -167,7 +158,6 @@ describe('bloggerPathResolver hover resolution', () => {
       expect(result?.hover.category).toBe('attribute');
       expect(result?.hover.title).toBe('cond');
       expect(result?.hover.description).toBe('Blogger boolean condition expression.');
-      expect(result?.hover.docUrls).toContain('https://bloggercode.orbiona.com/2018/02/attribute-cond.html');
     });
 
     it('should resolve hover on tag attribute in <b:section>', () => {
@@ -179,7 +169,6 @@ describe('bloggerPathResolver hover resolution', () => {
       expect(result?.hover.category).toBe('attribute');
       expect(result?.hover.title).toBe('tag');
       expect(result?.hover.description).toContain('Semantic HTML5 container element');
-      expect(result?.hover.docUrls).toContain('https://bloggercode.orbiona.com/2016/03/tag-b-section.html');
     });
 
     it('should resolve hover on reverse attribute in <b:loop>', () => {
@@ -191,7 +180,6 @@ describe('bloggerPathResolver hover resolution', () => {
       expect(result?.hover.category).toBe('attribute');
       expect(result?.hover.title).toBe('reverse');
       expect(result?.hover.description).toContain('reverse order');
-      expect(result?.hover.docUrls).toContain('https://bloggercode.orbiona.com/2016/03/tag-b-loop.html');
     });
 
     it('should resolve hover on render attribute in <b:comment>', () => {
@@ -203,7 +191,6 @@ describe('bloggerPathResolver hover resolution', () => {
       expect(result?.hover.category).toBe('attribute');
       expect(result?.hover.title).toBe('render');
       expect(result?.hover.description).toContain('HTML comment');
-      expect(result?.hover.docUrls).toContain('https://bloggercode.orbiona.com/2018/02/tag-b-comments.html');
     });
 
     it('should resolve hover on maxwidgets attribute in <b:section>', () => {
@@ -214,7 +201,6 @@ describe('bloggerPathResolver hover resolution', () => {
       expect(result).toBeDefined();
       expect(result?.hover.category).toBe('attribute');
       expect(result?.hover.title).toBe('maxwidgets');
-      expect(result?.hover.docUrls).toContain('https://bloggercode.orbiona.com/2021/11/attribute-maxwidgets.html');
     });
 
     it('should resolve hover on Blogger attributes in multi-line context', () => {

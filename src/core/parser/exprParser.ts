@@ -39,7 +39,6 @@ export interface LambdaHoverResult {
   readonly description: string;
   readonly example: string;
   readonly range: { start: number; end: number };
-  readonly docUrls?: readonly string[] | undefined;
 }
 
 /**
@@ -369,7 +368,6 @@ export function resolveLambdaHoverAtPosition(
             description: resolved.description ?? `Property \`${memberPath.join('.')}\` of \`${baseParam}\`.`,
             example: token,
             range: { start: tokenStart, end: tokenEnd },
-            docUrls: resolved.docUrl ? (typeof resolved.docUrl === 'string' ? [resolved.docUrl] : resolved.docUrl) : undefined,
           };
         }
       }

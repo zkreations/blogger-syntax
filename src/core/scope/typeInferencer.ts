@@ -76,7 +76,6 @@ export function inferLoopVariables(
           ? `Loop variable for \`${valuesExpr}\`: ${resolvedProp.description}`
           : `Loop variable representing each item in \`${valuesExpr}\`.`,
         children,
-        docUrl: resolvedProp?.docUrl,
       };
     }
   }
@@ -154,7 +153,6 @@ export function inferWithVariables(
         : `Alias variable holding the value of \`${valueExpr}\`.`,
       children,
       itemChildren,
-      docUrl: resolvedProp?.docUrl,
     };
   }
 
@@ -212,7 +210,6 @@ export function parseObjectLiteralProperties(
           description: resolved.description ?? `Passed property: ${val}`,
           children: resolved.children,
           itemChildren: resolved.itemChildren,
-          docUrl: resolved.docUrl,
         };
       }
       else {
@@ -267,7 +264,6 @@ export function inferIncludableVariables(
     const combinedChildren: Record<string, BloggerProperty> = {};
     let combinedItemChildren: Record<string, BloggerProperty> | undefined;
     let resolvedType: BloggerDataType = 'object';
-    let docUrl: string | readonly string[] | undefined;
     let hasResolved = false;
 
     for (const exprItem of exprs) {
@@ -292,7 +288,6 @@ export function inferIncludableVariables(
       if (resolvedProp) {
         hasResolved = true;
         resolvedType = resolvedProp.type;
-        docUrl = resolvedProp.docUrl;
 
         if (resolvedProp.itemChildren) {
           combinedItemChildren = {
@@ -315,7 +310,6 @@ export function inferIncludableVariables(
         description: `Passed parameter for \`${exprStrings.join(', ')}\`.`,
         children: Object.keys(combinedChildren).length > 0 ? combinedChildren : undefined,
         itemChildren: combinedItemChildren,
-        docUrl,
       };
       return result;
     }

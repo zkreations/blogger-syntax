@@ -28,7 +28,6 @@ import {
   WIDGET_DATA_DICTIONARIES,
 } from './dataModel.js';
 import {
-  normalizeDocUrls,
   resolveHoverAtPosition as resolveHoverAtPositionDirect,
   resolveLocalVariables,
 } from './hoverCardResolver.js';
@@ -39,7 +38,6 @@ import { bloggerTags, hasAttributeValueCompletions, isExpressionAttribute, parse
 export {
   hasAttributeValueCompletions,
   isExpressionAttribute,
-  normalizeDocUrls,
   parseTagAttributeContext,
 };
 export type {
@@ -161,7 +159,6 @@ export class BloggerPathResolver {
       description: prop.description,
       example: prop.example ?? (basePath ? `data:${basePath}.${prop.name}` : `data:${prop.name}`),
       deprecated: prop.deprecated,
-      docUrl: prop.docUrl,
       kind: 'property',
     };
   }
@@ -205,7 +202,6 @@ export class BloggerPathResolver {
               description: prop.description ?? `Template variable \`${prop.name}\`.`,
               example: `data:${prop.name}`,
               deprecated: prop.deprecated,
-              docUrl: prop.docUrl,
               kind: 'variable',
               categoryBadge: 'Local',
               sortPriority: 0,
@@ -218,7 +214,6 @@ export class BloggerPathResolver {
               description: prop.description,
               example: `data:${prop.name}`,
               deprecated: prop.deprecated,
-              docUrl: prop.docUrl,
               kind: 'property',
               categoryBadge: widgetType ? `Widget: ${widgetType}` : 'Widget',
               sortPriority: 10,
@@ -235,7 +230,6 @@ export class BloggerPathResolver {
             description: prop.description,
             example: `data:${prop.name}`,
             deprecated: prop.deprecated,
-            docUrl: prop.docUrl,
             kind: 'property',
             detail: `(Blogger Global: ${prop.name})`,
             categoryBadge: 'Global',
@@ -261,7 +255,6 @@ export class BloggerPathResolver {
         description: m.property.description,
         example: m.property.example ?? `data:${basePath}.${m.property.name}`,
         deprecated: m.property.deprecated,
-        docUrl: m.property.docUrl,
         kind: 'property',
         detail: `(Blogger Data: ${m.property.type.charAt(0).toUpperCase() + m.property.type.slice(1)})`,
         categoryBadge: m.categoryBadge,
@@ -325,7 +318,6 @@ export class BloggerPathResolver {
               example: `${lambdaContext.activeParam}.${m.property.name}`,
               kind: 'property' as const,
               deprecated: m.property.deprecated,
-              docUrl: m.property.docUrl,
               categoryBadge: m.categoryBadge,
               sortPriority: m.sortPriority,
             }))
@@ -336,7 +328,6 @@ export class BloggerPathResolver {
               example: `${lambdaContext.activeParam}.${prop.name}`,
               kind: 'property' as const,
               deprecated: prop.deprecated,
-              docUrl: prop.docUrl,
               categoryBadge: 'Property',
               sortPriority: 0,
             }));
@@ -451,7 +442,6 @@ export class BloggerPathResolver {
                 example: `${rawChain}.${m.property.name}`,
                 kind: 'property' as const,
                 deprecated: m.property.deprecated,
-                docUrl: m.property.docUrl,
                 categoryBadge: m.categoryBadge,
                 sortPriority: m.sortPriority,
               }))
@@ -464,7 +454,6 @@ export class BloggerPathResolver {
                 example: `${rawChain}.${prop.name}`,
                 kind: 'property' as const,
                 deprecated: prop.deprecated,
-                docUrl: prop.docUrl,
                 categoryBadge: 'Property',
                 sortPriority: 0,
               }));
@@ -498,7 +487,6 @@ export class BloggerPathResolver {
             example: `(${memberExpr.operand}).${m.property.name}`,
             kind: 'property' as const,
             deprecated: m.property.deprecated,
-            docUrl: m.property.docUrl,
             categoryBadge: m.categoryBadge,
             sortPriority: m.sortPriority,
           }));
@@ -584,7 +572,6 @@ export class BloggerPathResolver {
                 description: prop.description ?? `Template variable \`${name}\`.`,
                 example: qualifiedName,
                 deprecated: prop.deprecated,
-                docUrl: prop.docUrl,
                 kind: 'variable',
                 categoryBadge: 'Local',
                 sortPriority: 5,
@@ -606,7 +593,6 @@ export class BloggerPathResolver {
               description: prop.description,
               example: qualifiedName,
               deprecated: prop.deprecated,
-              docUrl: prop.docUrl,
               kind: 'property',
               detail: `(Widget Data: ${widgetType})`,
               categoryBadge: widgetType ? `Widget: ${widgetType}` : 'Widget',
@@ -627,7 +613,6 @@ export class BloggerPathResolver {
                 description: prop.description,
                 example: qualifiedName,
                 deprecated: prop.deprecated,
-                docUrl: prop.docUrl,
                 kind: 'property',
                 categoryBadge: 'Widget',
                 sortPriority: 10,
@@ -647,7 +632,6 @@ export class BloggerPathResolver {
             description: prop.description,
             example: qualifiedName,
             deprecated: prop.deprecated,
-            docUrl: prop.docUrl,
             kind: 'property',
             detail: `(Blogger Global: ${name})`,
             categoryBadge: 'Global',
@@ -979,7 +963,6 @@ export function getSystemMessageSuggestions(): readonly BloggerSuggestion[] {
       example: isParam
         ? `<b:message name="${canonicalName}">\n  <b:param name="${msg.parameters?.[0]?.name ?? 'param'}" value="..."/>\n</b:message>`
         : `<b:message name="${canonicalName}"/>`,
-      docUrl: 'https://bloggercode.orbiona.com/1979/12/Ressource-data-messages.html',
     };
   });
 }
@@ -1038,7 +1021,6 @@ export interface BloggerOperatorDefinition {
   readonly functionalSnippet?: string | undefined;
   readonly description: string;
   readonly example: string;
-  readonly docUrl?: string | readonly string[] | undefined;
 }
 
 const XML_ESCAPED_OPERATORS = new Set(['<', '<=', '>', '>=', '&&', '||', '!']);
@@ -1153,7 +1135,6 @@ function buildOperatorsCatalog(): Record<string, BloggerOperatorDefinition> {
       functionalSnippet: FUNCTIONAL_SNIPPETS[key],
       description: op.description,
       example: op.examples?.[0]?.expression ?? infix,
-      docUrl: 'https://bloggercode.orbiona.com/2016/04/operators-lambdas.html',
     };
   }
 
@@ -1206,7 +1187,6 @@ export function getOperatorSuggestions(
         detail: `(Blogger ${op.isCollectionOperator ? 'Collection ' : ''}Operator)`,
         description: `${op.description}\n\n**Syntax:** \`${op.signatureInfix}\`${op.supportsFunctional ? `\n\n**Functional Syntax:** \`${op.signatureFunctional}\`` : ''}`,
         example: op.example,
-        docUrl: op.docUrl,
         categoryBadge,
         sortPriority,
       };
@@ -1227,7 +1207,6 @@ export function getFunctionalOperatorSuggestions(): readonly BloggerSuggestion[]
         detail: `(Blogger Operator${op.supportsVariadic ? ', Variadic' : ''})`,
         description: `${op.description}\n\n**Functional Syntax:** \`${op.signatureFunctional}\`\n\n**Infix Syntax:** \`${op.signatureInfix}\``,
         example: op.example,
-        docUrl: op.docUrl,
         categoryBadge: isTransform ? 'Transform' : 'Operator',
         sortPriority: isTransform ? 10 : 20,
       };

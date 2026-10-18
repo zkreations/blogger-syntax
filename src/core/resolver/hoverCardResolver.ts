@@ -35,13 +35,6 @@ const HOVER_ATTR_REGEX = /\b([\w-]+)\s*=/g;
 const HOVER_ATTR_VAL_REGEX = /\b([\w:-]+)\s*=\s*(["'])([^"']*)\2/g;
 const TAG_CONTEXT_REGEX = /<([\w:-]+)(?:\s[^>]*)?$/;
 
-export function normalizeDocUrls(docUrl?: string | readonly string[]): readonly string[] | undefined {
-  if (!docUrl) {
-    return undefined;
-  }
-  return typeof docUrl === 'string' ? [docUrl] : docUrl;
-}
-
 export function resolveLocalVariables(resolver?: LocalVariablesResolver): Record<string, BloggerProperty> | undefined {
   return typeof resolver === 'function' ? resolver() : resolver;
 }
@@ -78,7 +71,6 @@ export function resolveHoverCardAtPosition(
             type: resolved.type,
             description: resolved.description,
             example: resolved.example ?? token,
-            docUrls: normalizeDocUrls(resolved.docUrl),
           },
           range: { start: tokenStart, end: tokenEnd },
         };
@@ -96,7 +88,6 @@ export function resolveHoverCardAtPosition(
         type: lambdaHover.type,
         description: lambdaHover.description,
         example: lambdaHover.example,
-        docUrls: lambdaHover.docUrls,
       },
       range: lambdaHover.range,
     };
@@ -137,7 +128,6 @@ export function resolveHoverCardAtPosition(
             type: (op.returnType === 'same' || op.returnType === 'element') ? 'object' : op.returnType,
             description,
             example: op.example,
-            docUrls: normalizeDocUrls(op.docUrl),
           },
           range: { start: tokenStart, end: tokenEnd },
         };
@@ -162,7 +152,6 @@ export function resolveHoverCardAtPosition(
             category: 'tag',
             description: tagDef.description,
             example: tagDef.snippetBody,
-            docUrls: normalizeDocUrls(tagDef.docUrl),
           },
           range: { start: tokenStart, end: tokenEnd },
         };
@@ -184,7 +173,6 @@ export function resolveHoverCardAtPosition(
           category: 'prefix',
           type: 'attribute-prefix',
           description: bloggerExprPrefixInfo.description,
-          docUrls: normalizeDocUrls(bloggerExprPrefixInfo.docUrl),
         },
         range: { start: tokenStart, end: tokenEnd },
       };
@@ -216,14 +204,12 @@ export function resolveHoverCardAtPosition(
       const commonAttr = bloggerCommonAttributes[attrName];
       const attrDef = tagAttr ?? commonAttr;
       if (attrDef) {
-        const docUrl = tagAttr?.docUrl ?? commonAttr?.docUrl;
         return {
           hover: {
             title: attrName,
             category: 'attribute',
             type: attrDef.type,
             description: attrDef.description,
-            docUrls: normalizeDocUrls(docUrl),
           },
           range: { start: tokenStart, end: tokenEnd },
         };
@@ -272,7 +258,6 @@ export function resolveHoverCardAtPosition(
               category: 'setting',
               description,
               example: `<b:widget-setting name="${val}">${defaultValue}</b:widget-setting>`,
-              docUrls: ['https://bloggercode.orbiona.com/2018/02/tags-b-widget-settings.html'],
             },
             range: { start: valStart, end: valEnd },
           };
@@ -295,7 +280,6 @@ export function resolveHoverCardAtPosition(
               example: isParameterized
                 ? `<b:message name="${canonicalName}">\n  <b:param name="${msg.parameters?.[0]?.name ?? 'param'}" value="..."/>\n</b:message>`
                 : `<b:message name="${canonicalName}"/>`,
-              docUrls: ['https://bloggercode.orbiona.com/1979/12/Ressource-data-messages.html'],
             },
             range: { start: valStart, end: valEnd },
           };
@@ -326,7 +310,6 @@ export function resolveHoverCardAtPosition(
               category: 'param',
               description: `${param.description} (Positional substitution order: ${paramPos}).`,
               example: `<b:param name="${val}" value="${param.name}"/>`,
-              docUrls: ['https://bloggercode.orbiona.com/2018/02/tag-b-message-b-param.html'],
             },
             range: { start: valStart, end: valEnd },
           };

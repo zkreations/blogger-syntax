@@ -4,8 +4,6 @@ import * as vscode from 'vscode';
 import {
   buildCompletionDocumentation,
   buildHoverDocumentation,
-  formatDocLinks,
-  getDocUrlLabel,
   getSuggestionExample,
 } from '../../src/vscode/utils/docBuilder.js';
 
@@ -56,53 +54,14 @@ describe('docBuilder', () => {
     });
   });
 
-  describe('formatDocLinks', () => {
-    it('should format multiple URLs with appropriate labels', () => {
-      const urls = [
-        'https://support.google.com/blogger/answer/46995',
-        'https://bloggercode.orbiona.com/2016/03/tag-b-eval.html',
-      ];
-      const result = formatDocLinks(urls);
-      expect(result).toBe(
-        '[Google Documentation](https://support.google.com/blogger/answer/46995) • [BloggerCode Reference](https://bloggercode.orbiona.com/2016/03/tag-b-eval.html)',
-      );
-    });
-
-    it('should format single URL', () => {
-      const url = 'https://bloggercode.orbiona.com/2018/02/tag-b-attr.html';
-      const result = formatDocLinks(url);
-      expect(result).toBe('[BloggerCode Reference](https://bloggercode.orbiona.com/2018/02/tag-b-attr.html)');
-    });
-
-    it('should return undefined for empty docUrls', () => {
-      expect(formatDocLinks(undefined)).toBeUndefined();
-      expect(formatDocLinks([])).toBeUndefined();
-    });
-  });
-
-  describe('getDocUrlLabel', () => {
-    it('should return zkreations Reference for zkreations.com URLs', () => {
-      expect(getDocUrlLabel('https://zkreations.com/tutorial')).toBe('zkreations Reference');
-    });
-
-    it('should fall back to Documentation Reference for invalid URL string', () => {
-      expect(getDocUrlLabel('invalid-url-string', 0, 1)).toBe('Documentation Reference');
-    });
-
-    it('should format indexed label for generic domains with multiple links', () => {
-      expect(getDocUrlLabel('https://example.com/docs', 1, 3)).toBe('Reference 2');
-    });
-  });
-
   describe('buildCompletionDocumentation', () => {
-    it('should build full Markdown documentation for a tag with attributes and docUrl', () => {
+    it('should build full Markdown documentation for a tag with attributes', () => {
       const suggestion: BloggerSuggestion = {
         name: 'b:include',
         type: 'string',
         kind: 'snippet',
         description: 'Executes and renders a b:includable section.',
         insertText: 'b:include name="${1:main}" data="${2:data}"/>$0',
-        docUrl: 'https://bloggercode.orbiona.com/2016/03/tag-b-includable-b-include.html',
         attributes: {
           name: { name: 'name', type: 'string', required: true, description: 'ID of section' },
           data: { name: 'data', type: 'string', required: false, description: 'Data expression' },
@@ -116,7 +75,6 @@ describe('docBuilder', () => {
       expect(doc.value).toContain('**Attributes:**');
       expect(doc.value).toContain('`name` *(required)* (`string`) — ID of section');
       expect(doc.value).toContain('`data` (`string`) — Data expression');
-      expect(doc.value).toContain('[BloggerCode Reference](https://bloggercode.orbiona.com/2016/03/tag-b-includable-b-include.html)');
     });
 
     it('should show deprecation warning when deprecated is true', () => {
@@ -135,22 +93,16 @@ describe('docBuilder', () => {
   });
 
   describe('buildHoverDocumentation', () => {
-    it('should format hover documentation for a tag with multiple links', () => {
+    it('should format hover documentation for a tag', () => {
       const hoverInfo: BloggerHoverInfo = {
         title: '<b:eval>',
         category: 'tag',
         description: 'Evaluates a Blogger expression and explicitly outputs the result.',
-        docUrls: [
-          'https://support.google.com/blogger/answer/46995',
-          'https://bloggercode.orbiona.com/2016/03/tag-b-eval.html',
-        ],
       };
 
       const doc = buildHoverDocumentation(hoverInfo);
       expect(doc.value).toContain('(tag) **`<b:eval>`**');
       expect(doc.value).toContain('Evaluates a Blogger expression and explicitly outputs the result.');
-      expect(doc.value).toContain('[Google Documentation](https://support.google.com/blogger/answer/46995)');
-      expect(doc.value).toContain('[BloggerCode Reference](https://bloggercode.orbiona.com/2016/03/tag-b-eval.html)');
     });
 
     it('should format hover documentation for a data property', () => {
@@ -159,13 +111,11 @@ describe('docBuilder', () => {
         category: 'data',
         type: 'boolean',
         description: 'True when viewing the blog homepage.',
-        docUrls: ['https://bloggercode.orbiona.com/1978/10/data-view-isHomepage.html'],
       };
 
       const doc = buildHoverDocumentation(hoverInfo);
       expect(doc.value).toContain('(data: Boolean) **`data:view.isHomepage`**');
       expect(doc.value).toContain('True when viewing the blog homepage.');
-      expect(doc.value).toContain('[BloggerCode Reference](https://bloggercode.orbiona.com/1978/10/data-view-isHomepage.html)');
     });
 
     it('should format hover documentation with code example when provided on tag', () => {
