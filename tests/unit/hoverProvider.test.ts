@@ -33,7 +33,7 @@ describe('bloggerHoverProvider', () => {
     expect(hover).toBeDefined();
     const markdown = hover.contents[0] as vscode.MarkdownString;
     expect(markdown.value).toContain('(tag) **`<b:if>`**');
-    expect(markdown.value).toContain('Renders child content if the condition evaluates to true.');
+    expect(markdown.value).toContain('Conditional control tag that executes its child markup');
   });
 
   it('should return undefined when cursor is on non-Blogger text or standard HTML attributes', () => {

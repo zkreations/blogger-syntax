@@ -72,13 +72,11 @@ describe('tags and snippets validation', () => {
     expect(ifClose?.insertText).toBe('b:if>');
   });
 
-  it('should enforce minimal snippets without preset values or choice sets across all tags', () => {
+  it('should enforce valid VS Code snippet syntax with final tabstop across all tags', () => {
     for (const tag of allTagSuggestions) {
       const body = tag.insertText ?? '';
-      // No placeholders with preset default values like ${1:value}
-      expect(body, `Tag "${tag.name}" has preset default placeholder`).not.toMatch(/\$\{\d+:[^}]+\}/);
-      // No choice sets like ${1|opt1,opt2|}
-      expect(body, `Tag "${tag.name}" has choice placeholder`).not.toMatch(/\$\{\d+\|[^}]+\|\}/);
+      // All tag snippets must include final tabstop $0
+      expect(body, `Tag "${tag.name}" must contain $0 tabstop`).toContain('$0');
     }
   });
 
@@ -107,14 +105,14 @@ describe('tags and snippets validation', () => {
   });
 
   it('should verify specific clean signatures for key directives', () => {
-    expect(bloggerTags['b:widget']?.snippetBody).toBe('b:widget id="$1" type="$2" title="$3">\n\t$0\n</b:widget>');
-    expect(bloggerTags['b:include']?.snippetBody).toBe('b:include name="$1"/>$0');
-    expect(bloggerTags['b:includable']?.snippetBody).toBe('b:includable id="$1">\n\t$0\n</b:includable>');
-    expect(bloggerTags['b:section']?.snippetBody).toBe('b:section id="$1">\n\t$0\n</b:section>');
-    expect(bloggerTags['b:message']?.snippetBody).toBe('b:message name="$1"/>$0');
-    expect(bloggerTags['b:switch']?.snippetBody).toBe('b:switch var="$1">\n\t$0\n</b:switch>');
-    expect(bloggerTags['b:defaultmarkups']?.snippetBody).toBe('b:defaultmarkups>\n\t$0\n</b:defaultmarkups>');
-    expect(bloggerTags.Group?.snippetBody).toBe('Group description="$1">\n\t$0\n</Group>');
-    expect(bloggerTags.Variable?.snippetBody).toBe('Variable name="$1" description="$2" type="$3" default="$4" value="$5"/>$0');
+    expect(bloggerTags['b:widget']?.snippetBody).toBe('b:widget id=\'${1:id}\' type=\'${2:type}\'>\n  $0\n</b:widget>');
+    expect(bloggerTags['b:include']?.snippetBody).toBe('b:include name=\'${1:name}\'/>$0');
+    expect(bloggerTags['b:includable']?.snippetBody).toBe('b:includable id=\'${1:id}\'>\n  $0\n</b:includable>');
+    expect(bloggerTags['b:section']?.snippetBody).toBe('b:section id=\'${1:id}\'>\n  $0\n</b:section>');
+    expect(bloggerTags['b:message']?.snippetBody).toBe('b:message name=\'${1:name}\'>\n  $0\n</b:message>');
+    expect(bloggerTags['b:switch']?.snippetBody).toBe('b:switch var=\'${1:data:view.type}\'>\n  $0\n</b:switch>');
+    expect(bloggerTags['b:defaultmarkups']?.snippetBody).toBe('b:defaultmarkups>\n  $0\n</b:defaultmarkups>');
+    expect(bloggerTags.Group?.snippetBody).toBe('Group description=\'${1:description}\'>\n  $0\n</Group>');
+    expect(bloggerTags.Variable?.snippetBody).toBe('Variable name=\'${1:name}\' description=\'${2:description}\' type=\'${3:type}\' value=\'${4:value}\'/>$0');
   });
 });

@@ -130,6 +130,30 @@ describe('tag attribute completion & canonical data:widgets descriptors', () => 
       expect(names).toContain('hideEditor');
     });
 
+    it('should contextually restrict <Variable attributes when type is specified using getVariableTypeAttributes', () => {
+      const colorResult = resolver.resolveFromLinePrefix('<Variable type="color" ');
+      expect(colorResult).toBeDefined();
+      const colorNames = colorResult!.suggestions.map(s => s.name);
+      expect(colorNames).toContain('name');
+      expect(colorNames).toContain('description');
+      expect(colorNames).toContain('value');
+      expect(colorNames).toContain('default');
+      expect(colorNames).toContain('hideEditor');
+      // Attributes for other types must not be suggested
+      expect(colorNames).not.toContain('family');
+      expect(colorNames).not.toContain('size');
+      expect(colorNames).not.toContain('min');
+      expect(colorNames).not.toContain('max');
+
+      const fontResult = resolver.resolveFromLinePrefix('<Variable type="font" ');
+      expect(fontResult).toBeDefined();
+      const fontNames = fontResult!.suggestions.map(s => s.name);
+      expect(fontNames).toContain('family');
+      expect(fontNames).toContain('size');
+      expect(fontNames).not.toContain('min');
+      expect(fontNames).not.toContain('max');
+    });
+
     it('should suggest skin group attributes for <Group', () => {
       const result = resolver.resolveFromLinePrefix('<Group ');
       expect(result).toBeDefined();
@@ -156,21 +180,21 @@ describe('tag attribute completion & canonical data:widgets descriptors', () => 
       const result = resolver.resolveFromLinePrefix('<b:loop reverse="');
       expect(result).toBeDefined();
       const values = result!.suggestions.map(s => s.name);
-      expect(values).toEqual(['true', 'false']);
+      expect(values).toEqual(['yes', 'no', 'true', 'false']);
     });
 
     it('should suggest boolean values for <b:comment render="', () => {
       const result = resolver.resolveFromLinePrefix('<b:comment render="');
       expect(result).toBeDefined();
       const values = result!.suggestions.map(s => s.name);
-      expect(values).toEqual(['true', 'false']);
+      expect(values).toEqual(['yes', 'no', 'true', 'false']);
     });
 
-    it('should suggest yes/no for <b:section showaddelement="', () => {
+    it('should suggest boolean values for <b:section showaddelement="', () => {
       const result = resolver.resolveFromLinePrefix('<b:section showaddelement="');
       expect(result).toBeDefined();
       const values = result!.suggestions.map(s => s.name);
-      expect(values).toEqual(['yes', 'no']);
+      expect(values).toEqual(['yes', 'no', 'true', 'false']);
     });
   });
 
@@ -272,7 +296,7 @@ describe('tag attribute completion & canonical data:widgets descriptors', () => 
       expect(hover).toBeDefined();
       expect(hover?.hover.title).toBe('tag');
       expect(hover?.hover.category).toBe('attribute');
-      expect(hover?.hover.description).toContain('Semantic HTML5 container element');
+      expect(hover?.hover.description).toContain('HTML element used for output');
     });
 
     it('should show hover card for reverse in <b:loop reverse="true">', () => {
@@ -281,7 +305,7 @@ describe('tag attribute completion & canonical data:widgets descriptors', () => 
       expect(hover).toBeDefined();
       expect(hover?.hover.title).toBe('reverse');
       expect(hover?.hover.category).toBe('attribute');
-      expect(hover?.hover.description).toContain('reverse order');
+      expect(hover?.hover.description).toContain('Reverses iteration order');
     });
 
     it('should show hover card for render in <b:comment render="true">', () => {

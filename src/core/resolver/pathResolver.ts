@@ -1025,43 +1025,6 @@ export interface BloggerOperatorDefinition {
 
 const XML_ESCAPED_OPERATORS = new Set(['<', '<=', '>', '>=', '&&', '||', '!']);
 
-const FUNCTIONAL_SNIPPETS: Record<string, string> = {
-  'take': 'take(${1:collection}, ${2:count})',
-  'limit': 'limit(${1:collection}, ${2:count})',
-  'skip': 'skip(${1:collection}, ${2:count})',
-  'offset': 'offset(${1:collection}, ${2:count})',
-  'in': 'in(${1:item}, ${2:collection})',
-  'contains': 'contains(${1:haystack}, ${2:needle})',
-  'params': 'params(${1:url}, { ${2:key}: ${3:value} })',
-  'appendParams': 'appendParams(${1:url}, { ${2:key}: ${3:value} })',
-  'path': 'path(${1:url}, "${2:/path}")',
-  'fragment': 'fragment(${1:url}, "${2:sectionId}")',
-  'format': 'format(${1:date}, "${2:YYYY-MM-dd}")',
-  'resizeImage': 'resizeImage(${1:imageUrl}, ${2:300}, "${3|1:1,4:3,16:9|}")',
-  'sourceSet': 'sourceSet(${1:imageUrl}, [${2:200, 400, 800}], "${3|16:9,4:3,1:1|}")',
-  'snippet': 'snippet(${1:text}, { length: ${2:150}, links: ${3:false}, linebreaks: ${4:false}, ellipsis: ${5:true} })',
-  'and': 'and(${1:condA}, ${2:condB})',
-  'or': 'or(${1:condA}, ${2:condB})',
-  '==': '==(${1:a}, ${2:b})',
-  '!=': '!=(${1:a}, ${2:b})',
-  'eq': 'eq(${1:a}, ${2:b})',
-  'neq': 'neq(${1:a}, ${2:b})',
-  'lt': 'lt(${1:a}, ${2:b})',
-  'lte': 'lte(${1:a}, ${2:b})',
-  'gt': 'gt(${1:a}, ${2:b})',
-  'gte': 'gte(${1:a}, ${2:b})',
-  '<': 'lt(${1:a}, ${2:b})',
-  '<=': 'lte(${1:a}, ${2:b})',
-  '>': 'gt(${1:a}, ${2:b})',
-  '>=': 'gte(${1:a}, ${2:b})',
-  '?:': '?:(${1:val1}, ${2:val2})',
-  '+': '+(${1:a}, ${2:b})',
-  '-': '-(${1:a}, ${2:b})',
-  '*': '*(${1:a}, ${2:b})',
-  '/': '/(${1:a}, ${2:b})',
-  '%': '%(${1:a}, ${2:b})',
-};
-
 function buildOperatorsCatalog(): Record<string, BloggerOperatorDefinition> {
   const catalog = getSpecCatalog();
   const allOps = catalog.getAllOperators();
@@ -1132,7 +1095,9 @@ function buildOperatorsCatalog(): Record<string, BloggerOperatorDefinition> {
       signature,
       signatureInfix: infix,
       signatureFunctional: functional,
-      functionalSnippet: FUNCTIONAL_SNIPPETS[key],
+      functionalSnippet: op.syntax.supports_functional
+        ? (catalog.getOperatorSnippet(key, { syntax: 'functional' }) || undefined)?.replace(/^\w+(?=\()/, key)
+        : undefined,
       description: op.description,
       example: op.examples?.[0]?.expression ?? infix,
     };

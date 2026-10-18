@@ -120,7 +120,7 @@ describe('plan 1: Data Model Integrity & Canonical Specifications', () => {
 
     it('should include v3 attributes and clean snippet for b:section, excluding deprecated ones', () => {
       const section = bloggerTags['b:section'];
-      expect(section?.snippetBody).toBe('b:section id="$1">\n\t$0\n</b:section>');
+      expect(section?.snippetBody).toBe('b:section id=\'${1:id}\'>\n  $0\n</b:section>');
       expect(section?.snippetBody).not.toContain('tag=');
       expect(section?.snippetBody).not.toContain('maxwidgets=');
 
@@ -128,10 +128,10 @@ describe('plan 1: Data Model Integrity & Canonical Specifications', () => {
       expect(attrs.tag).toBeDefined();
       expect(attrs.name).toBeDefined();
       expect(attrs.cond).toBeDefined();
-      expect(attrs.maxwidgets).toBeUndefined();
-      expect(attrs.growth).toBeUndefined();
+      expect(attrs.maxwidgets?.deprecated).toBe(true);
+      expect(attrs.growth?.deprecated).toBe(true);
       expect(attrs.preferred).toBeDefined();
-      expect(attrs.preferred?.values).toEqual(['yes', 'no']);
+      expect(attrs.preferred?.values).toEqual(['yes', 'no', 'true', 'false']);
       expect(attrs.ads).toBeDefined();
     });
 
@@ -141,13 +141,16 @@ describe('plan 1: Data Model Integrity & Canonical Specifications', () => {
       expect(cdata?.snippetBody).toContain('<![CDATA[');
     });
 
-    it('should enforce title as required on b:widget and support cond and visible', () => {
+    it('should support title, cond, visible, and identify deprecated attributes on b:widget', () => {
       const widget = bloggerTags['b:widget'];
       expect(widget).toBeDefined();
-      expect(widget?.attributes?.title?.required).toBe(true);
+      expect(widget?.attributes?.id?.required).toBe(true);
+      expect(widget?.attributes?.type?.required).toBe(true);
+      expect(widget?.attributes?.title?.required).toBe(false);
       expect(widget?.attributes?.cond).toBeDefined();
       expect(widget?.attributes?.visible).toBeDefined();
-      expect(widget?.attributes?.mobile).toBeUndefined();
+      expect(widget?.attributes?.mobile?.deprecated).toBe(true);
+      expect(widget?.attributes?.pageType?.deprecated).toBe(true);
     });
 
     it('should support cond on b:include, b:attr and b:class', () => {
@@ -163,16 +166,17 @@ describe('plan 1: Data Model Integrity & Canonical Specifications', () => {
 
     it('should support Theme Designer CSS attributes on Variable tag', () => {
       const vAttrs = bloggerTags.Variable?.attributes ?? {};
+      expect(vAttrs.name).toBeDefined();
+      expect(vAttrs.description).toBeDefined();
+      expect(vAttrs.type).toBeDefined();
+      expect(vAttrs.default).toBeDefined();
+      expect(vAttrs.value).toBeDefined();
       expect(vAttrs.color).toBeDefined();
       expect(vAttrs.family).toBeDefined();
       expect(vAttrs.size).toBeDefined();
       expect(vAttrs.min).toBeDefined();
       expect(vAttrs.max).toBeDefined();
       expect(vAttrs.hideEditor).toBeDefined();
-      expect(vAttrs.red).toBeDefined();
-      expect(vAttrs.green).toBeDefined();
-      expect(vAttrs.blue).toBeDefined();
-      expect(vAttrs.alpha).toBeDefined();
     });
   });
 });

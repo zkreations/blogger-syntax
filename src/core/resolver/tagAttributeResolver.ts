@@ -159,6 +159,7 @@ export interface TagAttributeContext {
   readonly tagName: string;
   readonly typedPrefix: string;
   readonly existingAttrs: ReadonlySet<string>;
+  readonly variableType?: string | undefined;
 }
 
 const specCatalog = getSpecCatalog();
@@ -246,264 +247,74 @@ export const bloggerExprPrefixInfo = {
   description: 'Evaluates a Blogger expression and assigns the result to the attribute.',
 } as const;
 
-export const bloggerTags: Record<string, BloggerTagDefinition> = {
-  'b:attr': {
-    name: 'b:attr',
-    description: 'Adds an attribute with its corresponding value to the parent node.',
-    snippetBody: 'b:attr name="$1" value="$2"/>$0',
-    attributes: {
-      name: { name: 'name', type: 'string', required: true, description: 'The name of the attribute to set on parent node.' },
-      value: { name: 'value', type: 'string', required: true, description: 'The value to assign to the attribute.' },
-      cond: { name: 'cond', type: 'string', required: false, description: 'Conditional expression governing attribute emission.' },
-    },
-  },
-  'b:class': {
-    name: 'b:class',
-    description: 'Adds or appends CSS classes to the parent node.',
-    snippetBody: 'b:class name="$1"/>$0',
-    attributes: {
-      name: { name: 'name', type: 'string', required: true, description: 'CSS class name or list of classes to append.' },
-      cond: { name: 'cond', type: 'string', required: false, description: 'Conditional expression governing class emission.' },
-    },
-  },
-  'b:comment': {
-    name: 'b:comment',
-    description: 'Creates comments that can be rendered or omitted in the client output.',
-    snippetBody: 'b:comment>\n\t$0\n</b:comment>',
-    attributes: {
-      render: { name: 'render', type: 'string', required: false, description: 'When true, renders content as an HTML comment in output instead of omitting it.', values: ['true', 'false'] },
-    },
-  },
-  'b:defaultmarkups': {
-    name: 'b:defaultmarkups',
-    description: 'Configures default markup includes for template widgets.',
-    snippetBody: 'b:defaultmarkups>\n\t$0\n</b:defaultmarkups>',
-  },
-  'b:defaultmarkup': {
-    name: 'b:defaultmarkup',
-    description: 'Configures default template includes for a specific widget type.',
-    snippetBody: 'b:defaultmarkup type="$1">\n\t$0\n</b:defaultmarkup>',
-    attributes: {
-      type: { name: 'type', type: 'string', required: true, description: 'Widget type to define default markup for.', values: bloggerDefaultMarkupTypes },
-    },
-  },
-  'data:': {
-    name: 'data:',
-    description: 'Outputs a resolved Blogger data expression directly into output HTML.',
-    snippetBody: 'data:${1}/>$0',
-  },
-  'CDATA': {
-    name: 'CDATA',
-    description: 'Character data block escaping XML parsing, used for scripts and CSS styles within <b:skin> or <b:template-skin>.',
-    snippetBody: '<![CDATA[\n\t$0\n]]>',
-  },
-  'b:eval': {
-    name: 'b:eval',
-    description: 'Evaluates a Blogger expression and explicitly outputs the result.',
-    snippetBody: 'b:eval expr="$1"/>$0',
-    attributes: {
-      expr: { name: 'expr', type: 'string', required: true, description: 'Blogger expression to evaluate.' },
-    },
-  },
-  'b:if': {
-    name: 'b:if',
-    description: 'Renders child content if the condition evaluates to true.',
-    snippetBody: 'b:if cond="$1">\n\t$0\n</b:if>',
-    attributes: {
-      cond: { name: 'cond', type: 'string', required: true, description: 'Blogger boolean condition expression.' },
-    },
-  },
-  'b:elseif': {
-    name: 'b:elseif',
-    description: 'Alternative condition branch inside a b:if block.',
-    snippetBody: 'b:elseif cond="$1"/>$0',
-    attributes: {
-      cond: { name: 'cond', type: 'string', required: true, description: 'Blogger boolean condition expression.' },
-    },
-  },
-  'b:else': {
-    name: 'b:else',
-    description: 'Fallback branch inside a b:if block.',
-    snippetBody: 'b:else/>$0',
-  },
-  'b:includable': {
-    name: 'b:includable',
-    description: 'Defines a reusable template section / macro that can be called by b:include.',
-    snippetBody: 'b:includable id="$1">\n\t$0\n</b:includable>',
-    attributes: {
-      id: { name: 'id', type: 'string', required: true, description: 'Unique identifier name for this includable section.' },
-      var: { name: 'var', type: 'string', required: false, description: 'Variable parameter name passed to this includable.' },
-    },
-  },
-  'b:include': {
-    name: 'b:include',
-    description: 'Executes and renders a b:includable section by name.',
-    snippetBody: 'b:include name="$1"/>$0',
-    attributes: {
-      name: { name: 'name', type: 'string', required: true, description: 'ID of the b:includable section to call.' },
-      data: { name: 'data', type: 'string', required: false, description: 'Data expression to pass into the includable var parameter.' },
-      cond: { name: 'cond', type: 'string', required: false, description: 'Conditional expression governing subroutine execution.' },
-    },
-  },
-  'b:loop': {
-    name: 'b:loop',
-    description: 'Iterates through an array expression.',
-    snippetBody: 'b:loop values="$1" var="$2">\n\t$0\n</b:loop>',
-    attributes: {
-      values: { name: 'values', type: 'string', required: true, description: 'Array data expression to iterate over.' },
-      var: { name: 'var', type: 'string', required: true, description: 'Variable name representing the current item in the loop.' },
-      index: { name: 'index', type: 'string', required: false, description: 'Variable name for the zero-based iteration index.' },
-      reverse: { name: 'reverse', type: 'string', required: false, description: 'Whether to iterate the collection in reverse order (true / false).', values: ['true', 'false'] },
-    },
-  },
-  'b:message': {
-    name: 'b:message',
-    description: 'Renders a localized message from the Blogger message dictionary.',
-    snippetBody: 'b:message name="$1"/>$0',
-    attributes: {
-      name: { name: 'name', type: 'string', required: true, description: 'Name key of the message to render.' },
-    },
-  },
-  'b:param': {
-    name: 'b:param',
-    description: 'Passes a parameter value to a parent b:message tag.',
-    snippetBody: 'b:param name="$1" value="$2"/>$0',
-    attributes: {
-      name: { name: 'name', type: 'string', required: true, description: 'Parameter name identifier matching the placeholder in the message.' },
-      value: { name: 'value', type: 'string', required: true, description: 'Value to substitute for the parameter.' },
-    },
-  },
-  'b:section': {
-    name: 'b:section',
-    description: 'Defines a layout section that can contain b:widget tags.',
-    snippetBody: 'b:section id="$1">\n\t$0\n</b:section>',
-    attributes: {
-      id: { name: 'id', type: 'string', required: true, description: 'Unique section container ID.' },
-      class: { name: 'class', type: 'string', required: false, description: 'CSS class names for the section wrapper.' },
-      tag: { name: 'tag', type: 'string', required: false, description: 'Semantic HTML5 container element to generate for the section (e.g. main, aside, header, footer).', values: ['main', 'section', 'article', 'aside', 'header', 'footer', 'nav', 'div'] },
-      name: { name: 'name', type: 'string', required: false, description: 'Display label for the section in Blogger layout editor.' },
-      showaddelement: { name: 'showaddelement', type: 'string', required: false, description: 'Whether to show the Add a Gadget button in layout editor (yes / no).', values: ['yes', 'no'] },
-      preferred: { name: 'preferred', type: 'string', required: false, description: 'Designates this section as preferred target for new gadgets in layout editor (yes / no).', values: ['yes', 'no'] },
-      cond: { name: 'cond', type: 'string', required: false, description: 'Conditional expression governing section rendering.' },
-      ads: { name: 'ads', type: 'string', required: false, description: 'Designates whether the section is reserved exclusively for AdSense ads (true / false).', values: ['true', 'false'] },
-    },
-  },
-  'b:skin': {
-    name: 'b:skin',
-    description: 'Contains CSS styles and variables for the Blogger Template Designer.',
-    snippetBody: 'b:skin>\n\t<![CDATA[\n\t\t$0\n\t]]>\n</b:skin>',
-  },
-  'b:template-skin': {
-    name: 'b:template-skin',
-    description: 'Contains layout mode specific CSS styles.',
-    snippetBody: 'b:template-skin>\n\t<![CDATA[\n\t\t$0\n\t]]>\n</b:template-skin>',
-  },
-  'b:template-script': {
-    name: 'b:template-script',
-    description: 'Declares and asynchronously initializes Blogger platform scripts in Layouts v3.',
-    snippetBody: 'b:template-script name="$1"/>$0',
-    attributes: {
-      name: { name: 'name', type: 'string', required: true, description: 'Registered platform script identifier.' },
-    },
-  },
-  'b:switch': {
-    name: 'b:switch',
-    description: 'Evaluates an expression and switches between b:case branches.',
-    snippetBody: 'b:switch var="$1">\n\t$0\n</b:switch>',
-    attributes: {
-      var: { name: 'var', type: 'string', required: true, description: 'Expression to evaluate against cases.' },
-    },
-  },
-  'b:case': {
-    name: 'b:case',
-    description: 'Branch inside a b:switch statement matching a specific value.',
-    snippetBody: 'b:case value="$1"/>$0',
-    attributes: {
-      value: { name: 'value', type: 'string', required: true, description: 'Value to match.' },
-    },
-  },
-  'b:default': {
-    name: 'b:default',
-    description: 'Default fallback branch inside a b:switch statement.',
-    snippetBody: 'b:default/>$0',
-  },
-  'b:tag': {
-    name: 'b:tag',
-    description: 'Dynamically generates any HTML tag by name.',
-    snippetBody: 'b:tag name="$1">\n\t$0\n</b:tag>',
-    attributes: {
-      name: { name: 'name', type: 'string', required: true, description: 'Name of HTML tag to generate.' },
-      cond: { name: 'cond', type: 'string', required: false, description: 'Condition under which to emit the tag.' },
-    },
-  },
-  'b:widget': {
-    name: 'b:widget',
-    description: 'Defines a Blogger widget component.',
-    snippetBody: 'b:widget id="$1" type="$2" title="$3">\n\t$0\n</b:widget>',
-    attributes: {
-      id: { name: 'id', type: 'string', required: true, description: 'Unique widget ID (e.g. Blog1, Header1).' },
-      type: { name: 'type', type: 'string', required: true, description: 'Widget type (e.g. Blog, Header, HTML).', values: bloggerWidgetTypes },
-      title: { name: 'title', type: 'string', required: true, description: 'Widget display title.' },
-      locked: { name: 'locked', type: 'string', required: false, description: 'Lock widget position in layout editor (true / false).', values: ['true', 'false'] },
-      version: { name: 'version', type: 'string', required: false, description: 'Widget syntax version (1 or 2).', values: ['1', '2'] },
-      cond: { name: 'cond', type: 'string', required: false, description: 'Conditional expression governing widget rendering.' },
-      visible: { name: 'visible', type: 'string', required: false, description: 'Widget visibility in layout editor (true / false).', values: ['true', 'false'] },
-    },
-  },
-  'b:widget-settings': {
-    name: 'b:widget-settings',
-    description: 'Configuration container for a widget settings list.',
-    snippetBody: 'b:widget-settings>\n\t$0\n</b:widget-settings>',
-  },
-  'b:widget-setting': {
-    name: 'b:widget-setting',
-    description: 'Single setting key-value pair for a widget.',
-    snippetBody: 'b:widget-setting name="$1">\n\t$0\n</b:widget-setting>',
-    attributes: {
-      name: { name: 'name', type: 'string', required: true, description: 'Setting name identifier.' },
-    },
-  },
-  'b:with': {
-    name: 'b:with',
-    description: 'Assigns an expression value to a local alias variable scope.',
-    snippetBody: 'b:with value="$1" var="$2">\n\t$0\n</b:with>',
-    attributes: {
-      value: { name: 'value', type: 'string', required: true, description: 'Expression value to bind.' },
-      var: { name: 'var', type: 'string', required: true, description: 'Variable name to hold the bound value.' },
-    },
-  },
-  'Group': {
-    name: 'Group',
-    description: 'Groups variables and creates a section in the Blogger Template Designer.',
-    snippetBody: 'Group description="$1">\n\t$0\n</Group>',
-    attributes: {
-      description: { name: 'description', type: 'string', required: true, description: 'Variable group description in Template Designer.' },
-      selector: { name: 'selector', type: 'string', required: false, description: 'CSS selector targeted by the variable group.' },
-    },
-  },
-  'Variable': {
-    name: 'Variable',
-    description: 'Creates customization options for the Blogger Template Designer.',
-    snippetBody: 'Variable name="$1" description="$2" type="$3" default="$4" value="$5"/>$0',
-    attributes: {
-      name: { name: 'name', type: 'string', required: true, description: 'Unique variable identifier name.' },
-      description: { name: 'description', type: 'string', required: true, description: 'Variable label shown in Template Designer.' },
-      type: { name: 'type', type: 'string', required: true, description: 'Variable type (color, font, length, background, string, url).' },
-      default: { name: 'default', type: 'string', required: true, description: 'Default CSS value.' },
-      value: { name: 'value', type: 'string', required: true, description: 'Current CSS value.' },
-      color: { name: 'color', type: 'string', required: false, description: 'Base color code or $color reference for background variable.' },
-      family: { name: 'family', type: 'string', required: false, description: 'Font family list for font variable.' },
-      size: { name: 'size', type: 'string', required: false, description: 'Font size with CSS unit for font variable.' },
-      min: { name: 'min', type: 'string', required: false, description: 'Minimum value boundary for length variable.' },
-      max: { name: 'max', type: 'string', required: false, description: 'Maximum value boundary for length variable.' },
-      hideEditor: { name: 'hideEditor', type: 'string', required: false, description: 'Whether to hide the control in Theme Designer UI (true / false).' },
-      red: { name: 'red', type: 'string', required: false, description: 'Red color channel value (0-255).' },
-      green: { name: 'green', type: 'string', required: false, description: 'Green color channel value (0-255).' },
-      blue: { name: 'blue', type: 'string', required: false, description: 'Blue color channel value (0-255).' },
-      alpha: { name: 'alpha', type: 'string', required: false, description: 'Alpha opacity channel value (0-1).' },
-    },
-  },
-};
+function buildBloggerTagsCatalog(): Record<string, BloggerTagDefinition> {
+  const directives = specCatalog.getAllDirectives();
+  const result: Record<string, BloggerTagDefinition> = {};
+
+  for (const [name, def] of Object.entries(directives)) {
+    const rawAttrs = specCatalog.getDirectiveAttributes(name) ?? {};
+    const deprecatedAttrs = new Set(
+      specCatalog.validateDirectiveAttributes(name, Object.keys(rawAttrs)).deprecated.map(d => d.name),
+    );
+
+    const attributes: Record<string, BloggerTagAttribute> = {};
+    for (const [attrName, attr] of Object.entries(rawAttrs)) {
+      let values: readonly string[] | undefined;
+      if (name === 'b:defaultmarkup' && attrName === 'type') {
+        values = bloggerDefaultMarkupTypes;
+      }
+      else if (name === 'b:widget' && attrName === 'type') {
+        values = bloggerWidgetTypes;
+      }
+      else if (name === 'b:widget' && attrName === 'version') {
+        values = ['1', '2'];
+      }
+      else if (attr.allowed_values && attr.allowed_values.length > 0) {
+        values = [...attr.allowed_values];
+      }
+
+      attributes[attrName] = {
+        name: attrName,
+        type: attr.type,
+        required: Boolean(attr.required),
+        description: attr.description,
+        values,
+        deprecated: deprecatedAttrs.has(attrName) ? true : undefined,
+      };
+    }
+
+    const rawSnippet = specCatalog.getDirectiveSnippet(name, { quote: '\'' });
+    let snippetBody: string;
+    if (name === 'CDATA') {
+      snippetBody = '<![CDATA[\n\t$0\n]]>';
+    }
+    else if (name === 'data:*') {
+      snippetBody = 'data:${1}/>$0';
+    }
+    else {
+      snippetBody = rawSnippet.startsWith('<') ? rawSnippet.slice(1) : rawSnippet;
+    }
+
+    result[name] = {
+      name,
+      description: def.description,
+      snippetBody,
+      attributes: Object.keys(attributes).length > 0 ? attributes : undefined,
+      example: rawSnippet,
+    };
+  }
+
+  if (result['data:*'] && !result['data:']) {
+    result['data:'] = {
+      ...result['data:*'],
+      name: 'data:',
+    };
+  }
+
+  return result;
+}
+
+export const bloggerTags: Record<string, BloggerTagDefinition> = buildBloggerTagsCatalog();
 
 const STATIC_DESCRIPTIONS_SUGGESTIONS: readonly BloggerSuggestion[] = Object.freeze(
   specCatalog.getThemeDesignerDescriptions().map(desc => ({
@@ -619,11 +430,7 @@ const STATIC_TAG_SUGGESTIONS_OPEN = createTagSuggestions(true, false);
 const STATIC_TAG_SUGGESTIONS_BARE = createTagSuggestions(false, false);
 const STATIC_TAG_SUGGESTIONS_CLOSE = createTagSuggestions(false, true);
 
-export function parseTagAttributeContext(text: string): {
-  tagName: string;
-  typedPrefix: string;
-  existingAttrs: Set<string>;
-} | undefined {
+export function parseTagAttributeContext(text: string): TagAttributeContext | undefined {
   let inQuote: '"' | '\'' | null = null;
   let lastOpenIndex = -1;
 
@@ -679,7 +486,15 @@ export function parseTagAttributeContext(text: string): {
     }
   }
 
-  return { tagName, typedPrefix, existingAttrs };
+  let variableType: string | undefined;
+  if (tagName === 'Variable') {
+    const typeMatch = /\btype\s*=\s*["']([^"']+)["']/.exec(afterTagName);
+    if (typeMatch?.[1]) {
+      variableType = typeMatch[1];
+    }
+  }
+
+  return { tagName, typedPrefix, existingAttrs, variableType };
 }
 
 export function hasAttributeValueCompletions(tagName: string, attrName: string): boolean {
@@ -706,14 +521,13 @@ export function hasAttributeValueCompletions(tagName: string, attrName: string):
 }
 
 export function isExpressionAttribute(attrName: string, tagName?: string): boolean {
-  return (
-    attrName.startsWith('expr:')
-    || attrName === 'cond'
-    || attrName === 'values'
-    || (attrName === 'value' && ['b:with', 'b:eval', 'b:param', 'b:case'].includes(tagName ?? ''))
-    || (attrName === 'expr' && tagName === 'b:eval')
-    || (attrName === 'var' && tagName === 'b:switch')
-  );
+  if (attrName.startsWith('expr:')) {
+    return true;
+  }
+  if (tagName && specCatalog.isDirectiveExpressionAttribute(tagName, attrName)) {
+    return true;
+  }
+  return attrName === 'cond' || attrName === 'values';
 }
 
 export function resolveDescriptionsSuggestions(): readonly BloggerSuggestion[] {
@@ -752,15 +566,19 @@ export function resolveBloggerTagSuggestions(
   return hasOpenBracket ? STATIC_TAG_SUGGESTIONS_OPEN : STATIC_TAG_SUGGESTIONS_BARE;
 }
 
-export function resolveTagAttributeSuggestions(tagAttrContext: {
-  tagName: string;
-  typedPrefix: string;
-  existingAttrs: ReadonlySet<string>;
-}): { suggestions: BloggerSuggestion[]; replacementLength: number } | undefined {
-  const { tagName, typedPrefix, existingAttrs } = tagAttrContext;
+export function resolveTagAttributeSuggestions(tagAttrContext: TagAttributeContext): { suggestions: BloggerSuggestion[]; replacementLength: number } | undefined {
+  const { tagName, typedPrefix, existingAttrs, variableType } = tagAttrContext;
   const tagDef = bloggerTags[tagName];
   if (!tagDef?.attributes) {
     return undefined;
+  }
+
+  let allowedAttrs: Set<string> | undefined;
+  if (tagName === 'Variable' && variableType) {
+    const typeAttrs = specCatalog.getVariableTypeAttributes(variableType);
+    if (typeAttrs?.allowed) {
+      allowedAttrs = new Set(typeAttrs.allowed);
+    }
   }
 
   const suggestions: BloggerSuggestion[] = [];
@@ -769,6 +587,9 @@ export function resolveTagAttributeSuggestions(tagAttrContext: {
       continue;
     }
     if (existingAttrs.has(attr.name)) {
+      continue;
+    }
+    if (allowedAttrs && !allowedAttrs.has(attr.name)) {
       continue;
     }
     suggestions.push({

@@ -49,6 +49,7 @@ export interface BloggerTagAttribute {
   readonly required?: boolean | undefined;
   readonly description?: string | undefined;
   readonly values?: readonly string[] | undefined;
+  readonly deprecated?: boolean | undefined;
 }
 
 export interface BloggerTagDefinition {
