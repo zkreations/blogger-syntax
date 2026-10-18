@@ -6,6 +6,7 @@ import {
   getPropertyMembers,
   getWidgetDescriptor,
 } from './dataModel.js';
+import { buildPropertiesFromSpec } from './specModelAdapter.js';
 
 export {
   createArrayProperties,
@@ -47,11 +48,23 @@ export function navigatePropertyPath(
   if (!targetProperty) {
     const specResolved = resolveDataPath(normalizedSegments, { catalog: getSpecCatalog(), widgetType: '' });
     if (specResolved) {
+      let children: Record<string, BloggerProperty> | undefined;
+      let itemChildren: Record<string, BloggerProperty> | undefined;
+
+      if (specResolved.definition?.properties) {
+        children = buildPropertiesFromSpec(specResolved.definition.properties, specResolved.path);
+      }
+      if (specResolved.definition?.item_properties) {
+        itemChildren = buildPropertiesFromSpec(specResolved.definition.item_properties, `${specResolved.path}[]`);
+      }
+
       targetProperty = {
         name: specResolved.name,
         type: (specResolved.type === 'array[object]' ? 'array' : (specResolved.type as BloggerDataType)),
         description: specResolved.description,
         deprecated: specResolved.isDeprecated,
+        ...(children ? { children } : {}),
+        ...(itemChildren ? { itemChildren } : {}),
       };
       return { target: targetProperty, children: getPropertyMembers(targetProperty) };
     }
