@@ -11,8 +11,8 @@ import type { PropertyNavigationResult } from './propertyHierarchy.js';
 import type { TagAttributeContext } from './tagAttributeResolver.js';
 import { getSpecCatalog } from 'blogger-spec/catalogs';
 import { getNearestUnclosedTag } from 'blogger-spec/parser';
+import { tokenizeExpression } from 'blogger-spec/quota';
 import { getCompatibleOperatorNames } from 'blogger-spec/type-system';
-import { tokenizeExpression } from '../linter/linterEngine.js';
 import {
   detectLambdaPreArrowContext,
   extractLeftOperandAtCursor,

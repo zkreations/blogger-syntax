@@ -91,7 +91,7 @@ describe('templateLanguageService', () => {
       const doc = '<b:eval expr="data:blog.isMobile"/>';
       const diags = service.getDiagnostics(doc);
       expect(diags.length).toBeGreaterThan(0);
-      expect(diags.some(d => d.code.includes('deprecated'))).toBe(true);
+      expect(diags.some(d => d.code === 'BX1024' || d.tags?.includes('deprecated'))).toBe(true);
     });
   });
 

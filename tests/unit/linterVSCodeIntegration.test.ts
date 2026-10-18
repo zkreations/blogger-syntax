@@ -19,8 +19,8 @@ describe('linter VS Code Integration', () => {
 
       const diags = provider.getDiagnostics('file:///test.xml');
       expect(diags.length).toBeGreaterThanOrEqual(2);
-      expect(diags.some(d => d.code === 'blogger.deprecated.section-attribute')).toBe(true);
-      expect(diags.some(d => d.code === 'blogger.hallucination.tag')).toBe(true);
+      expect(diags.some(d => d.code === 'BX1024')).toBe(true);
+      expect(diags.some(d => d.code === 'BX1001')).toBe(true);
 
       provider.dispose();
     });
