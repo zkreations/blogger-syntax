@@ -171,8 +171,8 @@ importers:
   .:
     dependencies:
       blogger-spec:
-        specifier: 0.9.0
-        version: 0.9.0
+        specifier: 0.9.2
+        version: 0.9.2
     devDependencies:
       '@antfu/eslint-config':
         specifier: ^9.5.1
@@ -1125,8 +1125,8 @@ packages:
   bl@4.1.0:
     resolution: {integrity: sha512-1W07cM9gS6DcLperZfFSj+bWLtaPGSOHWhPiGzXmvVJbRLdG82sH/Kn8EtW1VqWVA54AKf2h5k5BbnIbwF3h6w==}
 
-  blogger-spec@0.9.0:
-    resolution: {integrity: sha512-ZIJ6HW/Q/RellgPJ2xLlTcs3Mo2oVqCPHBfpnBNhypQh5yKz336uYzgbAX3E2AMycqvJQ0WhwE5D1+bWX2h1wQ==}
+  blogger-spec@0.9.2:
+    resolution: {integrity: sha512-nZ/ZDPq8wGyWR9Tny5tKpNOwU3hFAI2+WB0EEKiB6TdN7xXB55Se7GgSasZC78LlEqywjCZxu1DbGO79sLBQIw==}
 
   boolbase@1.0.0:
     resolution: {integrity: sha512-JZOSA7Mo9sNGB8+UjSgzdLtokWAky1zbztM3WRLCbZ70/3cTANmQmOdR7y2g+J0e2WXywy1yS468tY+IruqEww==}
@@ -1164,8 +1164,8 @@ packages:
     resolution: {integrity: sha512-DdH81/zPLVS11EUgWq3tEu/xn+EzljlMYooDNdzWEnFha3R3NBMpMV1UqYIpjYHV/SgpFKMIX1Oh7o06SjM/oA==}
     engines: {node: '>=18'}
 
-  cac@7.0.1:
-    resolution: {integrity: sha512-86diuUyeeWM8CrqhpGCaDafrzjS1s++7sWy2AbAPoFNz/xKv7ID57CR4pZsMuGCh60PtsnEx4z68b+Vgt07VPw==}
+  cac@7.1.0:
+    resolution: {integrity: sha512-LMDU/U2yA4IPIY8KT0NsNPWEYZvAMkbgyspxJ6btJaYV+WMDOHAZCmB0lsTObiHaRS1V/ztKAl7+TSkTqXyeoA==}
     engines: {node: '>=20.19.0'}
 
   cacheable@2.5.0:
@@ -3068,7 +3068,7 @@ snapshots:
       '@typescript-eslint/parser': 8.71.1(eslint@10.12.0(supports-color@7.2.0))(supports-color@7.2.0)(typescript@6.0.3)
       '@vitest/eslint-plugin': 1.6.27(@typescript-eslint/eslint-plugin@8.71.1(@typescript-eslint/parser@8.71.1(eslint@10.12.0(supports-color@7.2.0))(supports-color@7.2.0)(typescript@6.0.3))(eslint@10.12.0(supports-color@7.2.0))(supports-color@7.2.0)(typescript@6.0.3))(eslint@10.12.0(supports-color@7.2.0))(supports-color@7.2.0)(typescript@6.0.3)(vitest@5.0.3(@types/node@26.6.5)(vite@8.3.4(@types/node@26.6.5)(esbuild@0.28.2)(yaml@2.9.1)))
       ansis: 4.4.0
-      cac: 7.0.1
+      cac: 7.1.0
       eslint: 10.12.0(supports-color@7.2.0)
       eslint-config-flat-gitignore: 2.4.0(eslint@10.12.0(supports-color@7.2.0))
       eslint-flat-config-utils: 3.2.0
@@ -3971,7 +3971,7 @@ snapshots:
       readable-stream: 3.6.2
     optional: true
 
-  blogger-spec@0.9.0: {}
+  blogger-spec@0.9.2: {}
 
   boolbase@1.0.0: {}
 
@@ -4009,7 +4009,7 @@ snapshots:
     dependencies:
       run-applescript: 7.1.0
 
-  cac@7.0.1: {}
+  cac@7.1.0: {}
 
   cacheable@2.5.0:
     dependencies:
