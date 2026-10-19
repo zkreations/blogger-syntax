@@ -71,6 +71,24 @@ describe('linter core engine', () => {
       expect(incDiag?.quickFixes?.[0]?.newText).toBe('');
     });
 
+    it('detects obsolete Google+ inclusions from catalog metadata', () => {
+      const xml = `
+        <b:include name='googlePlusIcon'/>
+        <b:include name='googlePlusBootstrap'/>
+      `;
+      const diags = lintBloggerDocument(xml);
+
+      const iconDiag = diags.find(d => d.code === 'BX1024' && d.message.includes('googlePlusIcon'));
+      expect(iconDiag).toBeDefined();
+      expect(iconDiag?.tags).toContain('deprecated');
+      expect(iconDiag?.quickFixes?.[0]?.newText).toBe('');
+
+      const bootstrapDiag = diags.find(d => d.code === 'BX1024' && d.message.includes('googlePlusBootstrap'));
+      expect(bootstrapDiag).toBeDefined();
+      expect(bootstrapDiag?.tags).toContain('deprecated');
+      expect(bootstrapDiag?.quickFixes?.[0]?.newText).toBe('');
+    });
+
     it('detects deprecated data:blog.mobileClass', () => {
       const xml = `<div expr:class='data:blog.mobileClass'></div>`;
       const diags = lintBloggerDocument(xml);

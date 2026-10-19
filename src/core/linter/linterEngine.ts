@@ -135,23 +135,41 @@ export function lintBloggerDocument(
       continue;
     }
 
-    // Check for obsolete quickedit inclusion (BX1024)
-    if (name === 'quickedit') {
+    // Check for obsolete / deprecated server inclusions (BX1024)
+    const incMeta = catalog.getInclusion(name);
+    const isDeprecated = incMeta?.deprecated != null || incMeta?.category === 'deprecated' || name === 'quickedit';
+    if (isDeprecated) {
       const range = createRange(lineOffsets, token.tagStart, token.tagEnd);
+      const reason = incMeta?.deprecated?.reason;
+      const message = reason
+        ? `Inclusion "${name}" is obsolete. ${reason}`
+        : `Inclusion "${name}" is obsolete in Blogger Layouts v3.`;
+
+      const quickFixes: BloggerQuickFix[] = [
+        {
+          title: `Remove obsolete inclusion "${name}"`,
+          newText: '',
+          range,
+          isPreferred: true,
+        },
+      ];
+
+      if (incMeta?.deprecated?.replacement) {
+        quickFixes.unshift({
+          title: `Replace with '${incMeta.deprecated.replacement}'`,
+          newText: `<b:include name='${incMeta.deprecated.replacement}'/>`,
+          range,
+          isPreferred: true,
+        });
+      }
+
       diagnostics.push({
         code: 'BX1024',
-        message: 'Inclusion "quickedit" is obsolete in Blogger Layouts v3.',
+        message,
         severity: 'warning',
         range,
         tags: ['deprecated'],
-        quickFixes: [
-          {
-            title: 'Remove obsolete inclusion "quickedit"',
-            newText: '',
-            range,
-            isPreferred: true,
-          },
-        ],
+        quickFixes,
       });
       continue;
     }
