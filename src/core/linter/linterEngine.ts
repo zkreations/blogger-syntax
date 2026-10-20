@@ -351,6 +351,17 @@ export function lintBloggerDocument(
         isPreferred: true,
       });
     }
+    else if (sd.code === 'BX1038' && sd.tagStart !== undefined && sd.tagEnd !== undefined) {
+      const rawText = documentText.slice(sd.tagStart, sd.tagEnd);
+      const unquoted = rawText.replace(/^['"]|['"]$/g, '');
+      const boolVal = unquoted.toLowerCase() === 'true' ? 'true' : 'false';
+      quickFixes.push({
+        title: `Replace with boolean literal '${boolVal}'`,
+        newText: boolVal,
+        range,
+        isPreferred: true,
+      });
+    }
     else if (sd.rule?.replacement && !sd.rule.replacement.includes('...') && sd.tagStart !== undefined && sd.tagEnd !== undefined) {
       quickFixes.push({
         title: `Replace with '${sd.rule.replacement}'`,

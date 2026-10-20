@@ -693,5 +693,23 @@ describe('linter core engine', () => {
         expect(diag?.quickFixes?.[0]?.title).toBe(`Rewrite unary negation as '${expected}'`);
       }
     });
+
+    it('replaces quoted boolean in expression with exact boolean literal without inverting logic', () => {
+      const xml1 = `<b:eval expr='data:view.isPost == "false"'/>`;
+      const diags1 = lintBloggerDocument(xml1);
+      const diag1 = diags1.find(d => d.code === 'BX1038');
+
+      expect(diag1).toBeDefined();
+      expect(diag1?.quickFixes).toHaveLength(1);
+      expect(diag1?.quickFixes?.[0]?.newText).toBe('false');
+
+      const xml2 = `<b:eval expr='data:view.isPost == "true"'/>`;
+      const diags2 = lintBloggerDocument(xml2);
+      const diag2 = diags2.find(d => d.code === 'BX1038');
+
+      expect(diag2).toBeDefined();
+      expect(diag2?.quickFixes).toHaveLength(1);
+      expect(diag2?.quickFixes?.[0]?.newText).toBe('true');
+    });
   });
 });
