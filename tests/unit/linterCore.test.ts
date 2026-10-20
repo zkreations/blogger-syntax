@@ -737,5 +737,29 @@ describe('linter core engine', () => {
       const diagsValidRef = lintBloggerDocument(xmlValidRef);
       expect(diagsValidRef.some(d => d.code === 'BX1031')).toBe(false);
     });
+
+    it('warns about direct invocation of parameterized message (BX1027) with quick fix', () => {
+      const xml = `<data:messages.numberOfComments/>`;
+      const diags = lintBloggerDocument(xml);
+      const diag = diags.find(d => d.code === 'BX1027');
+
+      expect(diag).toBeDefined();
+      expect(diag?.severity).toBe('warning');
+      expect(diag?.quickFixes).toHaveLength(1);
+      expect(diag?.quickFixes?.[0]?.newText).toContain('<b:message name=\'messages.numberOfComments\'>');
+      expect(diag?.quickFixes?.[0]?.newText).toContain('name=\'numComments\'');
+    });
+
+    it('flags plural message param missing name attribute (BX1028) with insertion quick fix', () => {
+      const xml = `<b:message name='messages.numberOfComments'>\n  <b:param value='10'/>\n</b:message>`;
+      const diags = lintBloggerDocument(xml);
+      const diag = diags.find(d => d.code === 'BX1028');
+
+      expect(diag).toBeDefined();
+      expect(diag?.severity).toBe('error');
+      expect(diag?.quickFixes).toHaveLength(1);
+      expect(diag?.quickFixes?.[0]?.newText).toBe(' name=\'numComments\'');
+      expect(diag?.quickFixes?.[0]?.range.start).toEqual(diag?.quickFixes?.[0]?.range.end);
+    });
   });
 });

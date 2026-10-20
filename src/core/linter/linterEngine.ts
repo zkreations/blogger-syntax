@@ -497,6 +497,102 @@ export function lintBloggerDocument(
     }
   }
 
+  // Parameterized message validations (BX1027, BX1028)
+  for (const token of tokens) {
+    if (token.isClosing) {
+      continue;
+    }
+
+    // BX1027: Direct invocation of parameterized/plural message
+    if (token.tagName.startsWith('data:messages.')) {
+      const key = token.tagName.slice('data:messages.'.length);
+      const msg = catalog.getMessage(key);
+      if (msg && msg.direct_invocation === false) {
+        const range = createRange(lineOffsets, token.tagStart, token.tagEnd);
+        const paramList = msg.parameters?.map(p => `  <b:param name='${p.name}' value='...'/>`).join('\n') ?? '  <b:param value=\'...\'/>';
+        const replacement = `<b:message name='messages.${key}'>\n${paramList}\n</b:message>`;
+
+        diagnostics.push({
+          code: 'BX1027',
+          message: `Parameterized message tokens cannot be evaluated via direct tag invocation (<data:messages.${key}/>) and output raw un-interpolated template strings. Use <b:message name='messages.${key}'> with child <b:param> tags.`,
+          severity: 'warning',
+          range,
+          quickFixes: [
+            {
+              title: `Convert to <b:message name='messages.${key}'>`,
+              newText: replacement,
+              range,
+              isPreferred: true,
+            },
+          ],
+        });
+      }
+    }
+
+    // BX1028: Plural message with <b:param> missing 'name' attribute
+    if (token.tagName.toLowerCase() === 'b:message' && !token.isSelfClosing) {
+      const nameAttr = token.attributes.name?.value?.trim();
+      if (nameAttr) {
+        const key = nameAttr.startsWith('messages.') ? nameAttr.slice('messages.'.length) : nameAttr;
+        const msg = catalog.getMessage(key);
+        const isPlural = msg?.pattern?.includes('plural') || msg?.description?.toLowerCase().includes('plural');
+
+        if (isPlural) {
+          const expectedParamName = msg?.parameters?.[0]?.name ?? 'count';
+          let depth = 0;
+          let messageEnd = token.tagEnd;
+          for (const tok of tokens) {
+            if (tok.tagStart < token.tagStart) {
+              continue;
+            }
+            if (tok.tagName.toLowerCase() === 'b:message') {
+              if (!tok.isClosing && !tok.isSelfClosing) {
+                depth++;
+              }
+              else if (tok.isClosing) {
+                depth--;
+                if (depth === 0) {
+                  messageEnd = tok.tagEnd;
+                  break;
+                }
+              }
+            }
+          }
+
+          for (const paramToken of tokens) {
+            if (paramToken.tagStart > token.tagStart && paramToken.tagEnd < messageEnd && paramToken.tagName.toLowerCase() === 'b:param') {
+              if (!paramToken.attributes.name || !paramToken.attributes.name.value?.trim()) {
+                const range = createRange(lineOffsets, paramToken.tagStart, paramToken.tagEnd);
+                const tagText = documentText.slice(paramToken.tagStart, paramToken.tagEnd);
+                const isSelfClosing = tagText.endsWith('/>');
+                const insertOffset = isSelfClosing ? paramToken.tagEnd - 2 : paramToken.tagEnd - 1;
+                const prevChar = documentText[insertOffset - 1] ?? '';
+                const prefix = /\s/.test(prevChar) ? '' : ' ';
+                const insertText = `${prefix}name='${expectedParamName}'`;
+                const insertRange = createRange(lineOffsets, insertOffset, insertOffset);
+
+                diagnostics.push({
+                  code: 'BX1028',
+                  message: `Pluralized ICU messages require the 'name' attribute on child <b:param> tags matching the plural identifier (e.g. <b:param name='${expectedParamName}' value='...'/>); omitting 'name' aborts template compilation.`,
+                  severity: 'error',
+                  range,
+                  quickFixes: [
+                    {
+                      title: `Insert mandatory parameter name='${expectedParamName}'`,
+                      newText: insertText,
+                      range: insertRange,
+                      isPreferred: true,
+                    },
+                  ],
+                });
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
   // 2. Grammatical expression validation fallback
   const expressionErrorsReportedRanges = new Set<string>();
   for (const d of diagnostics) {
