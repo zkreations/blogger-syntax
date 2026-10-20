@@ -1,5 +1,6 @@
 import type { BloggerDiagnosticCode } from 'blogger-spec';
 import type { BloggerDiagnostic, BloggerQuickFix, BloggerTextEdit, LinterOptions } from './linterTypes.js';
+import { STRICTLY_SELF_CLOSING_TAGS } from 'blogger-spec';
 import { getSpecCatalog } from 'blogger-spec/catalogs';
 import { parseExpression, scanDirectiveTokens, validateTemplateStructure } from 'blogger-spec/parser';
 import { tokenizeExpression } from 'blogger-spec/quota';
@@ -140,6 +141,7 @@ function buildHallucinatedDirectiveQuickFix(
   config: HallucinatedDirectiveConfig,
   tokens: readonly DirectiveToken[],
   lineOffsets: readonly number[],
+  documentText: string,
 ): BloggerQuickFix | undefined {
   if (sd.tagStart === undefined || sd.tagEnd === undefined) {
     return undefined;
@@ -152,6 +154,7 @@ function buildHallucinatedDirectiveQuickFix(
     return undefined;
   }
 
+  const isStrictlySelfClosing = STRICTLY_SELF_CLOSING_TAGS.has(config.targetTag);
   const parts: string[] = [];
   const handledAttrs = new Set<string>();
   const rawAttrs = openToken.attributes ?? {};
@@ -182,7 +185,7 @@ function buildHallucinatedDirectiveQuickFix(
   }
 
   const attrsString = parts.length > 0 ? ` ${parts.join(' ')}` : '';
-  const closingSlash = openToken.isSelfClosing ? '/>' : '>';
+  const closingSlash = isStrictlySelfClosing ? '/>' : (openToken.isSelfClosing ? '/>' : '>');
   const openTagReplacement = `<${config.targetTag}${attrsString}${closingSlash}`;
   const openRange = createRange(lineOffsets, openToken.tagStart, openToken.tagEnd);
 
@@ -212,16 +215,37 @@ function buildHallucinatedDirectiveQuickFix(
     }
 
     if (closingToken) {
-      const closingRange = createRange(lineOffsets, closingToken.tagStart, closingToken.tagEnd);
+      let startOffset = closingToken.tagStart;
+      let endOffset = closingToken.tagEnd;
+
+      if (isStrictlySelfClosing) {
+        const lineStart = documentText.lastIndexOf('\n', startOffset - 1);
+        const effectiveLineStart = lineStart === -1 ? 0 : lineStart + 1;
+        const prefix = documentText.slice(effectiveLineStart, startOffset);
+        if (/^[ \t]*$/.test(prefix)) {
+          startOffset = effectiveLineStart;
+          if (documentText[endOffset] === '\r' && documentText[endOffset + 1] === '\n') {
+            endOffset += 2;
+          }
+          else if (documentText[endOffset] === '\n') {
+            endOffset += 1;
+          }
+          else if (lineStart !== -1) {
+            startOffset = lineStart > 0 && documentText[lineStart - 1] === '\r' ? lineStart - 1 : lineStart;
+          }
+        }
+      }
+
+      const closingRange = createRange(lineOffsets, startOffset, endOffset);
       edits.push({
         range: closingRange,
-        newText: `</${config.targetTag}>`,
+        newText: isStrictlySelfClosing ? '' : `</${config.targetTag}>`,
       });
     }
   }
 
   return {
-    title: `Replace <${openToken.tagName}> with <${config.targetTag}>`,
+    title: `Replace <${openToken.tagName}> with <${config.targetTag}${isStrictlySelfClosing ? '/>' : '>'}>`,
     newText: openTagReplacement,
     range: openRange,
     edits,
@@ -257,7 +281,7 @@ export function lintBloggerDocument(
     const quickFixes: BloggerQuickFix[] = [];
     if (sd.code in HALLUCINATED_DIRECTIVE_MAP) {
       const config = HALLUCINATED_DIRECTIVE_MAP[sd.code]!;
-      const fix = buildHallucinatedDirectiveQuickFix(sd, config, tokens, lineOffsets);
+      const fix = buildHallucinatedDirectiveQuickFix(sd, config, tokens, lineOffsets, documentText);
       if (fix) {
         quickFixes.push(fix);
       }
@@ -303,6 +327,18 @@ export function lintBloggerDocument(
           isPreferred: true,
         });
       }
+    }
+    else if (sd.code === 'BX1019' && sd.tagStart !== undefined && sd.tagEnd !== undefined) {
+      const rawText = documentText.slice(sd.tagStart, sd.tagEnd);
+      const iteratorName = rawText.startsWith('data:')
+        ? rawText.slice(5)
+        : (/lambda iterator property 'data:([^']+)'/i.exec(sd.message)?.[1] ?? rawText.replace(/^data:/, ''));
+      quickFixes.push({
+        title: `Remove redundant 'data:' prefix (use '${iteratorName}')`,
+        newText: iteratorName,
+        range,
+        isPreferred: true,
+      });
     }
     else if (sd.rule?.replacement && sd.tagStart !== undefined && sd.tagEnd !== undefined) {
       quickFixes.push({

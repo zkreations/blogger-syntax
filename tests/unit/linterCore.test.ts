@@ -616,5 +616,51 @@ describe('linter core engine', () => {
       expect(fix?.edits).toHaveLength(2);
       expect(fix?.edits?.[1]?.newText).toBe('</b:includable>');
     });
+
+    it('replaces container hallucination <b:when> with self-closing <b:case/> and deletes closing tag', () => {
+      const xml = `<b:when test='data:view.isHomepage'>\n  <p>Home</p>\n</b:when>`;
+      const diags = lintBloggerDocument(xml);
+      const diag = diags.find(d => d.code === 'BX1008');
+
+      expect(diag).toBeDefined();
+      const fix = diag?.quickFixes?.[0];
+      expect(fix?.newText).toBe(`<b:case value='data:view.isHomepage'/>`);
+      expect(fix?.edits).toHaveLength(2);
+      expect(fix?.edits?.[0]?.newText).toBe(`<b:case value='data:view.isHomepage'/>`);
+      expect(fix?.edits?.[1]?.newText).toBe('');
+    });
+
+    it('replaces container hallucination <b:otherwise> with self-closing <b:default/> and deletes closing tag', () => {
+      const xml = `<b:otherwise>\n  <p>Default</p>\n</b:otherwise>`;
+      const diags = lintBloggerDocument(xml);
+      const diag = diags.find(d => d.code === 'BX1009');
+
+      expect(diag).toBeDefined();
+      const fix = diag?.quickFixes?.[0];
+      expect(fix?.newText).toBe('<b:default/>');
+      expect(fix?.edits).toHaveLength(2);
+      expect(fix?.edits?.[0]?.newText).toBe('<b:default/>');
+      expect(fix?.edits?.[1]?.newText).toBe('');
+    });
+
+    it('provides quick fix to remove redundant data: prefix on lambda iterator properties', () => {
+      const xml1 = `<b:eval expr='data:posts count (p => data:p.numberOfComments > 0)'/>`;
+      const diags1 = lintBloggerDocument(xml1);
+      const diag1 = diags1.find(d => d.code === 'BX1019');
+
+      expect(diag1).toBeDefined();
+      expect(diag1?.quickFixes).toHaveLength(1);
+      expect(diag1?.quickFixes?.[0]?.newText).toBe('p');
+      expect(diag1?.quickFixes?.[0]?.title).toBe('Remove redundant \'data:\' prefix (use \'p\')');
+
+      const xml2 = `<b:eval expr='data:posts map (item => data:item.title)'/>`;
+      const diags2 = lintBloggerDocument(xml2);
+      const diag2 = diags2.find(d => d.code === 'BX1019');
+
+      expect(diag2).toBeDefined();
+      expect(diag2?.quickFixes).toHaveLength(1);
+      expect(diag2?.quickFixes?.[0]?.newText).toBe('item');
+      expect(diag2?.quickFixes?.[0]?.title).toBe('Remove redundant \'data:\' prefix (use \'item\')');
+    });
   });
 });
