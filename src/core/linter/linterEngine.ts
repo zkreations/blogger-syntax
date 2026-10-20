@@ -253,6 +253,64 @@ function buildHallucinatedDirectiveQuickFix(
   };
 }
 
+function validateObjectLiteralSpacing(
+  node: unknown,
+  exprValue: string,
+  valueStart: number,
+  lineOffsets: readonly number[],
+  diagnostics: BloggerDiagnostic[],
+): void {
+  if (!node || typeof node !== 'object') {
+    return;
+  }
+  const astNode = node as {
+    type?: string;
+    properties?: Array<{
+      loc?: { start: { offset: number }; end: { offset: number } };
+      value?: { loc?: { start: { offset: number }; end: { offset: number } } };
+    }>;
+  };
+
+  if (astNode.type === 'ObjectExpression' && Array.isArray(astNode.properties)) {
+    for (const prop of astNode.properties) {
+      if (prop.loc && prop.value && prop.value.loc) {
+        const colonSearch = exprValue.slice(prop.loc.start.offset, prop.value.loc.start.offset);
+        const colonIdx = colonSearch.indexOf(':');
+        if (colonIdx !== -1) {
+          const charAfterColon = colonSearch[colonIdx + 1];
+          if (!charAfterColon || !/\s/.test(charAfterColon)) {
+            const colonOffsetInExpr = prop.loc.start.offset + colonIdx;
+            const colonDocOffset = valueStart + colonOffsetInExpr;
+            const range = createRange(lineOffsets, colonDocOffset, colonDocOffset + 1);
+            const insertRange = createRange(lineOffsets, colonDocOffset + 1, colonDocOffset + 1);
+
+            diagnostics.push({
+              code: 'ANTIPATTERN_SYNTAX',
+              message: 'Mandatory whitespace after colons in object literals \'{ key: value }\' to avoid XML namespace collisions.',
+              severity: 'error',
+              range,
+              quickFixes: [
+                {
+                  title: 'Insert whitespace after \':\'',
+                  newText: ' ',
+                  range: insertRange,
+                  isPreferred: true,
+                },
+              ],
+            });
+          }
+        }
+      }
+    }
+  }
+
+  for (const [key, child] of Object.entries(node)) {
+    if (key !== 'loc' && child && typeof child === 'object') {
+      validateObjectLiteralSpacing(child, exprValue, valueStart, lineOffsets, diagnostics);
+    }
+  }
+}
+
 export function lintBloggerDocument(
   documentText: string,
   options?: LinterOptions,
@@ -639,7 +697,8 @@ export function lintBloggerDocument(
       }
 
       try {
-        parseExpression(attrToken.value, { catalog, tolerant: false });
+        const ast = parseExpression(attrToken.value, { catalog, tolerant: false });
+        validateObjectLiteralSpacing(ast, attrToken.value, attrToken.valueStart, lineOffsets, diagnostics);
       }
       catch (err: unknown) {
         const rangeKey = `${attrToken.valueStart}`;

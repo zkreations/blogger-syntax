@@ -777,5 +777,21 @@ describe('linter core engine', () => {
       const diagsValid = lintBloggerDocument(xmlValid);
       expect(diagsValid.some(d => d.code === 'BX1029')).toBe(false);
     });
+
+    it('flags object literals missing whitespace after colons (ANTIPATTERN_SYNTAX) and offers quick fix', () => {
+      const xml = `<b:eval expr='data:blog.homepageUrl params {m:"1"}'/>`;
+      const diags = lintBloggerDocument(xml);
+      const diag = diags.find(d => d.code === 'ANTIPATTERN_SYNTAX');
+
+      expect(diag).toBeDefined();
+      expect(diag?.severity).toBe('error');
+      expect(diag?.quickFixes).toHaveLength(1);
+      expect(diag?.quickFixes?.[0]?.newText).toBe(' ');
+      expect(diag?.quickFixes?.[0]?.title).toBe('Insert whitespace after \':\'');
+
+      const xmlValid = `<b:eval expr='data:blog.homepageUrl params { m: "1" }'/>`;
+      const diagsValid = lintBloggerDocument(xmlValid);
+      expect(diagsValid.some(d => d.code === 'ANTIPATTERN_SYNTAX')).toBe(false);
+    });
   });
 });
