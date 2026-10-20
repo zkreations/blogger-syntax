@@ -78,7 +78,7 @@
     "watch": "node esbuild.js --watch"
   },
   "dependencies": {
-    "blogger-spec": "0.10.0"
+    "blogger-spec": "0.10.1"
   },
   "devDependencies": {
     "@antfu/eslint-config": "^9.5.1",
