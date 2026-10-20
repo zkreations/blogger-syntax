@@ -761,5 +761,21 @@ describe('linter core engine', () => {
       expect(diag?.quickFixes?.[0]?.newText).toBe(' name=\'numComments\'');
       expect(diag?.quickFixes?.[0]?.range.start).toEqual(diag?.quickFixes?.[0]?.range.end);
     });
+
+    it('flags inline concatenated b:param tags without intervening whitespace (BX1029)', () => {
+      const xml = `<b:message name='messages.details'><b:param name='author' value='data:post.author'/><b:param name='date' value='data:post.date'/></b:message>`;
+      const diags = lintBloggerDocument(xml);
+      const diag = diags.find(d => d.code === 'BX1029');
+
+      expect(diag).toBeDefined();
+      expect(diag?.severity).toBe('error');
+      expect(diag?.quickFixes).toHaveLength(1);
+      expect(diag?.quickFixes?.[0]?.newText).toBe(' ');
+      expect(diag?.quickFixes?.[0]?.title).toBe('Separate <b:param> tags with whitespace');
+
+      const xmlValid = `<b:message name='messages.details'>\n  <b:param name='author' value='data:post.author'/>\n  <b:param name='date' value='data:post.date'/>\n</b:message>`;
+      const diagsValid = lintBloggerDocument(xmlValid);
+      expect(diagsValid.some(d => d.code === 'BX1029')).toBe(false);
+    });
   });
 });

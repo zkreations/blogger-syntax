@@ -529,8 +529,59 @@ export function lintBloggerDocument(
       }
     }
 
-    // BX1028: Plural message with <b:param> missing 'name' attribute
+    // BX1028 & BX1029: Message directives child parameter validation
     if (token.tagName.toLowerCase() === 'b:message' && !token.isSelfClosing) {
+      let depth = 0;
+      let messageEnd = token.tagEnd;
+      for (const tok of tokens) {
+        if (tok.tagStart < token.tagStart) {
+          continue;
+        }
+        if (tok.tagName.toLowerCase() === 'b:message') {
+          if (!tok.isClosing && !tok.isSelfClosing) {
+            depth++;
+          }
+          else if (tok.isClosing) {
+            depth--;
+            if (depth === 0) {
+              messageEnd = tok.tagEnd;
+              break;
+            }
+          }
+        }
+      }
+
+      const childParams = tokens.filter(
+        tok => tok.tagStart > token.tagStart && tok.tagEnd < messageEnd && tok.tagName.toLowerCase() === 'b:param',
+      );
+
+      // BX1029: Multiple <b:param> tags concatenated inline without whitespace
+      for (let i = 1; i < childParams.length; i++) {
+        const prevParam = childParams[i - 1]!;
+        const currParam = childParams[i]!;
+        const intervening = documentText.slice(prevParam.tagEnd, currParam.tagStart);
+        if (!/^\s+$/.test(intervening)) {
+          const range = createRange(lineOffsets, currParam.tagStart, currParam.tagEnd);
+          const insertRange = createRange(lineOffsets, currParam.tagStart, currParam.tagStart);
+
+          diagnostics.push({
+            code: 'BX1029',
+            message: 'Multiple <b:param> tags concatenated inline without intervening whitespace (<b:param .../><b:param .../>) cause Blogger runtime error \'Invalid parameters for message\'. Sibling <b:param> tags must be separated by whitespace or placed on separate lines.',
+            severity: 'error',
+            range,
+            quickFixes: [
+              {
+                title: 'Separate <b:param> tags with whitespace',
+                newText: ' ',
+                range: insertRange,
+                isPreferred: true,
+              },
+            ],
+          });
+        }
+      }
+
+      // BX1028: Plural message with <b:param> missing 'name' attribute
       const nameAttr = token.attributes.name?.value?.trim();
       if (nameAttr) {
         const key = nameAttr.startsWith('messages.') ? nameAttr.slice('messages.'.length) : nameAttr;
@@ -539,53 +590,31 @@ export function lintBloggerDocument(
 
         if (isPlural) {
           const expectedParamName = msg?.parameters?.[0]?.name ?? 'count';
-          let depth = 0;
-          let messageEnd = token.tagEnd;
-          for (const tok of tokens) {
-            if (tok.tagStart < token.tagStart) {
-              continue;
-            }
-            if (tok.tagName.toLowerCase() === 'b:message') {
-              if (!tok.isClosing && !tok.isSelfClosing) {
-                depth++;
-              }
-              else if (tok.isClosing) {
-                depth--;
-                if (depth === 0) {
-                  messageEnd = tok.tagEnd;
-                  break;
-                }
-              }
-            }
-          }
+          for (const paramToken of childParams) {
+            if (!paramToken.attributes.name || !paramToken.attributes.name.value?.trim()) {
+              const range = createRange(lineOffsets, paramToken.tagStart, paramToken.tagEnd);
+              const tagText = documentText.slice(paramToken.tagStart, paramToken.tagEnd);
+              const isSelfClosing = tagText.endsWith('/>');
+              const insertOffset = isSelfClosing ? paramToken.tagEnd - 2 : paramToken.tagEnd - 1;
+              const prevChar = documentText[insertOffset - 1] ?? '';
+              const prefix = /\s/.test(prevChar) ? '' : ' ';
+              const insertText = `${prefix}name='${expectedParamName}'`;
+              const insertRange = createRange(lineOffsets, insertOffset, insertOffset);
 
-          for (const paramToken of tokens) {
-            if (paramToken.tagStart > token.tagStart && paramToken.tagEnd < messageEnd && paramToken.tagName.toLowerCase() === 'b:param') {
-              if (!paramToken.attributes.name || !paramToken.attributes.name.value?.trim()) {
-                const range = createRange(lineOffsets, paramToken.tagStart, paramToken.tagEnd);
-                const tagText = documentText.slice(paramToken.tagStart, paramToken.tagEnd);
-                const isSelfClosing = tagText.endsWith('/>');
-                const insertOffset = isSelfClosing ? paramToken.tagEnd - 2 : paramToken.tagEnd - 1;
-                const prevChar = documentText[insertOffset - 1] ?? '';
-                const prefix = /\s/.test(prevChar) ? '' : ' ';
-                const insertText = `${prefix}name='${expectedParamName}'`;
-                const insertRange = createRange(lineOffsets, insertOffset, insertOffset);
-
-                diagnostics.push({
-                  code: 'BX1028',
-                  message: `Pluralized ICU messages require the 'name' attribute on child <b:param> tags matching the plural identifier (e.g. <b:param name='${expectedParamName}' value='...'/>); omitting 'name' aborts template compilation.`,
-                  severity: 'error',
-                  range,
-                  quickFixes: [
-                    {
-                      title: `Insert mandatory parameter name='${expectedParamName}'`,
-                      newText: insertText,
-                      range: insertRange,
-                      isPreferred: true,
-                    },
-                  ],
-                });
-              }
+              diagnostics.push({
+                code: 'BX1028',
+                message: `Pluralized ICU messages require the 'name' attribute on child <b:param> tags matching the plural identifier (e.g. <b:param name='${expectedParamName}' value='...'/>); omitting 'name' aborts template compilation.`,
+                severity: 'error',
+                range,
+                quickFixes: [
+                  {
+                    title: `Insert mandatory parameter name='${expectedParamName}'`,
+                    newText: insertText,
+                    range: insertRange,
+                    isPreferred: true,
+                  },
+                ],
+              });
             }
           }
         }
