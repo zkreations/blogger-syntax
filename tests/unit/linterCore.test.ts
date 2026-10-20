@@ -511,4 +511,110 @@ describe('linter core engine', () => {
       expect(unresolved).toHaveLength(0);
     });
   });
+
+  describe('quick fix enhancements', () => {
+    it('preserves user value when generating quick fix for inverted attribute on <b:includable>', () => {
+      const xml = `<b:includable name='invertedSubroutine'/>`;
+      const diags = lintBloggerDocument(xml);
+      const diag = diags.find(d => d.code === 'BX1015');
+
+      expect(diag).toBeDefined();
+      expect(diag?.quickFixes).toHaveLength(1);
+      expect(diag?.quickFixes?.[0]?.newText).toBe(`id='invertedSubroutine'`);
+      expect(diag?.quickFixes?.[0]?.title).toBe('Replace with \'id=\'invertedSubroutine\'\'');
+    });
+
+    it('preserves user value when generating quick fix for inverted attribute on <b:include>', () => {
+      const xml = `<b:include id='subroutine'/>`;
+      const diags = lintBloggerDocument(xml);
+      const diag = diags.find(d => d.code === 'BX1016');
+
+      expect(diag).toBeDefined();
+      expect(diag?.quickFixes).toHaveLength(1);
+      expect(diag?.quickFixes?.[0]?.newText).toBe(`name='subroutine'`);
+      expect(diag?.quickFixes?.[0]?.title).toBe('Replace with \'name=\'subroutine\'\'');
+    });
+
+    it('preserves user value when generating quick fix for inverted attribute on <b:switch>', () => {
+      const xml = `<b:switch expr='data:blog.pageType'/>`;
+      const diags = lintBloggerDocument(xml);
+      const diag = diags.find(d => d.code === 'BX1014');
+
+      expect(diag).toBeDefined();
+      expect(diag?.quickFixes).toHaveLength(1);
+      expect(diag?.quickFixes?.[0]?.newText).toBe(`var='data:blog.pageType'`);
+      expect(diag?.quickFixes?.[0]?.title).toBe('Replace with \'var=\'data:blog.pageType\'\'');
+    });
+
+    it('generates insertion quick fix for missing mandatory attribute on <b:include>', () => {
+      const xml = `<b:include/>`;
+      const diags = lintBloggerDocument(xml);
+      const diag = diags.find(d => d.code === 'BX1022');
+
+      expect(diag).toBeDefined();
+      expect(diag?.quickFixes).toHaveLength(1);
+      expect(diag?.quickFixes?.[0]?.newText).toBe(` name=''`);
+      expect(diag?.quickFixes?.[0]?.range.start).toEqual(diag?.quickFixes?.[0]?.range.end);
+    });
+
+    it('generates insertion quick fix for missing id on <b:widget> using widget type', () => {
+      const xml = `<b:widget type='Blog'/>`;
+      const diags = lintBloggerDocument(xml);
+      const diag = diags.find(d => d.code === 'BX1022' && d.message.includes('\'id\''));
+
+      expect(diag).toBeDefined();
+      expect(diag?.quickFixes).toHaveLength(1);
+      expect(diag?.quickFixes?.[0]?.newText).toBe(` id='Blog1'`);
+      expect(diag?.quickFixes?.[0]?.range.start).toEqual(diag?.quickFixes?.[0]?.range.end);
+    });
+
+    it('replaces hallucinated <b:for> with <b:loop>, mapping attributes and closing tag', () => {
+      const xml = `<b:for each='post' in='data:posts'>\n  <p>Iteración b:for</p>\n</b:for>`;
+      const diags = lintBloggerDocument(xml);
+      const diag = diags.find(d => d.code === 'BX1001');
+
+      expect(diag).toBeDefined();
+      expect(diag?.quickFixes).toHaveLength(1);
+      const fix = diag?.quickFixes?.[0];
+      expect(fix?.newText).toBe(`<b:loop var='post' values='data:posts'>`);
+      expect(fix?.edits).toHaveLength(2);
+      expect(fix?.edits?.[0]?.newText).toBe(`<b:loop var='post' values='data:posts'>`);
+      expect(fix?.edits?.[1]?.newText).toBe('</b:loop>');
+    });
+
+    it('preserves user quotes in hallucinated tag quick fix', () => {
+      const xml = `<b:for each="post" in="data:posts"/>`;
+      const diags = lintBloggerDocument(xml);
+      const diag = diags.find(d => d.code === 'BX1001');
+
+      expect(diag).toBeDefined();
+      const fix = diag?.quickFixes?.[0];
+      expect(fix?.newText).toBe(`<b:loop var="post" values="data:posts"/>`);
+      expect(fix?.edits).toHaveLength(1);
+    });
+
+    it('replaces hallucinated <b:set> with <b:with>, mapping name and expr attributes', () => {
+      const xml = `<b:set name='header' expr='data:blog.title'>\n  <div><data:header/></div>\n</b:set>`;
+      const diags = lintBloggerDocument(xml);
+      const diag = diags.find(d => d.code === 'BX1003');
+
+      expect(diag).toBeDefined();
+      const fix = diag?.quickFixes?.[0];
+      expect(fix?.newText).toBe(`<b:with var='header' value='data:blog.title'>`);
+      expect(fix?.edits).toHaveLength(2);
+      expect(fix?.edits?.[1]?.newText).toBe('</b:with>');
+    });
+
+    it('replaces hallucinated <b:template> with <b:includable> and closing tag', () => {
+      const xml = `<b:template name='postHeader'>\n  <h1>Title</h1>\n</b:template>`;
+      const diags = lintBloggerDocument(xml);
+      const diag = diags.find(d => d.code === 'BX1010');
+
+      expect(diag).toBeDefined();
+      const fix = diag?.quickFixes?.[0];
+      expect(fix?.newText).toBe(`<b:includable id='postHeader'>`);
+      expect(fix?.edits).toHaveLength(2);
+      expect(fix?.edits?.[1]?.newText).toBe('</b:includable>');
+    });
+  });
 });

@@ -34,13 +34,26 @@ export class BloggerCodeActionProvider implements vscode.CodeActionProvider {
         for (const fix of diag.quickFixes) {
           const action = new vscode.CodeAction(fix.title, vscode.CodeActionKind.QuickFix);
           const edit = new vscode.WorkspaceEdit();
-          const fixRange = new vscode.Range(
-            fix.range.start.line,
-            fix.range.start.character,
-            fix.range.end.line,
-            fix.range.end.character,
-          );
-          edit.replace(document.uri, fixRange, fix.newText);
+          if (fix.edits && fix.edits.length > 0) {
+            for (const e of fix.edits) {
+              const editRange = new vscode.Range(
+                e.range.start.line,
+                e.range.start.character,
+                e.range.end.line,
+                e.range.end.character,
+              );
+              edit.replace(document.uri, editRange, e.newText);
+            }
+          }
+          else {
+            const fixRange = new vscode.Range(
+              fix.range.start.line,
+              fix.range.start.character,
+              fix.range.end.line,
+              fix.range.end.character,
+            );
+            edit.replace(document.uri, fixRange, fix.newText);
+          }
           action.edit = edit;
           if (fix.isPreferred) {
             action.isPreferred = true;

@@ -10,10 +10,16 @@ export interface TextRange {
   readonly end: TextPosition;
 }
 
+export interface BloggerTextEdit {
+  readonly range: TextRange;
+  readonly newText: string;
+}
+
 export interface BloggerQuickFix {
   readonly title: string;
   readonly newText: string;
   readonly range: TextRange;
+  readonly edits?: readonly BloggerTextEdit[] | undefined;
   readonly isPreferred?: boolean | undefined;
 }
 

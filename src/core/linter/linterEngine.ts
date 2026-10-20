@@ -1,5 +1,5 @@
 import type { BloggerDiagnosticCode } from 'blogger-spec';
-import type { BloggerDiagnostic, BloggerQuickFix, LinterOptions } from './linterTypes.js';
+import type { BloggerDiagnostic, BloggerQuickFix, BloggerTextEdit, LinterOptions } from './linterTypes.js';
 import { getSpecCatalog } from 'blogger-spec/catalogs';
 import { parseExpression, scanDirectiveTokens, validateTemplateStructure } from 'blogger-spec/parser';
 import { tokenizeExpression } from 'blogger-spec/quota';
@@ -8,6 +8,8 @@ import { computeLineOffsets, createRange, maskComments } from './linterUtils.js'
 
 export { tokenizeExpression };
 export type { BloggerExpressionToken as Token } from 'blogger-spec';
+
+type DirectiveToken = ReturnType<typeof scanDirectiveTokens>[number];
 
 interface DeprecatedDataProperty {
   readonly pattern: RegExp;
@@ -60,6 +62,173 @@ const HALLUCINATED_DATA_PROPERTIES = [
   },
 ];
 
+const INVERTED_ATTR_MAP: Readonly<Record<string, string>> = {
+  BX1014: 'var',
+  BX1015: 'id',
+  BX1016: 'name',
+};
+
+interface HallucinatedDirectiveConfig {
+  readonly targetTag: string;
+  readonly attrMap: Readonly<Record<string, string>>;
+  readonly requiredAttrs?: readonly string[];
+}
+
+const HALLUCINATED_DIRECTIVE_MAP: Readonly<Record<string, HallucinatedDirectiveConfig>> = {
+  BX1001: {
+    targetTag: 'b:loop',
+    attrMap: { each: 'var', item: 'var', as: 'var', var: 'var', in: 'values', of: 'values', items: 'values', collection: 'values', values: 'values', index: 'index' },
+    requiredAttrs: ['values'],
+  },
+  BX1002: {
+    targetTag: 'b:loop',
+    attrMap: { each: 'var', item: 'var', as: 'var', var: 'var', in: 'values', of: 'values', items: 'values', collection: 'values', values: 'values', index: 'index' },
+    requiredAttrs: ['values'],
+  },
+  BX1003: {
+    targetTag: 'b:with',
+    attrMap: { name: 'var', var: 'var', id: 'var', key: 'var', value: 'value', val: 'value', expr: 'value' },
+    requiredAttrs: ['value', 'var'],
+  },
+  BX1004: {
+    targetTag: 'b:with',
+    attrMap: { name: 'var', var: 'var', id: 'var', key: 'var', value: 'value', val: 'value', expr: 'value' },
+    requiredAttrs: ['value', 'var'],
+  },
+  BX1005: {
+    targetTag: 'b:with',
+    attrMap: { name: 'var', var: 'var', id: 'var', key: 'var', value: 'value', val: 'value', expr: 'value' },
+    requiredAttrs: ['value', 'var'],
+  },
+  BX1006: {
+    targetTag: 'b:elseif',
+    attrMap: { cond: 'cond', test: 'cond', expr: 'cond' },
+    requiredAttrs: ['cond'],
+  },
+  BX1007: {
+    targetTag: 'b:switch',
+    attrMap: { var: 'var', expr: 'var', value: 'var' },
+  },
+  BX1008: {
+    targetTag: 'b:case',
+    attrMap: { value: 'value', val: 'value', test: 'value', expr: 'value', cond: 'value' },
+    requiredAttrs: ['value'],
+  },
+  BX1009: {
+    targetTag: 'b:default',
+    attrMap: {},
+  },
+  BX1010: {
+    targetTag: 'b:includable',
+    attrMap: { id: 'id', name: 'id' },
+    requiredAttrs: ['id'],
+  },
+  BX1011: {
+    targetTag: 'b:includable',
+    attrMap: { id: 'id', name: 'id' },
+    requiredAttrs: ['id'],
+  },
+  BX1012: {
+    targetTag: 'b:includable',
+    attrMap: { id: 'id', name: 'id' },
+    requiredAttrs: ['id'],
+  },
+};
+
+function buildHallucinatedDirectiveQuickFix(
+  sd: { readonly code: string; readonly tagStart?: number | undefined; readonly tagEnd?: number | undefined },
+  config: HallucinatedDirectiveConfig,
+  tokens: readonly DirectiveToken[],
+  lineOffsets: readonly number[],
+): BloggerQuickFix | undefined {
+  if (sd.tagStart === undefined || sd.tagEnd === undefined) {
+    return undefined;
+  }
+
+  const openToken = tokens.find(t => t.tagStart === sd.tagStart && t.tagEnd === sd.tagEnd)
+    ?? tokens.find(t => t.tagStart <= sd.tagStart! && t.tagEnd >= sd.tagEnd!);
+
+  if (!openToken) {
+    return undefined;
+  }
+
+  const parts: string[] = [];
+  const handledAttrs = new Set<string>();
+  const rawAttrs = openToken.attributes ?? {};
+
+  for (const [attrName, attr] of Object.entries(rawAttrs)) {
+    if (!attr) {
+      continue;
+    }
+    let prefix = '';
+    let baseName = attrName;
+    if (attrName.startsWith('expr:')) {
+      prefix = 'expr:';
+      baseName = attrName.slice(5);
+    }
+    const targetName = config.attrMap[baseName] ?? baseName;
+    const finalName = `${prefix}${targetName}`;
+    handledAttrs.add(targetName);
+    const quote = attr.quote || '\'';
+    parts.push(`${finalName}=${quote}${attr.value}${quote}`);
+  }
+
+  if (config.requiredAttrs) {
+    for (const req of config.requiredAttrs) {
+      if (!handledAttrs.has(req)) {
+        parts.push(`${req}='...'`);
+      }
+    }
+  }
+
+  const attrsString = parts.length > 0 ? ` ${parts.join(' ')}` : '';
+  const closingSlash = openToken.isSelfClosing ? '/>' : '>';
+  const openTagReplacement = `<${config.targetTag}${attrsString}${closingSlash}`;
+  const openRange = createRange(lineOffsets, openToken.tagStart, openToken.tagEnd);
+
+  const edits: BloggerTextEdit[] = [
+    { range: openRange, newText: openTagReplacement },
+  ];
+
+  if (!openToken.isSelfClosing) {
+    let depth = 0;
+    let closingToken: DirectiveToken | undefined;
+    for (const tok of tokens) {
+      if (tok.tagStart < openToken.tagStart) {
+        continue;
+      }
+      if (tok.tagName.toLowerCase() === openToken.tagName.toLowerCase()) {
+        if (!tok.isClosing && !tok.isSelfClosing) {
+          depth++;
+        }
+        else if (tok.isClosing) {
+          depth--;
+          if (depth === 0) {
+            closingToken = tok;
+            break;
+          }
+        }
+      }
+    }
+
+    if (closingToken) {
+      const closingRange = createRange(lineOffsets, closingToken.tagStart, closingToken.tagEnd);
+      edits.push({
+        range: closingRange,
+        newText: `</${config.targetTag}>`,
+      });
+    }
+  }
+
+  return {
+    title: `Replace <${openToken.tagName}> with <${config.targetTag}>`,
+    newText: openTagReplacement,
+    range: openRange,
+    edits,
+    isPreferred: true,
+  };
+}
+
 export function lintBloggerDocument(
   documentText: string,
   options?: LinterOptions,
@@ -86,7 +255,56 @@ export function lintBloggerDocument(
 
     const attrName = sd.attribute ?? (/Attribute '([^']+)' on/i.exec(sd.message)?.[1]);
     const quickFixes: BloggerQuickFix[] = [];
-    if (sd.rule?.replacement && sd.tagStart !== undefined && sd.tagEnd !== undefined) {
+    if (sd.code in HALLUCINATED_DIRECTIVE_MAP) {
+      const config = HALLUCINATED_DIRECTIVE_MAP[sd.code]!;
+      const fix = buildHallucinatedDirectiveQuickFix(sd, config, tokens, lineOffsets);
+      if (fix) {
+        quickFixes.push(fix);
+      }
+    }
+    else if (sd.code in INVERTED_ATTR_MAP && sd.tagStart !== undefined && sd.tagEnd !== undefined) {
+      const targetAttr = INVERTED_ATTR_MAP[sd.code]!;
+      const rawAttrText = documentText.slice(sd.tagStart, sd.tagEnd);
+      const eqIndex = rawAttrText.indexOf('=');
+      const newText = eqIndex !== -1 ? `${targetAttr}${rawAttrText.slice(eqIndex)}` : targetAttr;
+      quickFixes.push({
+        title: `Replace with '${newText}'`,
+        newText,
+        range,
+        isPreferred: true,
+      });
+    }
+    else if (sd.code === 'BX1022' && sd.tagStart !== undefined && sd.tagEnd !== undefined) {
+      const missingMatch = /Mandatory attribute '([^']+)' is missing on <([^>]+)>/i.exec(sd.message);
+      if (missingMatch) {
+        const missingAttr = missingMatch[1]!;
+        const tagName = missingMatch[2]!;
+        const tagText = documentText.slice(sd.tagStart, sd.tagEnd);
+        const isSelfClosing = tagText.endsWith('/>');
+        const insertOffset = isSelfClosing ? sd.tagEnd - 2 : sd.tagEnd - 1;
+
+        let attrVal = `=''`;
+        if (tagName.toLowerCase() === 'b:widget' && missingAttr === 'id') {
+          const token = tokens.find(t => t.tagStart === sd.tagStart && t.tagEnd === sd.tagEnd)
+            ?? tokens.find(t => t.tagStart <= sd.tagStart! && t.tagEnd >= sd.tagEnd!);
+          const widgetType = token?.attributes.type?.value;
+          attrVal = widgetType ? `='${widgetType}1'` : `=''`;
+        }
+
+        const prevChar = documentText[insertOffset - 1] ?? '';
+        const prefix = /\s/.test(prevChar) ? '' : ' ';
+        const insertText = `${prefix}${missingAttr}${attrVal}`;
+        const insertRange = createRange(lineOffsets, insertOffset, insertOffset);
+
+        quickFixes.push({
+          title: `Insert mandatory attribute '${missingAttr}${attrVal}'`,
+          newText: insertText,
+          range: insertRange,
+          isPreferred: true,
+        });
+      }
+    }
+    else if (sd.rule?.replacement && sd.tagStart !== undefined && sd.tagEnd !== undefined) {
       quickFixes.push({
         title: `Replace with '${sd.rule.replacement}'`,
         newText: sd.rule.replacement,
