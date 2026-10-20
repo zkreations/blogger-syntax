@@ -340,7 +340,18 @@ export function lintBloggerDocument(
         isPreferred: true,
       });
     }
-    else if (sd.rule?.replacement && sd.tagStart !== undefined && sd.tagEnd !== undefined) {
+    else if (sd.code === 'BX1030' && sd.tagStart !== undefined && sd.tagEnd !== undefined) {
+      const rawExpr = documentText.slice(sd.tagStart, sd.tagEnd).trim();
+      const inner = rawExpr.startsWith('-') ? rawExpr.slice(1).trim() : rawExpr;
+      const newText = `(0 - ${inner})`;
+      quickFixes.push({
+        title: `Rewrite unary negation as '${newText}'`,
+        newText,
+        range,
+        isPreferred: true,
+      });
+    }
+    else if (sd.rule?.replacement && !sd.rule.replacement.includes('...') && sd.tagStart !== undefined && sd.tagEnd !== undefined) {
       quickFixes.push({
         title: `Replace with '${sd.rule.replacement}'`,
         newText: sd.rule.replacement,

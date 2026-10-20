@@ -662,5 +662,36 @@ describe('linter core engine', () => {
       expect(diag2?.quickFixes?.[0]?.newText).toBe('item');
       expect(diag2?.quickFixes?.[0]?.title).toBe('Remove redundant \'data:\' prefix (use \'item\')');
     });
+
+    it('rewrites unary negation on compound expressions dynamically preserving user operands', () => {
+      const cases = [
+        {
+          xml: '<b:eval expr=\'-(data:post.numA - data:post.numB)\'/>',
+          expected: '(0 - (data:post.numA - data:post.numB))',
+        },
+        {
+          xml: '<b:eval expr=\'-(100 - 30)\'/>',
+          expected: '(0 - (100 - 30))',
+        },
+        {
+          xml: '<b:eval expr=\'-(data:a and data:b)\'/>',
+          expected: '(0 - (data:a and data:b))',
+        },
+        {
+          xml: '<b:eval expr=\'-(data:view.isPost ? 10 : 20)\'/>',
+          expected: '(0 - (data:view.isPost ? 10 : 20))',
+        },
+      ];
+
+      for (const { xml, expected } of cases) {
+        const diags = lintBloggerDocument(xml);
+        const diag = diags.find(d => d.code === 'BX1030');
+
+        expect(diag).toBeDefined();
+        expect(diag?.quickFixes).toHaveLength(1);
+        expect(diag?.quickFixes?.[0]?.newText).toBe(expected);
+        expect(diag?.quickFixes?.[0]?.title).toBe(`Rewrite unary negation as '${expected}'`);
+      }
+    });
   });
 });
