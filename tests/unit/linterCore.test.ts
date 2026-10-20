@@ -711,5 +711,31 @@ describe('linter core engine', () => {
       expect(diag2?.quickFixes).toHaveLength(1);
       expect(diag2?.quickFixes?.[0]?.newText).toBe('true');
     });
+
+    it('flags primitive scalar payload in b:include data attribute (BX1031) and offers wrapping quick fix', () => {
+      const xml1 = `<b:include data='"primitive_string_payload"' name='targetSubroutine'/>`;
+      const diags1 = lintBloggerDocument(xml1);
+      const diag1 = diags1.find(d => d.code === 'BX1031');
+
+      expect(diag1).toBeDefined();
+      expect(diag1?.quickFixes).toHaveLength(1);
+      expect(diag1?.quickFixes?.[0]?.newText).toBe('{ value: "primitive_string_payload" }');
+
+      const xml2 = `<b:include data='999' name='targetSubroutine'/>`;
+      const diags2 = lintBloggerDocument(xml2);
+      const diag2 = diags2.find(d => d.code === 'BX1031');
+
+      expect(diag2).toBeDefined();
+      expect(diag2?.quickFixes).toHaveLength(1);
+      expect(diag2?.quickFixes?.[0]?.newText).toBe('{ value: 999 }');
+
+      const xmlValidObject = `<b:include data='{ post: data:post, count: 5 }' name='targetSubroutine'/>`;
+      const diagsValidObject = lintBloggerDocument(xmlValidObject);
+      expect(diagsValidObject.some(d => d.code === 'BX1031')).toBe(false);
+
+      const xmlValidRef = `<b:include data='data:post' name='targetSubroutine'/>`;
+      const diagsValidRef = lintBloggerDocument(xmlValidRef);
+      expect(diagsValidRef.some(d => d.code === 'BX1031')).toBe(false);
+    });
   });
 });

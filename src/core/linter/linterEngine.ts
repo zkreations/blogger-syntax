@@ -399,6 +399,36 @@ export function lintBloggerDocument(
     if (token.tagName.toLowerCase() !== 'b:include' || token.isClosing) {
       continue;
     }
+
+    // BX1031: Non-object primitive payload in data attribute
+    const dataAttr = token.attributes.data ?? token.attributes['expr:data'];
+    if (dataAttr && dataAttr.value) {
+      const rawVal = dataAttr.value.trim();
+      const isStringLit = (rawVal.startsWith('"') && rawVal.endsWith('"')) || (rawVal.startsWith('\'') && rawVal.endsWith('\''));
+      const isNumericLit = /^-?\d+(?:\.\d+)?$/.test(rawVal);
+      const isBooleanLit = /^(?:true|false)$/i.test(rawVal);
+
+      if (isStringLit || isNumericLit || isBooleanLit) {
+        const range = createRange(lineOffsets, dataAttr.valueStart, dataAttr.valueEnd);
+        const quickFixes: BloggerQuickFix[] = [
+          {
+            title: `Wrap payload in object literal '{ value: ${rawVal} }'`,
+            newText: `{ value: ${rawVal} }`,
+            range,
+            isPreferred: true,
+          },
+        ];
+
+        diagnostics.push({
+          code: 'BX1031',
+          message: 'The \'data\' attribute of <b:include> strictly requires an object reference or object literal { ... }; passing primitive scalars (string, number, boolean) aborts execution with runtime error \'Error during evaluation of <name>\'.',
+          severity: 'error',
+          range,
+          quickFixes,
+        });
+      }
+    }
+
     if (token.attributes['expr:name']) {
       continue;
     }
