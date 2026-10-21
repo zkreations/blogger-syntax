@@ -220,6 +220,20 @@ describe('linter contracts & horatio specifications', () => {
       const diags = lintBloggerDocument(xml);
       const varDiags = diags.filter(d => d.code === 'BX1040');
       expect(varDiags).toHaveLength(0);
+      expect(diags.filter(d => d.code === 'BX1039')).toHaveLength(0);
+    });
+
+    it('rejects empty value on non-string type <Variable> with BX1039', () => {
+      const xml = `
+        <b:skin><![CDATA[
+          <Group description="Admin">
+            <Variable name="a.color" description="Admin color" type="color" value=""/>
+          </Group>
+        ]]></b:skin>
+      `;
+      const diags = lintBloggerDocument(xml);
+      const emptyDiag = diags.find(d => d.code === 'BX1039');
+      expect(emptyDiag).toBeDefined();
     });
   });
 

@@ -470,9 +470,18 @@ export function lintBloggerDocument(
       tags.push('deprecated');
     }
 
+    let message = sd.message;
+    if (sd.code === 'BX1037' && sd.tagStart !== undefined && sd.tagEnd !== undefined) {
+      const token = tokens.find(t => t.tagStart <= sd.tagStart! && t.tagEnd >= sd.tagEnd!);
+      const incName = token?.attributes.name?.value?.trim() ?? documentText.slice(sd.tagStart, sd.tagEnd).replace(/^name=['"]|['"]$/g, '').trim();
+      if (incName && !message.includes(incName)) {
+        message = `Unresolved inclusion "${incName}". ${sd.message}`;
+      }
+    }
+
     diagnostics.push({
       code: sd.code,
-      message: sd.message,
+      message,
       severity: sd.severity,
       range,
       tags: tags.length > 0 ? tags : undefined,
@@ -511,12 +520,20 @@ export function lintBloggerDocument(
     if (!resolved) {
       const rule = catalog.getDiagnostic('BX1037');
       const range = createRange(lineOffsets, nameAttr.valueStart, nameAttr.valueEnd);
-      diagnostics.push({
-        code: 'BX1037',
-        message: rule?.message ? `Unresolved inclusion "${name}". ${rule.message}` : `Unresolved inclusion "${name}". Subroutine is not defined in the template and is not a built-in server inclusion.`,
-        severity: 'error',
-        range,
-      });
+      const alreadyReported = diagnostics.some(
+        d => d.code === 'BX1037' && (
+          (d.range.start.line === range.start.line && Math.abs(d.range.start.character - range.start.character) <= 10)
+          || d.message.includes(`"${name}"`)
+        ),
+      );
+      if (!alreadyReported) {
+        diagnostics.push({
+          code: 'BX1037',
+          message: rule?.message ? `Unresolved inclusion "${name}". ${rule.message}` : `Unresolved inclusion "${name}". Subroutine is not defined in the template and is not a built-in server inclusion.`,
+          severity: 'error',
+          range,
+        });
+      }
     }
   }
 
