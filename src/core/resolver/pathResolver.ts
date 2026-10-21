@@ -842,6 +842,19 @@ export class BloggerPathResolver {
         }
       }
 
+      if (attrName === 'reverse' && tagName === 'b:loop') {
+        const values = ['yes', 'no', 'true', 'false'];
+        return {
+          suggestions: values.map(val => ({
+            name: val,
+            type: 'string',
+            kind: 'enumMember' as const,
+            description: `Value "${val}" for attribute ${attrName}.`,
+          })),
+          replacementLength: typedText.length,
+        };
+      }
+
       if (tagName && bloggerTags[tagName]?.attributes?.[attrName]?.values) {
         const values = bloggerTags[tagName].attributes![attrName].values!;
         return {

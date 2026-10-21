@@ -516,6 +516,10 @@ export function hasAttributeValueCompletions(tagName: string, attrName: string):
     return tagName === 'Variable' || tagName === 'b:widget' || tagName === 'b:defaultmarkup';
   }
 
+  if (tagName === 'b:loop' && attrName === 'reverse') {
+    return true;
+  }
+
   const tagDef = bloggerTags[tagName];
   return Boolean(tagDef?.attributes?.[attrName]?.values && tagDef.attributes[attrName].values.length > 0);
 }

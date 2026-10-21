@@ -778,10 +778,10 @@ describe('linter core engine', () => {
       expect(diagsValid.some(d => d.code === 'BX1029')).toBe(false);
     });
 
-    it('flags object literals missing whitespace after colons (ANTIPATTERN_SYNTAX) and offers quick fix', () => {
+    it('flags object literals missing whitespace after colons (BX1049) and offers quick fix', () => {
       const xml = `<b:eval expr='data:blog.homepageUrl params {m:"1"}'/>`;
       const diags = lintBloggerDocument(xml);
-      const diag = diags.find(d => d.code === 'ANTIPATTERN_SYNTAX');
+      const diag = diags.find(d => (d.code as string) === 'BX1049' || (d.code as string) === 'ANTIPATTERN_SYNTAX');
 
       expect(diag).toBeDefined();
       expect(diag?.severity).toBe('error');
@@ -791,7 +791,7 @@ describe('linter core engine', () => {
 
       const xmlValid = `<b:eval expr='data:blog.homepageUrl params { m: "1" }'/>`;
       const diagsValid = lintBloggerDocument(xmlValid);
-      expect(diagsValid.some(d => d.code === 'ANTIPATTERN_SYNTAX')).toBe(false);
+      expect(diagsValid.some(d => (d.code as string) === 'BX1049' || (d.code as string) === 'ANTIPATTERN_SYNTAX')).toBe(false);
     });
   });
 });

@@ -253,64 +253,6 @@ function buildHallucinatedDirectiveQuickFix(
   };
 }
 
-function validateObjectLiteralSpacing(
-  node: unknown,
-  exprValue: string,
-  valueStart: number,
-  lineOffsets: readonly number[],
-  diagnostics: BloggerDiagnostic[],
-): void {
-  if (!node || typeof node !== 'object') {
-    return;
-  }
-  const astNode = node as {
-    type?: string;
-    properties?: Array<{
-      loc?: { start: { offset: number }; end: { offset: number } };
-      value?: { loc?: { start: { offset: number }; end: { offset: number } } };
-    }>;
-  };
-
-  if (astNode.type === 'ObjectExpression' && Array.isArray(astNode.properties)) {
-    for (const prop of astNode.properties) {
-      if (prop.loc && prop.value && prop.value.loc) {
-        const colonSearch = exprValue.slice(prop.loc.start.offset, prop.value.loc.start.offset);
-        const colonIdx = colonSearch.indexOf(':');
-        if (colonIdx !== -1) {
-          const charAfterColon = colonSearch[colonIdx + 1];
-          if (!charAfterColon || !/\s/.test(charAfterColon)) {
-            const colonOffsetInExpr = prop.loc.start.offset + colonIdx;
-            const colonDocOffset = valueStart + colonOffsetInExpr;
-            const range = createRange(lineOffsets, colonDocOffset, colonDocOffset + 1);
-            const insertRange = createRange(lineOffsets, colonDocOffset + 1, colonDocOffset + 1);
-
-            diagnostics.push({
-              code: 'ANTIPATTERN_SYNTAX',
-              message: 'Mandatory whitespace after colons in object literals \'{ key: value }\' to avoid XML namespace collisions.',
-              severity: 'error',
-              range,
-              quickFixes: [
-                {
-                  title: 'Insert whitespace after \':\'',
-                  newText: ' ',
-                  range: insertRange,
-                  isPreferred: true,
-                },
-              ],
-            });
-          }
-        }
-      }
-    }
-  }
-
-  for (const [key, child] of Object.entries(node)) {
-    if (key !== 'loc' && child && typeof child === 'object') {
-      validateObjectLiteralSpacing(child, exprValue, valueStart, lineOffsets, diagnostics);
-    }
-  }
-}
-
 export function lintBloggerDocument(
   documentText: string,
   options?: LinterOptions,
@@ -420,6 +362,92 @@ export function lintBloggerDocument(
         isPreferred: true,
       });
     }
+    else if (sd.code === 'BX1031' && sd.tagStart !== undefined && sd.tagEnd !== undefined) {
+      const token = tokens.find(t => t.tagStart <= sd.tagStart! && t.tagEnd >= sd.tagEnd!);
+      const dataAttr = token?.attributes.data ?? token?.attributes['expr:data'];
+      if (dataAttr && dataAttr.value) {
+        const rawVal = dataAttr.value.trim();
+        const attrValRange = createRange(lineOffsets, dataAttr.valueStart, dataAttr.valueEnd);
+        quickFixes.push({
+          title: `Wrap payload in object literal '{ value: ${rawVal} }'`,
+          newText: `{ value: ${rawVal} }`,
+          range: attrValRange,
+          isPreferred: true,
+        });
+      }
+    }
+    else if (sd.code === 'BX1027' && sd.tagStart !== undefined && sd.tagEnd !== undefined) {
+      const key = sd.tagName.startsWith('data:messages.')
+        ? sd.tagName.slice('data:messages.'.length)
+        : (/data:messages\.(\w+)/.exec(documentText.slice(sd.tagStart, sd.tagEnd))?.[1]);
+      if (key) {
+        const msg = catalog.getMessage(key);
+        const paramList = msg?.parameters?.map(p => `  <b:param name='${p.name}' value='...'/>`).join('\n') ?? '  <b:param value=\'...\'/>';
+        const replacement = `<b:message name='messages.${key}'>\n${paramList}\n</b:message>`;
+        quickFixes.push({
+          title: `Convert to <b:message name='messages.${key}'>`,
+          newText: replacement,
+          range,
+          isPreferred: true,
+        });
+      }
+    }
+    else if (sd.code === 'BX1028' && sd.tagStart !== undefined && sd.tagEnd !== undefined) {
+      const msgMatch = /Pluralized ICU message '([^']+)'/i.exec(sd.message);
+      const msgKey = msgMatch?.[1];
+      const msg = msgKey ? catalog.getMessage(msgKey) : undefined;
+      const expectedParamName = msg?.parameters?.[0]?.name ?? 'count';
+      const tagText = documentText.slice(sd.tagStart, sd.tagEnd);
+      const isSelfClosing = tagText.endsWith('/>');
+      const insertOffset = isSelfClosing ? sd.tagEnd - 2 : sd.tagEnd - 1;
+      const prevChar = documentText[insertOffset - 1] ?? '';
+      const prefix = /\s/.test(prevChar) ? '' : ' ';
+      const insertText = `${prefix}name='${expectedParamName}'`;
+      const insertRange = createRange(lineOffsets, insertOffset, insertOffset);
+
+      quickFixes.push({
+        title: `Insert mandatory parameter name='${expectedParamName}'`,
+        newText: insertText,
+        range: insertRange,
+        isPreferred: true,
+      });
+    }
+    else if (sd.code === 'BX1029' && sd.tagStart !== undefined && sd.tagEnd !== undefined) {
+      const insertRange = createRange(lineOffsets, sd.tagStart, sd.tagStart);
+      quickFixes.push({
+        title: 'Separate <b:param> tags with whitespace',
+        newText: ' ',
+        range: insertRange,
+        isPreferred: true,
+      });
+    }
+    else if (((sd.code as string) === 'BX1032' || (sd.code as string) === 'BX1048') && sd.tagStart !== undefined && sd.tagEnd !== undefined) {
+      const token = tokens.find(t => t.tagStart <= sd.tagStart! && t.tagEnd >= sd.tagEnd!);
+      if (token) {
+        const fullTag = documentText.slice(token.tagStart, token.tagEnd).trim();
+        const innerContent = fullTag.replace(/^<\s*data:/, '').replace(/\/?>$/, '').trim();
+        if (innerContent) {
+          const expr = `data:${innerContent}`;
+          const newText = `<b:eval expr='${expr}'/>`;
+          const tagRange = createRange(lineOffsets, token.tagStart, token.tagEnd);
+          quickFixes.push({
+            title: `Convert to '${newText}'`,
+            newText,
+            range: tagRange,
+            isPreferred: true,
+          });
+        }
+      }
+    }
+    else if ((sd.code as string) === 'BX1049' && sd.tagStart !== undefined && sd.tagEnd !== undefined) {
+      const insertRange = createRange(lineOffsets, sd.tagEnd, sd.tagEnd);
+      quickFixes.push({
+        title: 'Insert whitespace after \':\'',
+        newText: ' ',
+        range: insertRange,
+        isPreferred: true,
+      });
+    }
     else if (sd.rule?.replacement && !sd.rule.replacement.includes('...') && sd.tagStart !== undefined && sd.tagEnd !== undefined) {
       quickFixes.push({
         title: `Replace with '${sd.rule.replacement}'`,
@@ -458,35 +486,6 @@ export function lintBloggerDocument(
       continue;
     }
 
-    // BX1031: Non-object primitive payload in data attribute
-    const dataAttr = token.attributes.data ?? token.attributes['expr:data'];
-    if (dataAttr && dataAttr.value) {
-      const rawVal = dataAttr.value.trim();
-      const isStringLit = (rawVal.startsWith('"') && rawVal.endsWith('"')) || (rawVal.startsWith('\'') && rawVal.endsWith('\''));
-      const isNumericLit = /^-?\d+(?:\.\d+)?$/.test(rawVal);
-      const isBooleanLit = /^(?:true|false)$/i.test(rawVal);
-
-      if (isStringLit || isNumericLit || isBooleanLit) {
-        const range = createRange(lineOffsets, dataAttr.valueStart, dataAttr.valueEnd);
-        const quickFixes: BloggerQuickFix[] = [
-          {
-            title: `Wrap payload in object literal '{ value: ${rawVal} }'`,
-            newText: `{ value: ${rawVal} }`,
-            range,
-            isPreferred: true,
-          },
-        ];
-
-        diagnostics.push({
-          code: 'BX1031',
-          message: 'The \'data\' attribute of <b:include> strictly requires an object reference or object literal { ... }; passing primitive scalars (string, number, boolean) aborts execution with runtime error \'Error during evaluation of <name>\'.',
-          severity: 'error',
-          range,
-          quickFixes,
-        });
-      }
-    }
-
     if (token.attributes['expr:name']) {
       continue;
     }
@@ -499,42 +498,8 @@ export function lintBloggerDocument(
       continue;
     }
 
-    // Check for obsolete / deprecated server inclusions (BX1024)
     const incMeta = catalog.getInclusion(name);
-    const isDeprecated = incMeta?.deprecated != null || incMeta?.category === 'deprecated' || name === 'quickedit';
-    if (isDeprecated) {
-      const range = createRange(lineOffsets, token.tagStart, token.tagEnd);
-      const reason = incMeta?.deprecated?.reason;
-      const message = reason
-        ? `Inclusion "${name}" is obsolete. ${reason}`
-        : `Inclusion "${name}" is obsolete in Blogger Layouts v3.`;
-
-      const quickFixes: BloggerQuickFix[] = [
-        {
-          title: `Remove obsolete inclusion "${name}"`,
-          newText: '',
-          range,
-          isPreferred: true,
-        },
-      ];
-
-      if (incMeta?.deprecated?.replacement) {
-        quickFixes.unshift({
-          title: `Replace with '${incMeta.deprecated.replacement}'`,
-          newText: `<b:include name='${incMeta.deprecated.replacement}'/>`,
-          range,
-          isPreferred: true,
-        });
-      }
-
-      diagnostics.push({
-        code: 'BX1024',
-        message,
-        severity: 'warning',
-        range,
-        tags: ['deprecated'],
-        quickFixes,
-      });
+    if (incMeta?.deprecated != null || incMeta?.category === 'deprecated' || name === 'quickedit') {
       continue;
     }
 
@@ -555,131 +520,6 @@ export function lintBloggerDocument(
     }
   }
 
-  // Parameterized message validations (BX1027, BX1028)
-  for (const token of tokens) {
-    if (token.isClosing) {
-      continue;
-    }
-
-    // BX1027: Direct invocation of parameterized/plural message
-    if (token.tagName.startsWith('data:messages.')) {
-      const key = token.tagName.slice('data:messages.'.length);
-      const msg = catalog.getMessage(key);
-      if (msg && msg.direct_invocation === false) {
-        const range = createRange(lineOffsets, token.tagStart, token.tagEnd);
-        const paramList = msg.parameters?.map(p => `  <b:param name='${p.name}' value='...'/>`).join('\n') ?? '  <b:param value=\'...\'/>';
-        const replacement = `<b:message name='messages.${key}'>\n${paramList}\n</b:message>`;
-
-        diagnostics.push({
-          code: 'BX1027',
-          message: `Parameterized message tokens cannot be evaluated via direct tag invocation (<data:messages.${key}/>) and output raw un-interpolated template strings. Use <b:message name='messages.${key}'> with child <b:param> tags.`,
-          severity: 'warning',
-          range,
-          quickFixes: [
-            {
-              title: `Convert to <b:message name='messages.${key}'>`,
-              newText: replacement,
-              range,
-              isPreferred: true,
-            },
-          ],
-        });
-      }
-    }
-
-    // BX1028 & BX1029: Message directives child parameter validation
-    if (token.tagName.toLowerCase() === 'b:message' && !token.isSelfClosing) {
-      let depth = 0;
-      let messageEnd = token.tagEnd;
-      for (const tok of tokens) {
-        if (tok.tagStart < token.tagStart) {
-          continue;
-        }
-        if (tok.tagName.toLowerCase() === 'b:message') {
-          if (!tok.isClosing && !tok.isSelfClosing) {
-            depth++;
-          }
-          else if (tok.isClosing) {
-            depth--;
-            if (depth === 0) {
-              messageEnd = tok.tagEnd;
-              break;
-            }
-          }
-        }
-      }
-
-      const childParams = tokens.filter(
-        tok => tok.tagStart > token.tagStart && tok.tagEnd < messageEnd && tok.tagName.toLowerCase() === 'b:param',
-      );
-
-      // BX1029: Multiple <b:param> tags concatenated inline without whitespace
-      for (let i = 1; i < childParams.length; i++) {
-        const prevParam = childParams[i - 1]!;
-        const currParam = childParams[i]!;
-        const intervening = documentText.slice(prevParam.tagEnd, currParam.tagStart);
-        if (!/^\s+$/.test(intervening)) {
-          const range = createRange(lineOffsets, currParam.tagStart, currParam.tagEnd);
-          const insertRange = createRange(lineOffsets, currParam.tagStart, currParam.tagStart);
-
-          diagnostics.push({
-            code: 'BX1029',
-            message: 'Multiple <b:param> tags concatenated inline without intervening whitespace (<b:param .../><b:param .../>) cause Blogger runtime error \'Invalid parameters for message\'. Sibling <b:param> tags must be separated by whitespace or placed on separate lines.',
-            severity: 'error',
-            range,
-            quickFixes: [
-              {
-                title: 'Separate <b:param> tags with whitespace',
-                newText: ' ',
-                range: insertRange,
-                isPreferred: true,
-              },
-            ],
-          });
-        }
-      }
-
-      // BX1028: Plural message with <b:param> missing 'name' attribute
-      const nameAttr = token.attributes.name?.value?.trim();
-      if (nameAttr) {
-        const key = nameAttr.startsWith('messages.') ? nameAttr.slice('messages.'.length) : nameAttr;
-        const msg = catalog.getMessage(key);
-        const isPlural = msg?.pattern?.includes('plural') || msg?.description?.toLowerCase().includes('plural');
-
-        if (isPlural) {
-          const expectedParamName = msg?.parameters?.[0]?.name ?? 'count';
-          for (const paramToken of childParams) {
-            if (!paramToken.attributes.name || !paramToken.attributes.name.value?.trim()) {
-              const range = createRange(lineOffsets, paramToken.tagStart, paramToken.tagEnd);
-              const tagText = documentText.slice(paramToken.tagStart, paramToken.tagEnd);
-              const isSelfClosing = tagText.endsWith('/>');
-              const insertOffset = isSelfClosing ? paramToken.tagEnd - 2 : paramToken.tagEnd - 1;
-              const prevChar = documentText[insertOffset - 1] ?? '';
-              const prefix = /\s/.test(prevChar) ? '' : ' ';
-              const insertText = `${prefix}name='${expectedParamName}'`;
-              const insertRange = createRange(lineOffsets, insertOffset, insertOffset);
-
-              diagnostics.push({
-                code: 'BX1028',
-                message: `Pluralized ICU messages require the 'name' attribute on child <b:param> tags matching the plural identifier (e.g. <b:param name='${expectedParamName}' value='...'/>); omitting 'name' aborts template compilation.`,
-                severity: 'error',
-                range,
-                quickFixes: [
-                  {
-                    title: `Insert mandatory parameter name='${expectedParamName}'`,
-                    newText: insertText,
-                    range: insertRange,
-                    isPreferred: true,
-                  },
-                ],
-              });
-            }
-          }
-        }
-      }
-    }
-  }
-
   // 2. Grammatical expression validation fallback
   const expressionErrorsReportedRanges = new Set<string>();
   for (const d of diagnostics) {
@@ -697,8 +537,7 @@ export function lintBloggerDocument(
       }
 
       try {
-        const ast = parseExpression(attrToken.value, { catalog, tolerant: false });
-        validateObjectLiteralSpacing(ast, attrToken.value, attrToken.valueStart, lineOffsets, diagnostics);
+        parseExpression(attrToken.value, { catalog, tolerant: false });
       }
       catch (err: unknown) {
         const rangeKey = `${attrToken.valueStart}`;

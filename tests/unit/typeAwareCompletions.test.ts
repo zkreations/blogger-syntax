@@ -164,7 +164,7 @@ describe('typeAwareCompletions - Strict Type Awareness & Operator Filtering', ()
       expect(names).not.toContain('%');
     });
 
-    it('suggests strictly date format, comparisons & concatenation for date operand', () => {
+    it('suggests strictly date format, equality & concatenation for date operand', () => {
       const line = '<b:eval expr="data:post.date ';
       const res = resolver.resolveFromLinePrefix(line, blogResolverContext);
       expect(res).toBeDefined();
@@ -176,11 +176,13 @@ describe('typeAwareCompletions - Strict Type Awareness & Operator Filtering', ()
       expect(names).toContain('!=');
       expect(names).toContain('eq');
       expect(names).toContain('neq');
-      expect(names).toContain('lt');
-      expect(names).toContain('gt');
       expect(names).toContain('?:');
 
-      // Prohibited: collection lambdas, arithmetic
+      // Prohibited: relational comparisons on Date (BX1026), collection lambdas, arithmetic
+      expect(names).not.toContain('lt');
+      expect(names).not.toContain('gt');
+      expect(names).not.toContain('lte');
+      expect(names).not.toContain('gte');
       expect(names).not.toContain('filter');
       expect(names).not.toContain('map');
       expect(names).not.toContain('-');

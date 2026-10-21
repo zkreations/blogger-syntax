@@ -277,7 +277,7 @@ describe('linter contracts & horatio specifications', () => {
       it('rejects invalid static value on showaddelement', () => {
         const xml = `<b:section id='main' showaddelement='invalidVal'/>`;
         const diags = lintBloggerDocument(xml);
-        const boolDiag = diags.find(d => d.code === 'BX1024' && d.message.includes('showaddelement'));
+        const boolDiag = diags.find(d => (d.code === 'BX1043' || d.code === 'BX1024') && d.message.includes('showaddelement'));
         expect(boolDiag).toBeDefined();
       });
     });

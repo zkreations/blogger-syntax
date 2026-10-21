@@ -94,9 +94,9 @@ describe('operators - Catalog Integrity, Dual Syntax & Autocompletion', () => {
       expect(bloggerOperatorsCatalog.map?.supportsFunctional).toBe(false);
       expect(bloggerOperatorsCatalog.count?.supportsFunctional).toBe(false);
       expect(bloggerOperatorsCatalog.to?.supportsFunctional).toBe(false);
-      expect(bloggerOperatorsCatalog.not?.supportsFunctional).toBe(false);
 
-      // Dual syntax operators (both infix and functional)
+      // Functional and dual syntax operators
+      expect(bloggerOperatorsCatalog.not?.supportsFunctional).toBe(true);
       expect(bloggerOperatorsCatalog.snippet?.supportsFunctional).toBe(true);
       expect(bloggerOperatorsCatalog.resizeImage?.supportsFunctional).toBe(true);
       expect(bloggerOperatorsCatalog.sourceSet?.supportsFunctional).toBe(true);
@@ -118,8 +118,9 @@ describe('operators - Catalog Integrity, Dual Syntax & Autocompletion', () => {
       expect(bloggerOperatorsCatalog.neq?.functionalSnippet).toContain('neq(');
     });
 
-    it('flags variadic support for +, and, or, and ?:', () => {
+    it('flags variadic support for +, -, and, or, and ?:', () => {
       expect(bloggerOperatorsCatalog['+']?.supportsVariadic).toBe(true);
+      expect(bloggerOperatorsCatalog['-']?.supportsVariadic).toBe(true);
       expect(bloggerOperatorsCatalog.and?.supportsVariadic).toBe(true);
       expect(bloggerOperatorsCatalog.or?.supportsVariadic).toBe(true);
       expect(bloggerOperatorsCatalog['?:']?.supportsVariadic).toBe(true);
@@ -128,7 +129,7 @@ describe('operators - Catalog Integrity, Dual Syntax & Autocompletion', () => {
       expect(bloggerOperatorsCatalog.snippet?.supportsVariadic).toBeFalsy();
       expect(bloggerOperatorsCatalog.eq?.supportsVariadic).toBeFalsy();
       expect(bloggerOperatorsCatalog.neq?.supportsVariadic).toBeFalsy();
-      expect(bloggerOperatorsCatalog['-']?.supportsVariadic).toBeFalsy();
+      expect(bloggerOperatorsCatalog.modulo?.supportsVariadic).toBeFalsy();
     });
 
     it('suggests standard == and != while omitting XML-escaped symbols (<, >, &&, ||)', () => {
