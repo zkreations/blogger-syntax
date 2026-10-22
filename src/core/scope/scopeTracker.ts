@@ -26,18 +26,108 @@ export type BloggerScopeTag
     | 'b:with'
     | 'b:loop';
 
+export interface InferredWidgetResolution {
+  readonly widgetType: string;
+  readonly source: 'directive' | 'convention';
+  readonly ruleDetail: string;
+}
+
 export interface BloggerScopeBlock {
   readonly id: string;
   readonly tag: BloggerScopeTag;
   readonly widgetType?: string | undefined;
   readonly widgetId?: string | undefined;
   readonly includableId?: string | undefined;
+  readonly inferredWidgetContext?: InferredWidgetResolution | undefined;
+  readonly openTagStartOffset?: number | undefined;
+  readonly openTagEndOffset?: number | undefined;
   readonly startOffset: number;
   endOffset: number;
   readonly variables: Record<string, BloggerProperty>;
   readonly children: BloggerScopeBlock[];
   readonly parent?: BloggerScopeBlock | undefined;
   readonly scopeEnvironment?: ScopeEnvironment | undefined;
+}
+
+const CANONICAL_WIDGET_TYPES = Object.keys(getSpecCatalog().getAllWidgets()).sort((a, b) => b.length - a.length);
+
+function getCanonicalWidgetType(name: string): string | undefined {
+  return CANONICAL_WIDGET_TYPES.find(w => w.toLowerCase() === name.toLowerCase());
+}
+
+export function inferIncludableWidgetType(
+  includableId: string | undefined,
+  precedingText?: string,
+  insideText?: string,
+): InferredWidgetResolution | undefined {
+  if (precedingText) {
+    const match = /<!--\s*@widget\s+(\w+)\s*-->\s*$/.exec(precedingText);
+    if (match?.[1]) {
+      const canonical = getCanonicalWidgetType(match[1]);
+      if (canonical) {
+        return {
+          widgetType: canonical,
+          source: 'directive',
+          ruleDetail: `Inferred from comment directive '<!-- @widget ${canonical} -->'`,
+        };
+      }
+    }
+  }
+
+  if (insideText) {
+    const match = /^\s*<!--\s*@widget\s+(\w+)\s*-->/.exec(insideText);
+    if (match?.[1]) {
+      const canonical = getCanonicalWidgetType(match[1]);
+      if (canonical) {
+        return {
+          widgetType: canonical,
+          source: 'directive',
+          ruleDetail: `Inferred from comment directive '<!-- @widget ${canonical} -->'`,
+        };
+      }
+    }
+  }
+
+  if (!includableId) {
+    return undefined;
+  }
+
+  const prefixMatch = /^(?:(?:widget|w|common)[:@\-_.]|@)(\w+)$/i.exec(includableId);
+  if (prefixMatch?.[1]) {
+    const canonical = getCanonicalWidgetType(prefixMatch[1]);
+    if (canonical) {
+      return {
+        widgetType: canonical,
+        source: 'convention',
+        ruleDetail: `Inferred from ID convention '${includableId}'`,
+      };
+    }
+  }
+
+  for (const wType of CANONICAL_WIDGET_TYPES) {
+    if (includableId.toLowerCase() === wType.toLowerCase()) {
+      return {
+        widgetType: wType,
+        source: 'convention',
+        ruleDetail: `Inferred from exact widget ID '${includableId}'`,
+      };
+    }
+
+    const prefix = wType.toLowerCase();
+    const idLower = includableId.toLowerCase();
+    if (idLower.startsWith(prefix) && idLower.length > prefix.length) {
+      const sep = idLower[prefix.length];
+      if (sep === ':' || sep === '@' || sep === '-' || sep === '_' || sep === '.') {
+        return {
+          widgetType: wType,
+          source: 'convention',
+          ruleDetail: `Inferred from widget prefix '${wType}${sep}' in '${includableId}'`,
+        };
+      }
+    }
+  }
+
+  return undefined;
 }
 
 function mergeStackVariables(stack: readonly BloggerScopeBlock[]): Record<string, BloggerProperty> {
@@ -137,6 +227,7 @@ export class BloggerScopeTracker {
       let widgetType: string | undefined;
       let widgetId: string | undefined;
       let includableId: string | undefined;
+      let inferredWidgetContext: InferredWidgetResolution | undefined;
 
       if (fullTag === 'b:widget') {
         widgetId = attrs.id?.value;
@@ -188,15 +279,57 @@ export class BloggerScopeTracker {
         const enclosingBlock = findEnclosingWidgetOrMarkup(stack);
         const forwardedData = includableId ? includeInvocations.get(includableId) : undefined;
         widgetType = enclosingBlock?.widgetType;
+
+        const isCommonMarkup = enclosingBlock?.widgetType
+          ? enclosingBlock.widgetType.split(',').map(s => s.trim().toLowerCase()).some(t => t === 'common' || t === 'all')
+          : false;
+
+        if (isCommonMarkup) {
+          const precedingText = text.slice(Math.max(0, tagStartOffset - 250), tagStartOffset);
+          const insideText = text.slice(tagEndOffset, Math.min(text.length, tagEndOffset + 250));
+          inferredWidgetContext = inferIncludableWidgetType(includableId, precedingText, insideText);
+          if (inferredWidgetContext) {
+            widgetType = inferredWidgetContext.widgetType;
+          }
+        }
+
         variables = inferIncludableVariables(
           varName,
           forwardedData,
           activeVarsAtOpen,
           widgetType,
         );
+
+        const widgetDict = widgetType ? WIDGET_DATA_DICTIONARIES[widgetType] : undefined;
+        if (inferredWidgetContext && widgetDict) {
+          Object.assign(variables, widgetDict);
+          variables.widget = {
+            name: 'widget',
+            type: 'object',
+            description: 'Current enclosing widget properties.',
+            children: widgetMetaProperties,
+          };
+        }
+
+        const symbols: Record<string, any> = {};
+        if (varName) {
+          symbols[varName] = { name: varName, scopeType: 'includable' };
+        }
+        if (inferredWidgetContext && widgetDict) {
+          for (const [propName, propDef] of Object.entries(widgetDict)) {
+            symbols[propName] = {
+              name: propName,
+              type: propDef.type,
+              scopeType: 'widget',
+              requiresDataPrefix: true,
+              metadata: { description: propDef.description },
+            };
+          }
+        }
+
         scopeEnv.pushScope('includable', {
           ...(includableId ? { id: includableId } : {}),
-          ...(varName ? { symbols: { [varName]: { name: varName, scopeType: 'includable' } } } : {}),
+          ...(Object.keys(symbols).length > 0 ? { symbols } : {}),
         });
       }
       else if (fullTag === 'b:loop') {
@@ -229,6 +362,9 @@ export class BloggerScopeTracker {
         widgetType,
         widgetId,
         includableId,
+        ...(inferredWidgetContext ? { inferredWidgetContext } : {}),
+        openTagStartOffset: tagStartOffset,
+        openTagEndOffset: tagEndOffset,
         startOffset: fullTag === 'b:widget' ? tagStartOffset : tagEndOffset,
         endOffset: text.length,
         variables,
@@ -371,14 +507,52 @@ export class BloggerScopeTracker {
     return match;
   }
 
+  public getIncludableBlockAtOffset(
+    documentKey: string,
+    version: number,
+    text: string,
+    offset: number,
+  ): BloggerScopeBlock | undefined {
+    const rootBlocks = this.getScopeBlocks(documentKey, version, text);
+    let match: BloggerScopeBlock | undefined;
+
+    function find(blocks: readonly BloggerScopeBlock[]) {
+      for (const block of blocks) {
+        if (block.tag === 'b:includable') {
+          const start = block.openTagStartOffset ?? block.startOffset;
+          if (offset >= start && offset <= block.endOffset) {
+            match = block;
+          }
+        }
+        if (block.children.length > 0) {
+          find(block.children);
+        }
+      }
+    }
+
+    find(rootBlocks);
+    return match;
+  }
+
   public getEnclosingWidgetType(
     documentKey: string,
     version: number,
     text: string,
     offset: number,
   ): string | undefined {
+    const includable = this.getIncludableBlockAtOffset(documentKey, version, text, offset);
+    if (includable?.inferredWidgetContext?.widgetType) {
+      return includable.inferredWidgetContext.widgetType;
+    }
+    if (includable?.widgetType && includable.widgetType !== 'Common') {
+      return includable.widgetType;
+    }
+
     let block = this.getInnermostBlockAtOffset(documentKey, version, text, offset);
     while (block) {
+      if (block.inferredWidgetContext?.widgetType) {
+        return block.inferredWidgetContext.widgetType;
+      }
       if (block.widgetType) {
         return block.widgetType;
       }

@@ -240,4 +240,42 @@ describe('bloggerPathResolver hover resolution', () => {
       expect(resolver.resolveHoverAtPosition(line, 999)).toBeUndefined();
     });
   });
+
+  describe('b:includable inferred widget scope hover in Common markup', () => {
+    it('should resolve hover on <b:includable> tag when inferred context exists', () => {
+      const line = '<b:includable id="widget:Header">';
+      const charIndex = line.indexOf('b:includable') + 2;
+      const result = resolver.resolveHoverAtPosition(line, charIndex, undefined, {
+        inferredWidgetContext: {
+          widgetType: 'Header',
+          source: 'convention',
+          ruleDetail: 'Inferred from ID convention \'widget:Header\'',
+        },
+      });
+
+      expect(result).toBeDefined();
+      expect(result?.hover.title).toBe('Includable (Common Markup)');
+      expect(result?.hover.description).toContain('**Associated Widget Scope:** `Header`');
+      expect(result?.hover.description).toContain('Inferred from ID convention \'widget:Header\'');
+      expect(result?.hover.description).toContain('> [!NOTE]');
+    });
+
+    it('should resolve hover on id attribute value when inferred context exists', () => {
+      const line = '<b:includable id="widget:Header">';
+      const charIndex = line.indexOf('widget:Header') + 2;
+      const result = resolver.resolveHoverAtPosition(line, charIndex, undefined, {
+        inferredWidgetContext: {
+          widgetType: 'Header',
+          source: 'convention',
+          ruleDetail: 'Inferred from ID convention \'widget:Header\'',
+        },
+      });
+
+      expect(result).toBeDefined();
+      expect(result?.hover.title).toBe('Includable: widget:Header (Common Markup)');
+      expect(result?.hover.category).toBe('attribute');
+      expect(result?.hover.description).toContain('**Associated Widget Scope:** `Header`');
+      expect(result?.hover.example).toBe('<b:include name=\'widget:Header\'/>');
+    });
+  });
 });

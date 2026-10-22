@@ -269,4 +269,69 @@ describe('unresolved <data:...> Substitution Tags Diagnostics', () => {
       expect(diagsDisabled.some(d => d.message.includes('Can\'t find substitution'))).toBe(false);
     });
   });
+
+  describe('common Markup Includables and Inferred Context', () => {
+    it('should resolve widget data in Common includable with widget:Header convention', () => {
+      const doc = `
+<b:defaultmarkups>
+  <b:defaultmarkup type='Common'>
+    <b:includable id='widget:Header'>
+      <data:title/>
+      <data:description/>
+    </b:includable>
+  </b:defaultmarkup>
+</b:defaultmarkups>`;
+      const diags = service.getDiagnostics(doc);
+      const warns = diags.filter(d => d.message.includes('Can\'t find substitution'));
+      expect(warns).toHaveLength(0);
+    });
+
+    it('should resolve widget data in Common includable with <!-- @widget Blog --> directive', () => {
+      const doc = `
+<b:defaultmarkups>
+  <b:defaultmarkup type='Common'>
+    <!-- @widget Blog -->
+    <b:includable id='articleCard'>
+      <data:posts/>
+      <data:newerPageUrl/>
+    </b:includable>
+  </b:defaultmarkup>
+</b:defaultmarkups>`;
+      const diags = service.getDiagnostics(doc);
+      const warns = diags.filter(d => d.message.includes('Can\'t find substitution'));
+      expect(warns).toHaveLength(0);
+    });
+
+    it('should emit tailored warning explaining Common markup context when no widget is inferred', () => {
+      const doc = `
+<b:defaultmarkups>
+  <b:defaultmarkup type='Common'>
+    <b:includable id='genericMacro'>
+      <data:posts/>
+    </b:includable>
+  </b:defaultmarkup>
+</b:defaultmarkups>`;
+      const diags = service.getDiagnostics(doc);
+      const warn = diags.find(d => d.message.includes('Can\'t find substitution for tag [posts]'));
+      expect(warn).toBeDefined();
+      expect(warn?.severity).toBe('warning');
+      expect(warn?.message).toBe(
+        '<!--Can\'t find substitution for tag [posts]--> This includable is in \'Common\' markup and has no associated widget context. If this macro is meant for a specific widget, declare \'<!-- @widget <WidgetType> -->\' or use the \'<WidgetType>:<id>\' naming convention.',
+      );
+    });
+
+    it('should suppress tailored Common markup warning when unresolvedData rule is disabled', () => {
+      const doc = `
+<b:defaultmarkups>
+  <b:defaultmarkup type='Common'>
+    <b:includable id='genericMacro'>
+      <data:posts/>
+    </b:includable>
+  </b:defaultmarkup>
+</b:defaultmarkups>`;
+      const diags = service.getDiagnostics(doc, { rules: { unresolvedData: false } });
+      const warns = diags.filter(d => d.message.includes('Can\'t find substitution'));
+      expect(warns).toHaveLength(0);
+    });
+  });
 });

@@ -3,6 +3,7 @@ import type {
   BloggerHoverResult,
   BloggerProperty,
 } from '../models/types.js';
+import type { InferredWidgetResolution } from '../scope/scopeTracker.js';
 import { getSpecCatalog } from 'blogger-spec/catalogs';
 import { resolveLambdaHoverAtPosition } from '../parser/exprParser.js';
 import { bloggerOperatorsCatalog } from './pathResolver.js';
@@ -32,6 +33,7 @@ export interface BloggerResolverContext {
   readonly lineSuffix?: string | undefined;
   readonly skinVariables?: SkinVariablesResolver | undefined;
   readonly skinSymbols?: SkinSymbolsResolver | undefined;
+  readonly inferredWidgetContext?: InferredWidgetResolution | undefined;
 }
 
 const HOVER_DATA_REGEX = /(?:^|[^\w:.])(data:[[\]\w.]*)/g;
@@ -158,6 +160,18 @@ export function resolveHoverCardAtPosition(
     const tokenEnd = tokenStart + match[0].length;
 
     if (character >= tokenStart && character <= tokenEnd) {
+      if (fullTagName === 'b:includable' && options?.inferredWidgetContext) {
+        const { widgetType, ruleDetail } = options.inferredWidgetContext;
+        return {
+          hover: {
+            title: 'Includable (Common Markup)',
+            category: 'tag',
+            description: `**Associated Widget Scope:** \`${widgetType}\`\n\n**Resolution Source:** ${ruleDetail}\n\n---\n\n> [!NOTE]\n> Expressions and \`<data:...>\` references inside this includable are evaluated assuming execution within a \`<b:widget type='${widgetType}'>\`.\n>\n> If this includable is invoked via \`<b:include>\` outside of a \`${widgetType}\` widget, runtime references to widget-specific data will fail or evaluate to empty in Blogger.`,
+          },
+          range: { start: tokenStart, end: tokenEnd },
+        };
+      }
+
       const tagDef = bloggerTags[fullTagName];
       if (tagDef) {
         return {
@@ -246,6 +260,19 @@ export function resolveHoverCardAtPosition(
       const fullContext = resolvedContext ? `${resolvedContext}\n${beforeAttr}` : beforeAttr;
       const tagMatch = TAG_CONTEXT_REGEX.exec(fullContext);
       const tagName = tagMatch?.[1];
+
+      if (tagName === 'b:includable' && attrName === 'id' && options?.inferredWidgetContext) {
+        const { widgetType, ruleDetail } = options.inferredWidgetContext;
+        return {
+          hover: {
+            title: `Includable: ${val} (Common Markup)`,
+            category: 'attribute',
+            description: `**Associated Widget Scope:** \`${widgetType}\`\n\n**Resolution Source:** ${ruleDetail}\n\n---\n\n> [!NOTE]\n> Expressions and \`<data:...>\` references inside this includable are evaluated assuming execution within a \`<b:widget type='${widgetType}'>\`.\n>\n> If this includable is invoked via \`<b:include>\` outside of a \`${widgetType}\` widget, runtime references to widget-specific data will fail or evaluate to empty in Blogger.`,
+            example: `<b:include name='${val}'/>`,
+          },
+          range: { start: valStart, end: valEnd },
+        };
+      }
 
       if (tagName === 'b:widget-setting' && attrName === 'name') {
         const widgetType = options?.widgetType;

@@ -864,6 +864,29 @@ export function lintBloggerDocument(
   const skinProps = buildSkinVariableProperties(skinSymbols);
   const dataTagRegex = /<data:([a-z_]\w*(?:\.[a-z_]\w*)*)(?:\s[^>]*?)?\/?>/gi;
 
+  function isCommonIncludableWithoutWidget(offset: number): boolean {
+    const enclosingIncludable = scopeTracker.getIncludableBlockAtOffset('linter_run', 1, documentText, offset);
+    if (!enclosingIncludable || enclosingIncludable.inferredWidgetContext) {
+      return false;
+    }
+    let parent = enclosingIncludable.parent;
+    while (parent) {
+      if (parent.tag === 'b:defaultmarkup') {
+        const mType = parent.widgetType?.toLowerCase();
+        return mType ? (mType.includes('common') || mType.includes('all')) : false;
+      }
+      parent = parent.parent;
+    }
+    return false;
+  }
+
+  function buildUnresolvedDataMessage(path: string, offset: number): string {
+    if (isCommonIncludableWithoutWidget(offset)) {
+      return `<!--Can't find substitution for tag [${path}]--> This includable is in 'Common' markup and has no associated widget context. If this macro is meant for a specific widget, declare '<!-- @widget <WidgetType> -->' or use the '<WidgetType>:<id>' naming convention.`;
+    }
+    return `<!--Can't find substitution for tag [${path}]-->`;
+  }
+
   for (const match of maskedText.matchAll(dataTagRegex)) {
     if (match.index === undefined) {
       continue;
@@ -939,7 +962,7 @@ export function lintBloggerDocument(
     if (!currentProp) {
       diagnostics.push({
         code: 'BX1025',
-        message: `<!--Can't find substitution for tag [${path}]-->`,
+        message: buildUnresolvedDataMessage(path, start),
         severity: 'warning',
         range,
       });
@@ -1029,7 +1052,7 @@ export function lintBloggerDocument(
     if (!isResolved) {
       diagnostics.push({
         code: 'BX1025',
-        message: `<!--Can't find substitution for tag [${path}]-->`,
+        message: buildUnresolvedDataMessage(path, start),
         severity: 'warning',
         range,
       });
