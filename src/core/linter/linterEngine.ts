@@ -12,6 +12,11 @@ import { bloggerGlobalRoot, getPropertyMembers, getWidgetDescriptor } from '../r
 import { buildSkinVariableProperties, extractSkinVariables } from '../resolver/skinVariableResolver.js';
 import { toBloggerDataType } from '../resolver/specModelAdapter.js';
 import { BloggerScopeTracker } from '../scope/scopeTracker.js';
+import {
+  buildSuppressionQuickFixes,
+  isDiagnosticSuppressed,
+  scanSuppressionDirectives,
+} from './linterSuppression.js';
 import { computeLineOffsets, createRange, maskComments } from './linterUtils.js';
 
 export { tokenizeExpression };
@@ -1061,42 +1066,63 @@ export function lintBloggerDocument(
 
   // 9. Filter by options if specified
   const rules = options?.rules;
-  if (!rules) {
-    return diagnostics;
+  const filtered = rules
+    ? diagnostics.filter((diag) => {
+        const ruleDef = catalog.getDiagnostic(diag.code as BloggerDiagnosticCode);
+        const category = ruleDef?.category;
+
+        if (rules.unresolvedData === false && diag.message.startsWith('<!--Can\'t find substitution for tag')) {
+          return false;
+        }
+
+        if (rules.deprecations === false && (category === 'deprecation' || diag.tags?.includes('deprecated'))) {
+          return false;
+        }
+        if (rules.hallucinations === false && category === 'hallucination') {
+          return false;
+        }
+        if (rules.quotas === false && category === 'quota') {
+          return false;
+        }
+        if (rules.context === false && category === 'runtime') {
+          return false;
+        }
+        if (rules.duplicates === false && (diag.code === 'BX1033' || diag.code === 'BX1036')) {
+          return false;
+        }
+        if (rules.inclusions === false && diag.code === 'BX1037') {
+          return false;
+        }
+        if (rules.attributes === false && (diag.code === 'BX1022' || diag.code === 'BX1039' || diag.code === 'BX1040' || diag.code === 'BX1042')) {
+          return false;
+        }
+        if (rules.structure === false && (category === 'structure' || diag.code === 'BX1023' || diag.code === 'BX1034' || diag.code === 'BX1035' || diag.code === 'BX1041')) {
+          return false;
+        }
+        return true;
+      })
+    : diagnostics;
+
+  // 10. Filter by comment suppression directives and attach suppression QuickFixes
+  const suppressionDirectives = scanSuppressionDirectives(documentText, lineOffsets);
+  const finalDiagnostics: BloggerDiagnostic[] = [];
+
+  for (const diag of filtered) {
+    if (isDiagnosticSuppressed(diag, suppressionDirectives)) {
+      continue;
+    }
+
+    const suppressionFixes = options?.includeSuppressionFixes
+      ? buildSuppressionQuickFixes(diag, lineOffsets, documentText)
+      : [];
+    const existingFixes = diag.quickFixes ?? [];
+    const mergedFixes = [...existingFixes, ...suppressionFixes];
+
+    finalDiagnostics.push({
+      ...diag,
+      quickFixes: mergedFixes.length > 0 ? mergedFixes : undefined,
+    });
   }
 
-  return diagnostics.filter((diag) => {
-    const ruleDef = catalog.getDiagnostic(diag.code as BloggerDiagnosticCode);
-    const category = ruleDef?.category;
-
-    if (rules.unresolvedData === false && diag.message.startsWith('<!--Can\'t find substitution for tag')) {
-      return false;
-    }
-
-    if (rules.deprecations === false && (category === 'deprecation' || diag.tags?.includes('deprecated'))) {
-      return false;
-    }
-    if (rules.hallucinations === false && category === 'hallucination') {
-      return false;
-    }
-    if (rules.quotas === false && category === 'quota') {
-      return false;
-    }
-    if (rules.context === false && category === 'runtime') {
-      return false;
-    }
-    if (rules.duplicates === false && (diag.code === 'BX1033' || diag.code === 'BX1036')) {
-      return false;
-    }
-    if (rules.inclusions === false && diag.code === 'BX1037') {
-      return false;
-    }
-    if (rules.attributes === false && (diag.code === 'BX1022' || diag.code === 'BX1039' || diag.code === 'BX1040' || diag.code === 'BX1042')) {
-      return false;
-    }
-    if (rules.structure === false && (category === 'structure' || diag.code === 'BX1023' || diag.code === 'BX1034' || diag.code === 'BX1035' || diag.code === 'BX1041')) {
-      return false;
-    }
-    return true;
-  });
+  return finalDiagnostics;
 }

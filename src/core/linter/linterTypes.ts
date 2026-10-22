@@ -46,4 +46,5 @@ export interface LinterRuleOptions {
 
 export interface LinterOptions {
   readonly rules?: LinterRuleOptions | undefined;
+  readonly includeSuppressionFixes?: boolean | undefined;
 }
