@@ -302,6 +302,57 @@ describe('unresolved <data:...> Substitution Tags Diagnostics', () => {
       expect(warns).toHaveLength(0);
     });
 
+    it('should resolve inherited parameters in decoupled includables with @widget Blog (post, this)', () => {
+      const doc = `
+<b:defaultmarkups>
+  <b:defaultmarkup type='Common'>
+    <!-- @widget Blog (post, this) -->
+    <b:includable id='comment:form'>
+      <data:post.allowNewComments/>
+      <data:post.cmtfpIframe/>
+      <data:this.newerPageUrl/>
+      <data:this.messages.postAComment/>
+    </b:includable>
+  </b:defaultmarkup>
+</b:defaultmarkups>`;
+      const diags = service.getDiagnostics(doc);
+      const warns = diags.filter(d => d.message.includes('Can\'t find substitution'));
+      expect(warns).toHaveLength(0);
+    });
+
+    it('should warn for invalid property on inherited parameter', () => {
+      const doc = `
+<b:defaultmarkups>
+  <b:defaultmarkup type='Common'>
+    <!-- @widget Blog (post) -->
+    <b:includable id='comment:form'>
+      <data:post.allowNewComments/>
+      <data:post.invalidField123/>
+    </b:includable>
+  </b:defaultmarkup>
+</b:defaultmarkups>`;
+      const diags = service.getDiagnostics(doc);
+      const warn = diags.find(d => d.message.includes('Can\'t find substitution for tag [post.invalidField123]'));
+      expect(warn).toBeDefined();
+      expect(warn?.severity).toBe('warning');
+    });
+
+    it('should resolve inherited parameters with bracket notation <!-- @widget Blog [post, this] -->', () => {
+      const doc = `
+<b:defaultmarkups>
+  <b:defaultmarkup type='Common'>
+    <b:includable id='comment:header'>
+      <!-- @widget Blog [post, this] -->
+      <data:post.author.name/>
+      <data:this.posts/>
+    </b:includable>
+  </b:defaultmarkup>
+</b:defaultmarkups>`;
+      const diags = service.getDiagnostics(doc);
+      const warns = diags.filter(d => d.message.includes('Can\'t find substitution'));
+      expect(warns).toHaveLength(0);
+    });
+
     it('should emit tailored warning explaining Common markup context when no widget is inferred', () => {
       const doc = `
 <b:defaultmarkups>

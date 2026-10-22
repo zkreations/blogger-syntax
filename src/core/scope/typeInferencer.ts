@@ -15,6 +15,7 @@ import {
   createArrayProperties,
   labelItemProperties,
   linkItemProperties,
+  messagesProperties,
   singlePostProperties,
   WIDGET_DATA_DICTIONARIES,
 } from '../resolver/dataModel.js';
@@ -479,7 +480,15 @@ export function inferIncludableVariables(
         name: 'this',
         type: 'object',
         description: `Current ${enclosingWidgetType} widget data context.`,
-        children: WIDGET_DATA_DICTIONARIES[enclosingWidgetType],
+        children: {
+          ...WIDGET_DATA_DICTIONARIES[enclosingWidgetType],
+          messages: {
+            name: 'messages',
+            type: 'object',
+            description: 'Localized Blogger UI message dictionary.',
+            children: messagesProperties,
+          },
+        },
       };
       return result;
     }

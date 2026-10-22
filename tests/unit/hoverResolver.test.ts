@@ -277,5 +277,23 @@ describe('bloggerPathResolver hover resolution', () => {
       expect(result?.hover.description).toContain('**Associated Widget Scope:** `Header`');
       expect(result?.hover.example).toBe('<b:include name=\'widget:Header\'/>');
     });
+
+    it('should include inherited context in hover when inheritedParams are declared', () => {
+      const line = '<b:includable id="comment:form">';
+      const charIndex = line.indexOf('b:includable') + 2;
+      const result = resolver.resolveHoverAtPosition(line, charIndex, undefined, {
+        inferredWidgetContext: {
+          widgetType: 'Blog',
+          source: 'directive',
+          ruleDetail: 'Inferred from comment directive \'<!-- @widget Blog (post, comment) -->\'',
+          inheritedParams: ['post', 'comment'],
+        },
+      });
+
+      expect(result).toBeDefined();
+      expect(result?.hover.description).toContain('**Associated Widget Scope:** `Blog`');
+      expect(result?.hover.description).toContain('**Inherited Context:** `post`, `comment`');
+      expect(result?.hover.description).toContain('Inferred from comment directive \'<!-- @widget Blog (post, comment) -->\'');
+    });
   });
 });

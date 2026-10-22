@@ -161,12 +161,15 @@ export function resolveHoverCardAtPosition(
 
     if (character >= tokenStart && character <= tokenEnd) {
       if (fullTagName === 'b:includable' && options?.inferredWidgetContext) {
-        const { widgetType, ruleDetail } = options.inferredWidgetContext;
+        const { widgetType, ruleDetail, inheritedParams } = options.inferredWidgetContext;
+        const inheritedInfo = inheritedParams && inheritedParams.length > 0
+          ? `\n\n**Inherited Context:** ${inheritedParams.map(p => `\`${p}\``).join(', ')}`
+          : '';
         return {
           hover: {
             title: 'Includable (Common Markup)',
             category: 'tag',
-            description: `**Associated Widget Scope:** \`${widgetType}\`\n\n**Resolution Source:** ${ruleDetail}\n\n---\n\n> [!NOTE]\n> Expressions and \`<data:...>\` references inside this includable are evaluated assuming execution within a \`<b:widget type='${widgetType}'>\`.\n>\n> If this includable is invoked via \`<b:include>\` outside of a \`${widgetType}\` widget, runtime references to widget-specific data will fail or evaluate to empty in Blogger.`,
+            description: `**Associated Widget Scope:** \`${widgetType}\`${inheritedInfo}\n\n**Resolution Source:** ${ruleDetail}\n\n---\n\n> [!NOTE]\n> Expressions and \`<data:...>\` references inside this includable are evaluated assuming execution within a \`<b:widget type='${widgetType}'>\`.\n>\n> If this includable is invoked via \`<b:include>\` outside of a \`${widgetType}\` widget, runtime references to widget-specific data will fail or evaluate to empty in Blogger.`,
           },
           range: { start: tokenStart, end: tokenEnd },
         };
@@ -262,12 +265,15 @@ export function resolveHoverCardAtPosition(
       const tagName = tagMatch?.[1];
 
       if (tagName === 'b:includable' && attrName === 'id' && options?.inferredWidgetContext) {
-        const { widgetType, ruleDetail } = options.inferredWidgetContext;
+        const { widgetType, ruleDetail, inheritedParams } = options.inferredWidgetContext;
+        const inheritedInfo = inheritedParams && inheritedParams.length > 0
+          ? `\n\n**Inherited Context:** ${inheritedParams.map(p => `\`${p}\``).join(', ')}`
+          : '';
         return {
           hover: {
             title: `Includable: ${val} (Common Markup)`,
             category: 'attribute',
-            description: `**Associated Widget Scope:** \`${widgetType}\`\n\n**Resolution Source:** ${ruleDetail}\n\n---\n\n> [!NOTE]\n> Expressions and \`<data:...>\` references inside this includable are evaluated assuming execution within a \`<b:widget type='${widgetType}'>\`.\n>\n> If this includable is invoked via \`<b:include>\` outside of a \`${widgetType}\` widget, runtime references to widget-specific data will fail or evaluate to empty in Blogger.`,
+            description: `**Associated Widget Scope:** \`${widgetType}\`${inheritedInfo}\n\n**Resolution Source:** ${ruleDetail}\n\n---\n\n> [!NOTE]\n> Expressions and \`<data:...>\` references inside this includable are evaluated assuming execution within a \`<b:widget type='${widgetType}'>\`.\n>\n> If this includable is invoked via \`<b:include>\` outside of a \`${widgetType}\` widget, runtime references to widget-specific data will fail or evaluate to empty in Blogger.`,
             example: `<b:include name='${val}'/>`,
           },
           range: { start: valStart, end: valEnd },

@@ -30,6 +30,7 @@ export interface InferredWidgetResolution {
   readonly widgetType: string;
   readonly source: 'directive' | 'convention';
   readonly ruleDetail: string;
+  readonly inheritedParams?: readonly string[] | undefined;
 }
 
 export interface BloggerScopeBlock {
@@ -55,35 +56,53 @@ function getCanonicalWidgetType(name: string): string | undefined {
   return CANONICAL_WIDGET_TYPES.find(w => w.toLowerCase() === name.toLowerCase());
 }
 
+function parseDirectiveMatch(match: RegExpExecArray): InferredWidgetResolution | undefined {
+  const rawWidgetName = match[1];
+  if (!rawWidgetName) {
+    return undefined;
+  }
+  const canonical = getCanonicalWidgetType(rawWidgetName);
+  if (!canonical) {
+    return undefined;
+  }
+
+  const rawParams = match[2] ?? match[3];
+  const inheritedParams = rawParams
+    ? rawParams.split(/[,\s]+/).map(p => p.trim()).filter(Boolean)
+    : undefined;
+  const hasParams = Boolean(inheritedParams && inheritedParams.length > 0);
+
+  return {
+    widgetType: canonical,
+    source: 'directive',
+    ruleDetail: hasParams
+      ? `Inferred from comment directive '<!-- @widget ${canonical} (${inheritedParams!.join(', ')}) -->'`
+      : `Inferred from comment directive '<!-- @widget ${canonical} -->'`,
+    ...(hasParams ? { inheritedParams } : {}),
+  };
+}
+
 export function inferIncludableWidgetType(
   includableId: string | undefined,
   precedingText?: string,
   insideText?: string,
 ): InferredWidgetResolution | undefined {
   if (precedingText) {
-    const match = /<!--\s*@widget\s+(\w+)\s*-->\s*$/.exec(precedingText);
-    if (match?.[1]) {
-      const canonical = getCanonicalWidgetType(match[1]);
-      if (canonical) {
-        return {
-          widgetType: canonical,
-          source: 'directive',
-          ruleDetail: `Inferred from comment directive '<!-- @widget ${canonical} -->'`,
-        };
+    const match = /<!--\s*@widget\s+([\w-]+)(?:\s*(?:\(([^)]*)\)|\[([^\]]*)\]))?\s*-->\s*$/.exec(precedingText);
+    if (match) {
+      const res = parseDirectiveMatch(match);
+      if (res) {
+        return res;
       }
     }
   }
 
   if (insideText) {
-    const match = /^\s*<!--\s*@widget\s+(\w+)\s*-->/.exec(insideText);
-    if (match?.[1]) {
-      const canonical = getCanonicalWidgetType(match[1]);
-      if (canonical) {
-        return {
-          widgetType: canonical,
-          source: 'directive',
-          ruleDetail: `Inferred from comment directive '<!-- @widget ${canonical} -->'`,
-        };
+    const match = /^\s*<!--\s*@widget\s+([\w-]+)(?:\s*(?:\(([^)]*)\)|\[([^\]]*)\]))?\s*-->/.exec(insideText);
+    if (match) {
+      const res = parseDirectiveMatch(match);
+      if (res) {
+        return res;
       }
     }
   }
@@ -284,9 +303,9 @@ export class BloggerScopeTracker {
           ? enclosingBlock.widgetType.split(',').map(s => s.trim().toLowerCase()).some(t => t === 'common' || t === 'all')
           : false;
 
-        if (isCommonMarkup) {
-          const precedingText = text.slice(Math.max(0, tagStartOffset - 250), tagStartOffset);
-          const insideText = text.slice(tagEndOffset, Math.min(text.length, tagEndOffset + 250));
+        const precedingText = text.slice(Math.max(0, tagStartOffset - 250), tagStartOffset);
+        const insideText = text.slice(tagEndOffset, Math.min(text.length, tagEndOffset + 250));
+        if (isCommonMarkup || !enclosingBlock?.widgetType || precedingText.includes('@widget') || insideText.includes('@widget')) {
           inferredWidgetContext = inferIncludableWidgetType(includableId, precedingText, insideText);
           if (inferredWidgetContext) {
             widgetType = inferredWidgetContext.widgetType;
@@ -311,6 +330,13 @@ export class BloggerScopeTracker {
           };
         }
 
+        if (inferredWidgetContext?.inheritedParams) {
+          for (const param of inferredWidgetContext.inheritedParams) {
+            const paramVars = inferIncludableVariables(param, undefined, activeVarsAtOpen, widgetType);
+            Object.assign(variables, paramVars);
+          }
+        }
+
         const symbols: Record<string, any> = {};
         if (varName) {
           symbols[varName] = { name: varName, scopeType: 'includable' };
@@ -323,6 +349,17 @@ export class BloggerScopeTracker {
               scopeType: 'widget',
               requiresDataPrefix: true,
               metadata: { description: propDef.description },
+            };
+          }
+        }
+        if (inferredWidgetContext?.inheritedParams) {
+          for (const param of inferredWidgetContext.inheritedParams) {
+            const propDef = variables[param];
+            symbols[param] = {
+              name: param,
+              type: propDef?.type ?? 'object',
+              scopeType: 'includable',
+              metadata: { description: propDef?.description },
             };
           }
         }
