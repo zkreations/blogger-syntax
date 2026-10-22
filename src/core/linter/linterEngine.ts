@@ -1,5 +1,6 @@
 import type { BloggerDiagnosticCode } from 'blogger-spec';
 import type { BloggerStructureDiagnostic } from 'blogger-spec/parser';
+import type { BloggerProperty } from '../models/types.js';
 import type { BloggerDiagnostic, BloggerQuickFix, BloggerTextEdit, LinterOptions } from './linterTypes.js';
 import { STRICTLY_SELF_CLOSING_TAGS } from 'blogger-spec';
 import { getSpecCatalog } from 'blogger-spec/catalogs';
@@ -7,7 +8,10 @@ import { parseExpression, scanDirectiveTokens, validateTemplateStructure } from 
 import { tokenizeExpression } from 'blogger-spec/quota';
 import { getSkinTypeModifiers } from 'blogger-spec/type-system';
 import { findIncludableDefinition } from '../navigation/definitionResolver.js';
-import { extractSkinVariables } from '../resolver/skinVariableResolver.js';
+import { bloggerGlobalRoot, getPropertyMembers, getWidgetDescriptor } from '../resolver/dataModel.js';
+import { buildSkinVariableProperties, extractSkinVariables } from '../resolver/skinVariableResolver.js';
+import { toBloggerDataType } from '../resolver/specModelAdapter.js';
+import { BloggerScopeTracker } from '../scope/scopeTracker.js';
 import { computeLineOffsets, createRange, maskComments } from './linterUtils.js';
 
 export { tokenizeExpression };
@@ -788,8 +792,8 @@ export function lintBloggerDocument(
     }
   }
 
-  // 7. Validate data:skin.vars in template expressions and data tags (outside b:skin)
-  const skinVarUsageRegex = /\bdata:skin\.vars\.([a-zA-Z_]\w*(?:\.[a-zA-Z_]\w*)*)\b/g;
+  // 7. Validate data:skin.vars in template expressions (outside b:skin)
+  const skinVarUsageRegex = /(?<!<)\bdata:skin\.vars\.([a-z_]\w*(?:\.[a-z_]\w*)*)\b/gi;
   for (const match of maskedText.matchAll(skinVarUsageRegex)) {
     if (match.index === undefined) {
       continue;
@@ -855,7 +859,184 @@ export function lintBloggerDocument(
     }
   }
 
-  // 5. Filter by options if specified
+  // 8. Validate unresolved <data:...> substitution tags in template
+  const scopeTracker = new BloggerScopeTracker();
+  const skinProps = buildSkinVariableProperties(skinSymbols);
+  const dataTagRegex = /<data:([a-z_]\w*(?:\.[a-z_]\w*)*)(?:\s[^>]*?)?\/?>/gi;
+
+  for (const match of maskedText.matchAll(dataTagRegex)) {
+    if (match.index === undefined) {
+      continue;
+    }
+    const fullTag = match[0];
+    const path = match[1]!;
+    const start = match.index;
+    const end = start + fullTag.length;
+
+    // Skip if tag already has syntax errors (prohibited bracket indexing BX1032 or operators BX1048)
+    const hasSyntaxError = specDiagnostics.some(
+      sd => (sd.code === 'BX1032' || (sd.code as string) === 'BX1048')
+        && sd.tagStart !== undefined && sd.tagStart <= end
+        && sd.tagEnd !== undefined && sd.tagEnd >= start,
+    );
+    if (hasSyntaxError) {
+      continue;
+    }
+
+    const range = createRange(lineOffsets, start, end);
+    const activeVars = scopeTracker.getActiveVariables('linter_run', 1, documentText, start);
+
+    const segments = path.split('.');
+    const first = segments[0]!;
+
+    // Check if user wrote skin.vars with dots instead of underscores (e.g. skin.vars.admin.name)
+    if (segments[0] === 'skin' && segments[1] === 'vars' && segments.length > 2) {
+      const rest = segments.slice(2).join('.');
+      const normalizedRest = rest.replace(/\./g, '_');
+      if (!(rest in skinSymbols) && (normalizedRest in skinSymbols)) {
+        diagnostics.push({
+          code: 'BX1025',
+          message: `<!--Can't find substitution for tag [${path}]-->`,
+          severity: 'warning',
+          range,
+          quickFixes: [{
+            title: `Replace with 'data:skin.vars.${normalizedRest}'`,
+            newText: `<data:skin.vars.${normalizedRest}/>`,
+            range,
+            isPreferred: true,
+          }],
+        });
+        continue;
+      }
+    }
+
+    let currentProp: BloggerProperty | undefined = first === 'widget'
+      ? activeVars.widget
+      : (activeVars[first] ?? bloggerGlobalRoot[first]);
+
+    if (!currentProp) {
+      if (first === 'messages') {
+        currentProp = { name: 'messages', type: 'object' };
+      }
+      else if (first === 'widgets') {
+        currentProp = bloggerGlobalRoot.widgets;
+      }
+      else if (first === 'skin') {
+        currentProp = bloggerGlobalRoot.skin;
+      }
+      else if (first !== 'widget') {
+        const globalDef = catalog.getGlobal(`data:${first}`) ?? catalog.getGlobal(first);
+        if (globalDef) {
+          currentProp = {
+            name: first,
+            type: (globalDef.cardinality === 'collection' ? 'array' : 'object'),
+            description: globalDef.description,
+          };
+        }
+      }
+    }
+
+    if (!currentProp) {
+      diagnostics.push({
+        code: 'BX1025',
+        message: `<!--Can't find substitution for tag [${path}]-->`,
+        severity: 'warning',
+        range,
+      });
+      continue;
+    }
+
+    if (segments.length === 1) {
+      continue;
+    }
+
+    let isResolved = true;
+    for (let s = 1; s < segments.length; s++) {
+      const seg = segments[s]!;
+
+      // Special case: skin.vars
+      if (currentProp.name === 'skin' && seg === 'vars') {
+        if (s + 1 < segments.length) {
+          const varId = segments[s + 1]!;
+          const skinProp = skinProps[varId];
+          if (!skinProp) {
+            isResolved = false;
+            break;
+          }
+          currentProp = skinProp;
+          s++;
+          continue;
+        }
+        else {
+          break;
+        }
+      }
+
+      // Special case: messages.key
+      if (currentProp.name === 'messages') {
+        const msg = catalog.getMessage(seg);
+        if (!msg) {
+          isResolved = false;
+          break;
+        }
+        currentProp = { name: seg, type: 'string', description: msg.description };
+        continue;
+      }
+
+      // Special case: widgets.WidgetId
+      if (currentProp.name === 'widgets') {
+        const descriptorProps = getWidgetDescriptor(seg);
+        currentProp = {
+          name: seg,
+          type: 'object',
+          children: descriptorProps,
+        };
+        continue;
+      }
+
+      // Property members
+      const members = getPropertyMembers(currentProp);
+      if (members && Object.keys(members).length > 0) {
+        if (seg in members) {
+          currentProp = members[seg]!;
+          continue;
+        }
+
+        const skinMod = getSkinTypeModifiers(currentProp.type);
+        if (seg in skinMod) {
+          const modDef = skinMod[seg]!;
+          currentProp = {
+            name: seg,
+            type: toBloggerDataType(modDef.output_type),
+            description: modDef.description,
+          };
+          continue;
+        }
+
+        isResolved = false;
+        break;
+      }
+      else {
+        // Open/untyped object (e.g. generic parameter in b:includable without inferred type)
+        if (currentProp.type === 'object' || currentProp.type === 'unknown') {
+          break;
+        }
+        isResolved = false;
+        break;
+      }
+    }
+
+    if (!isResolved) {
+      diagnostics.push({
+        code: 'BX1025',
+        message: `<!--Can't find substitution for tag [${path}]-->`,
+        severity: 'warning',
+        range,
+      });
+    }
+  }
+
+  // 9. Filter by options if specified
   const rules = options?.rules;
   if (!rules) {
     return diagnostics;
@@ -864,6 +1045,10 @@ export function lintBloggerDocument(
   return diagnostics.filter((diag) => {
     const ruleDef = catalog.getDiagnostic(diag.code as BloggerDiagnosticCode);
     const category = ruleDef?.category;
+
+    if (rules.unresolvedData === false && diag.message.startsWith('<!--Can\'t find substitution for tag')) {
+      return false;
+    }
 
     if (rules.deprecations === false && (category === 'deprecation' || diag.tags?.includes('deprecated'))) {
       return false;

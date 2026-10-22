@@ -41,6 +41,7 @@ export interface LinterRuleOptions {
   readonly inclusions?: boolean | undefined;
   readonly attributes?: boolean | undefined;
   readonly structure?: boolean | undefined;
+  readonly unresolvedData?: boolean | undefined;
 }
 
 export interface LinterOptions {

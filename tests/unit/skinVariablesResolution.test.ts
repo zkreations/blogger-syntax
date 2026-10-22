@@ -455,18 +455,18 @@ $(primary.unknownMod)
       expect(err?.message).toContain('Unknown modifier "unknownMod" for skin variable "primary" of type "color"');
     });
 
-    it('should report error for undeclared variable in XML data tag (<data:skin.vars.otracosa/>)', () => {
+    it('should report warning for unresolvable variable in XML data tag (<data:skin.vars.otracosa/>)', () => {
       const doc = `<b:skin><![CDATA[
 <Variable name="name" type="string"/>
 ]]></b:skin>
 <data:skin.vars.otracosa/>`;
 
       const diags = service.getDiagnostics(doc);
-      const err = diags.find(d => d.code === 'BX1025' && d.message.includes('otracosa'));
+      const warn = diags.find(d => d.code === 'BX1025' && d.message.includes('skin.vars.otracosa'));
 
-      expect(err).toBeDefined();
-      expect(err?.severity).toBe('error');
-      expect(err?.message).toContain('Undeclared skin variable "otracosa"');
+      expect(warn).toBeDefined();
+      expect(warn?.severity).toBe('warning');
+      expect(warn?.message).toBe('<!--Can\'t find substitution for tag [skin.vars.otracosa]-->');
     });
 
     it('should report error in expressions (expr:class="data:skin.vars.otracosa")', () => {
@@ -482,33 +482,33 @@ $(primary.unknownMod)
       expect(err?.severity).toBe('error');
     });
 
-    it('should report error with quick fix when data:skin.vars uses dots instead of underscores for dotted variables', () => {
+    it('should report warning with quick fix when data:skin.vars uses dots instead of underscores for dotted variables', () => {
       const doc = `<b:skin><![CDATA[
 <Variable name="admin.name" type="string"/>
 ]]></b:skin>
 <data:skin.vars.admin.name/>`;
 
       const diags = service.getDiagnostics(doc);
-      const err = diags.find(d => d.code === 'BX1025' && d.message.includes('admin'));
+      const warn = diags.find(d => d.code === 'BX1025' && d.message.includes('skin.vars.admin.name'));
 
-      expect(err).toBeDefined();
-      expect(err?.severity).toBe('error');
-      expect(err?.message).toContain('dots in variable names must be replaced with underscores');
-      expect(err?.quickFixes?.[0]?.newText).toBe('data:skin.vars.admin_name');
+      expect(warn).toBeDefined();
+      expect(warn?.severity).toBe('warning');
+      expect(warn?.message).toBe('<!--Can\'t find substitution for tag [skin.vars.admin.name]-->');
+      expect(warn?.quickFixes?.[0]?.newText).toContain('data:skin.vars.admin_name');
     });
 
-    it('should report error for unknown modifier on valid variable in data:skin.vars.<var>.<mod>', () => {
+    it('should report warning for unknown modifier on valid variable in data:skin.vars.<var>.<mod>', () => {
       const doc = `<b:skin><![CDATA[
 <Variable name="primary" type="color"/>
 ]]></b:skin>
 <data:skin.vars.primary.invalidMod/>`;
 
       const diags = service.getDiagnostics(doc);
-      const err = diags.find(d => d.code === 'BX1025' && d.message.includes('invalidMod'));
+      const warn = diags.find(d => d.code === 'BX1025' && d.message.includes('primary.invalidMod'));
 
-      expect(err).toBeDefined();
-      expect(err?.severity).toBe('error');
-      expect(err?.message).toContain('Unknown modifier "invalidMod" for skin variable "primary" of type "color"');
+      expect(warn).toBeDefined();
+      expect(warn?.severity).toBe('warning');
+      expect(warn?.message).toBe('<!--Can\'t find substitution for tag [skin.vars.primary.invalidMod]-->');
     });
 
     it('should work identically inside b:template-skin', () => {
