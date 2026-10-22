@@ -26,6 +26,7 @@ import {
   bloggerGlobalRoot,
   getCategorizedPropertyMembers,
   WIDGET_DATA_DICTIONARIES,
+  widgetMetaProperties,
 } from './dataModel.js';
 import {
   resolveHoverAtPosition as resolveHoverAtPositionDirect,
@@ -208,6 +209,24 @@ export class BloggerPathResolver {
             });
           }
           else if (isWidget) {
+            suggestions.push({
+              name: prop.name,
+              type: prop.type,
+              description: prop.description,
+              example: `data:${prop.name}`,
+              deprecated: prop.deprecated,
+              kind: 'property',
+              categoryBadge: widgetType ? `Widget: ${widgetType}` : 'Widget',
+              sortPriority: 10,
+            });
+          }
+        }
+      }
+
+      if (widgetDict) {
+        for (const [name, prop] of Object.entries(widgetDict)) {
+          if (!seen.has(name)) {
+            seen.add(name);
             suggestions.push({
               name: prop.name,
               type: prop.type,
@@ -716,6 +735,12 @@ export class BloggerPathResolver {
         || /(?:^|\s)([\w:-]+)(?:\s[^>]*)?$/.exec(beforeAttr);
       const tagName = tagMatch?.[1];
 
+      const inlineWidgetType = tagName === 'b:widget'
+        ? (/\btype\s*=\s*["']([^"']+)["']/.exec(beforeAttr)?.[1]
+          ?? (options?.lineSuffix ? /\btype\s*=\s*["']([^"']+)["']/.exec(options.lineSuffix)?.[1] : undefined))
+        : undefined;
+      const effectiveWidgetType = options?.widgetType ?? inlineWidgetType;
+
       if (attrName === 'name') {
         if (tagName === 'b:include') {
           const suggestions: BloggerSuggestion[] = [];
@@ -777,7 +802,7 @@ export class BloggerPathResolver {
 
         if (tagName === 'b:widget-setting') {
           return {
-            suggestions: getWidgetSettingsSuggestions(options?.widgetType),
+            suggestions: getWidgetSettingsSuggestions(effectiveWidgetType),
             replacementLength: typedText.length,
           };
         }
@@ -869,15 +894,30 @@ export class BloggerPathResolver {
       }
 
       if (isExpressionAttribute(attrName, tagName)) {
-        const localVariables = resolveLocalVariables(options?.localVariables);
+        let localVariables = resolveLocalVariables(options?.localVariables);
+        if (effectiveWidgetType && WIDGET_DATA_DICTIONARIES[effectiveWidgetType]) {
+          localVariables = {
+            ...WIDGET_DATA_DICTIONARIES[effectiveWidgetType],
+            widget: {
+              name: 'widget',
+              type: 'object',
+              description: 'Current enclosing widget properties.',
+              children: widgetMetaProperties,
+            },
+            ...(localVariables ?? {}),
+          };
+        }
+
         return this.resolveExpressionContext(
           typedText,
           localVariables,
           attrName === 'values' && tagName === 'b:loop',
           options?.lineSuffix,
-          options?.widgetType,
+          effectiveWidgetType,
         );
       }
+
+      return undefined;
     }
 
     const tagAttrContext = parseTagAttributeContext(linePrefix);

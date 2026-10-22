@@ -216,7 +216,7 @@ export class BloggerScopeTracker {
         widgetType,
         widgetId,
         includableId,
-        startOffset: tagEndOffset,
+        startOffset: fullTag === 'b:widget' ? tagStartOffset : tagEndOffset,
         endOffset: text.length,
         variables,
         children: [],

@@ -411,5 +411,91 @@ describe('contextualCompletion and Hover', () => {
       expect(labels).toContain('blog');
       expect(items.items.every(item => item.kind !== vscode.CompletionItemKind.Operator)).toBe(true);
     });
+
+    it('should suggest widget data and globals inside <b:widget id="Header1" type="Header" cond="data:">', () => {
+      const lines = [
+        '<b:widget id="Header1" type="Header" cond="data:">',
+        '  <b:includable id="main">',
+        '  </b:includable>',
+        '</b:widget>',
+      ];
+      const doc = createMockDocument(lines, 'file:///widgetCondData.xml');
+      const position = new vscode.Position(0, '<b:widget id="Header1" type="Header" cond="data:'.length);
+
+      const items = completionProvider.provideCompletionItems(doc, position) as vscode.CompletionList;
+      expect(items).toBeDefined();
+      expect(items.items.length).toBeGreaterThan(0);
+
+      const labels = items.items.map(getItemLabel);
+      expect(labels).toContain('title');
+      expect(labels).toContain('description');
+      expect(labels).toContain('blog');
+      expect(labels).toContain('view');
+    });
+
+    it('should suggest widget data and globals inside <b:widget id="Header1" type="Header" expr:class="data:">', () => {
+      const lines = [
+        '<b:widget id="Header1" type="Header" expr:class="data:">',
+        '</b:widget>',
+      ];
+      const doc = createMockDocument(lines, 'file:///widgetExprClassData.xml');
+      const position = new vscode.Position(0, '<b:widget id="Header1" type="Header" expr:class="data:'.length);
+
+      const items = completionProvider.provideCompletionItems(doc, position) as vscode.CompletionList;
+      expect(items).toBeDefined();
+
+      const labels = items.items.map(getItemLabel);
+      expect(labels).toContain('title');
+      expect(labels).toContain('description');
+      expect(labels).toContain('blog');
+    });
+
+    it('should NOT suggest data: expressions inside static attribute <b:widget id="data:">', () => {
+      const lines = ['<b:widget id="data:" type="Header">'];
+      const doc = createMockDocument(lines, 'file:///widgetIdData.xml');
+      const position = new vscode.Position(0, '<b:widget id="data:'.length);
+
+      const items = completionProvider.provideCompletionItems(doc, position);
+      expect(items).toBeUndefined();
+    });
+
+    it('should NOT suggest data: expressions inside static attribute <div class="data:">', () => {
+      const lines = ['<div class="data:"></div>'];
+      const doc = createMockDocument(lines, 'file:///divClassData.xml');
+      const position = new vscode.Position(0, '<div class="data:'.length);
+
+      const items = completionProvider.provideCompletionItems(doc, position);
+      expect(items).toBeUndefined();
+    });
+
+    it('should suggest data: expressions inside <div expr:class="data:">', () => {
+      const lines = ['<div expr:class="data:"></div>'];
+      const doc = createMockDocument(lines, 'file:///divExprClassData.xml');
+      const position = new vscode.Position(0, '<div expr:class="data:'.length);
+
+      const items = completionProvider.provideCompletionItems(doc, position) as vscode.CompletionList;
+      expect(items).toBeDefined();
+      const labels = items.items.map(getItemLabel);
+      expect(labels).toContain('blog');
+      expect(labels).toContain('view');
+    });
+
+    it('should NOT suggest data: expressions inside static attribute <b:loop var="data:">', () => {
+      const lines = ['<b:loop values="data:posts" var="data:">'];
+      const doc = createMockDocument(lines, 'file:///loopVarData.xml');
+      const position = new vscode.Position(0, '<b:loop values="data:posts" var="data:'.length);
+
+      const items = completionProvider.provideCompletionItems(doc, position);
+      expect(items).toBeUndefined();
+    });
+
+    it('should NOT suggest data: expressions inside static attribute <b:widget title="data:">', () => {
+      const lines = ['<b:widget id="Header1" type="Header" title="data:">'];
+      const doc = createMockDocument(lines, 'file:///widgetTitleData.xml');
+      const position = new vscode.Position(0, '<b:widget id="Header1" type="Header" title="data:'.length);
+
+      const items = completionProvider.provideCompletionItems(doc, position);
+      expect(items).toBeUndefined();
+    });
   });
 });
