@@ -1,3 +1,4 @@
+import type { BloggerSkinVariableSymbol } from 'blogger-spec/data-path';
 import type {
   BloggerHoverResult,
   BloggerProperty,
@@ -6,6 +7,7 @@ import { getSpecCatalog } from 'blogger-spec/catalogs';
 import { resolveLambdaHoverAtPosition } from '../parser/exprParser.js';
 import { bloggerOperatorsCatalog } from './pathResolver.js';
 import { navigatePropertyPath } from './propertyHierarchy.js';
+import { resolveSkinCssHover } from './skinVariableResolver.js';
 import {
   bloggerCommonAttributes,
   bloggerExprPrefixInfo,
@@ -19,6 +21,7 @@ export interface BloggerIncludablesInfo {
 
 export type LocalVariablesResolver = Record<string, BloggerProperty> | (() => Record<string, BloggerProperty>);
 export type SkinVariablesResolver = Record<string, BloggerProperty> | (() => Record<string, BloggerProperty>);
+export type SkinSymbolsResolver = Record<string, BloggerSkinVariableSymbol> | (() => Record<string, BloggerSkinVariableSymbol>);
 
 export interface BloggerResolverContext {
   readonly localVariables?: LocalVariablesResolver | undefined;
@@ -28,6 +31,7 @@ export interface BloggerResolverContext {
   readonly nearestOpenTag?: string | undefined;
   readonly lineSuffix?: string | undefined;
   readonly skinVariables?: SkinVariablesResolver | undefined;
+  readonly skinSymbols?: SkinSymbolsResolver | undefined;
 }
 
 const HOVER_DATA_REGEX = /(?:^|[^\w:.])(data:[[\]\w.]*)/g;
@@ -42,6 +46,10 @@ export function resolveLocalVariables(resolver?: LocalVariablesResolver): Record
 }
 
 export function resolveSkinVariables(resolver?: SkinVariablesResolver): Record<string, BloggerProperty> | undefined {
+  return typeof resolver === 'function' ? resolver() : resolver;
+}
+
+export function resolveSkinSymbols(resolver?: SkinSymbolsResolver): Record<string, BloggerSkinVariableSymbol> | undefined {
   return typeof resolver === 'function' ? resolver() : resolver;
 }
 
@@ -333,6 +341,15 @@ export function resolveHoverAtPosition(
   precedingContext?: string | (() => string | undefined),
   options?: BloggerResolverContext,
 ): BloggerHoverResult | undefined {
+  const isSkinContext = options?.nearestOpenTag === 'b:skin' || options?.nearestOpenTag === 'b:template-skin' || !options?.nearestOpenTag;
+  if (isSkinContext) {
+    const skinSymbols = resolveSkinSymbols(options?.skinSymbols);
+    const cssHover = resolveSkinCssHover(lineText, character, skinSymbols);
+    if (cssHover) {
+      return cssHover;
+    }
+  }
+
   const skinVars = resolveSkinVariables(options?.skinVariables);
   return resolveHoverCardAtPosition(
     (segments, localVars) => navigatePropertyPath(segments, localVars, undefined, skinVars)?.target,

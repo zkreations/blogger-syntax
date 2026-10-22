@@ -1,3 +1,4 @@
+import type { BloggerSkinVariableSymbol } from 'blogger-spec/data-path';
 import type { Token } from '../linter/linterEngine.js';
 import type {
   BloggerDataType,
@@ -31,9 +32,11 @@ import {
 import {
   resolveHoverAtPosition as resolveHoverAtPositionDirect,
   resolveLocalVariables,
+  resolveSkinSymbols,
   resolveSkinVariables,
 } from './hoverCardResolver.js';
 import { navigatePropertyPath } from './propertyHierarchy.js';
+import { resolveSkinCssVariables } from './skinVariableResolver.js';
 
 import { bloggerTags, hasAttributeValueCompletions, isExpressionAttribute, parseTagAttributeContext, resolveBloggerTagSuggestions, resolveDefaultMarkupTypesSuggestions, resolveDescriptionsSuggestions, resolveSkinVariableTypesSuggestions, resolveTagAttributeSuggestions, resolveWidgetTypesSuggestions } from './tagAttributeResolver.js';
 
@@ -303,6 +306,13 @@ export class BloggerPathResolver {
       categoryBadge: isSkinVars ? 'Theme' : 'Property',
       sortPriority: 0,
     }));
+  }
+
+  public resolveSkinCssVariables(
+    linePrefix: string,
+    skinSymbols?: Record<string, BloggerSkinVariableSymbol>,
+  ): BloggerResolveResult | undefined {
+    return resolveSkinCssVariables(linePrefix, skinSymbols);
   }
 
   private resolveDataOrLambda(
@@ -954,6 +964,17 @@ export class BloggerPathResolver {
     const bareExprResult = this.resolveDataOrLambda(linePrefix, localVars, options?.widgetType, skinVars);
     if (bareExprResult) {
       return bareExprResult;
+    }
+
+    const isSkinContext = options?.nearestOpenTag === 'b:skin' || options?.nearestOpenTag === 'b:template-skin' || !options?.nearestOpenTag;
+    if (isSkinContext) {
+      const skinSymbols = resolveSkinSymbols(options?.skinSymbols);
+      if (skinSymbols) {
+        const cssResult = resolveSkinCssVariables(linePrefix, skinSymbols);
+        if (cssResult) {
+          return cssResult;
+        }
+      }
     }
 
     const tagMatch = TAG_PREFIX_REGEX.exec(linePrefix);

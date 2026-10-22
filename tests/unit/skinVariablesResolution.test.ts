@@ -80,6 +80,9 @@ describe('theme Designer Skin Variables (data:skin.vars.*)', () => {
 
       // Descriptions and examples
       expect(props.admin_name?.description).toContain('Admin Name');
+      expect(props.admin_name?.description).toContain('**Value:** `Abel`');
+      expect(props.primary?.description).toContain('**Default:** `#fff`');
+      expect(props.primary?.description).toContain('**Value:** `#fff`');
       expect(props.fuente?.children?.family?.example).toBe('data:skin.vars.body_font.family');
       expect(props.primary?.children?.red?.example).toBe('data:skin.vars.keycolor.red');
     });
@@ -224,6 +227,20 @@ describe('theme Designer Skin Variables (data:skin.vars.*)', () => {
       expect(hoverResult).toBeDefined();
       expect(hoverResult?.hover.title).toBe('data:skin.vars.admin_name');
       expect(hoverResult?.hover.description).toContain('Admin Name');
+      expect(hoverResult?.hover.description).toContain('**Value:** `Abel`');
+    });
+
+    it('should provide hover information with default and value for data:skin.vars.primary', () => {
+      const doc = `${EMPIRICAL_TEMPLATE}\n<data:skin.vars.primary/>`;
+      const targetStr = 'data:skin.vars.primary';
+      const offset = doc.lastIndexOf(targetStr) + 5;
+
+      const hoverResult = service.getHover(doc, offset, { docKey: 'primary_hover.xml', version: 1 });
+      expect(hoverResult).toBeDefined();
+      expect(hoverResult?.hover.title).toBe('data:skin.vars.primary');
+      expect(hoverResult?.hover.description).toContain('Accents');
+      expect(hoverResult?.hover.description).toContain('**Default:** `#fff`');
+      expect(hoverResult?.hover.description).toContain('**Value:** `#fff`');
     });
 
     it('should provide hover information for font modifier data:skin.vars.fuente.family', () => {
@@ -244,6 +261,115 @@ describe('theme Designer Skin Variables (data:skin.vars.*)', () => {
 
       const hoverResult = service.getHover(doc, offset, { docKey: 'test.xml', version: 1 });
       expect(hoverResult).toBeUndefined();
+    });
+  });
+
+  describe('css Skin Variables ($ and $(...)) inside <b:skin>', () => {
+    const service = new TemplateLanguageService();
+
+    it('should suggest declared variables on bare $ inside b:skin CDATA', () => {
+      const doc = `<b:skin><![CDATA[\n<Variable name="name" type="string"/>\n<Variable name="admin.name" type="string"/>\nbody { color: $`;
+      const offset = doc.length;
+
+      const result = service.getCompletions(doc, offset, { docKey: 'skin_bare.xml', version: 1 });
+      expect(result).toBeDefined();
+
+      const names = result!.suggestions.map(s => s.name);
+      expect(names).toContain('name');
+      expect(names).toContain('admin.name');
+      expect(names).not.toContain('otracosa');
+
+      // admin.name contains a dot, so in CSS it must insert (admin.name)
+      const adminSug = result!.suggestions.find(s => s.name === 'admin.name');
+      expect(adminSug?.insertText).toBe('(admin.name)');
+
+      // name has no dot, so insertText can be plain name
+      const nameSug = result!.suggestions.find(s => s.name === 'name');
+      expect(nameSug?.insertText).toBe('name');
+    });
+
+    it('should suggest variables on $( inside b:skin CDATA', () => {
+      const doc = `<b:skin><![CDATA[\n<Variable name="name" type="string"/>\n<Variable name="admin.name" type="string"/>\nbody { color: $(`;
+      const offset = doc.length;
+
+      const result = service.getCompletions(doc, offset, { docKey: 'skin_paren.xml', version: 1 });
+      expect(result).toBeDefined();
+
+      const names = result!.suggestions.map(s => s.name);
+      expect(names).toContain('name');
+      expect(names).toContain('admin.name');
+    });
+
+    it('should suggest color modifiers on $(primary. inside b:skin CDATA', () => {
+      const doc = `<b:skin><![CDATA[\n<Variable name="primary" type="color"/>\nbody { color: $(primary.`;
+      const offset = doc.length;
+
+      const result = service.getCompletions(doc, offset, { docKey: 'skin_color.xml', version: 1 });
+      expect(result).toBeDefined();
+
+      const names = result!.suggestions.map(s => s.name);
+      expect(names).toContain('red');
+      expect(names).toContain('green');
+      expect(names).toContain('blue');
+      expect(names).toContain('alpha');
+      expect(names).toContain('transparent');
+      expect(names).toContain('inverse');
+    });
+
+    it('should suggest font modifiers on $(fuente. inside b:skin CDATA', () => {
+      const doc = `<b:skin><![CDATA[\n<Variable name="fuente" type="font"/>\nbody { font: $(fuente.`;
+      const offset = doc.length;
+
+      const result = service.getCompletions(doc, offset, { docKey: 'skin_font.xml', version: 1 });
+      expect(result).toBeDefined();
+
+      const names = result!.suggestions.map(s => s.name);
+      expect(names).toEqual(['family', 'size']);
+    });
+
+    it('should not suggest skin CSS variables outside b:skin', () => {
+      const doc = `<b:skin><![CDATA[\n<Variable name="name" type="string"/>\n]]></b:skin>\n<b:widget id="b1" type="Blog"><b:includable id="main">\n$`;
+      const offset = doc.length;
+
+      const result = service.getCompletions(doc, offset, { docKey: 'outside_test.xml', version: 1 });
+      expect(result).toBeUndefined();
+    });
+
+    it('should provide hover information for $name and $(admin.name) in CSS', () => {
+      const doc = `<b:skin><![CDATA[\n<Variable name="name" description="My Name" type="string" default="Default Name" value="My Name"/>\n<Variable name="admin.name" description="Admin Name" type="string" value="Abel"/>\nbody { color: $name; background: $(admin.name); }\n]]></b:skin>`;
+
+      const nameOffset = doc.indexOf('$name') + 2;
+      const hoverName = service.getHover(doc, nameOffset, { docKey: 'hover_name_admin.xml', version: 1 });
+      expect(hoverName).toBeDefined();
+      expect(hoverName?.hover.title).toBe('$name');
+      expect(hoverName?.hover.description).toContain('My Name');
+      expect(hoverName?.hover.description).toContain('**Default:** `Default Name`');
+      expect(hoverName?.hover.description).toContain('**Value:** `My Name`');
+
+      const adminOffset = doc.indexOf('$(admin.name)') + 3;
+      const hoverAdmin = service.getHover(doc, adminOffset, { docKey: 'hover_name_admin.xml', version: 1 });
+      expect(hoverAdmin).toBeDefined();
+      expect(hoverAdmin?.hover.title).toBe('$(admin.name)');
+      expect(hoverAdmin?.hover.description).toContain('Admin Name');
+      expect(hoverAdmin?.hover.description).toContain('**Value:** `Abel`');
+    });
+
+    it('should provide hover for $(primary.red) in CSS', () => {
+      const doc = `<b:skin><![CDATA[\n<Variable name="primary" type="color"/>\nbody { color: $(primary.red); }\n]]></b:skin>`;
+      const redOffset = doc.indexOf('$(primary.red)') + 3;
+
+      const hoverRed = service.getHover(doc, redOffset, { docKey: 'hover_color_mod.xml', version: 1 });
+      expect(hoverRed).toBeDefined();
+      expect(hoverRed?.hover.title).toBe('$(primary.red)');
+      expect(hoverRed?.hover.description).toContain('Red channel');
+    });
+
+    it('should not provide hover for undeclared CSS variable $otracosa', () => {
+      const doc = `<b:skin><![CDATA[\n<Variable name="name" type="string"/>\nbody { color: $otracosa; }\n]]></b:skin>`;
+      const offset = doc.indexOf('$otracosa') + 2;
+
+      const hover = service.getHover(doc, offset, { docKey: 'hover_undeclared.xml', version: 1 });
+      expect(hover).toBeUndefined();
     });
   });
 });
