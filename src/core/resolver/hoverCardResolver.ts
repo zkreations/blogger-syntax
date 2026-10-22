@@ -18,6 +18,7 @@ export interface BloggerIncludablesInfo {
 }
 
 export type LocalVariablesResolver = Record<string, BloggerProperty> | (() => Record<string, BloggerProperty>);
+export type SkinVariablesResolver = Record<string, BloggerProperty> | (() => Record<string, BloggerProperty>);
 
 export interface BloggerResolverContext {
   readonly localVariables?: LocalVariablesResolver | undefined;
@@ -26,6 +27,7 @@ export interface BloggerResolverContext {
   readonly enclosingMessageName?: string | undefined;
   readonly nearestOpenTag?: string | undefined;
   readonly lineSuffix?: string | undefined;
+  readonly skinVariables?: SkinVariablesResolver | undefined;
 }
 
 const HOVER_DATA_REGEX = /(?:^|[^\w:.])(data:[[\]\w.]*)/g;
@@ -36,6 +38,10 @@ const HOVER_ATTR_VAL_REGEX = /\b([\w:-]+)\s*=\s*(["'])([^"']*)\2/g;
 const TAG_CONTEXT_REGEX = /<([\w:-]+)(?:\s[^>]*)?$/;
 
 export function resolveLocalVariables(resolver?: LocalVariablesResolver): Record<string, BloggerProperty> | undefined {
+  return typeof resolver === 'function' ? resolver() : resolver;
+}
+
+export function resolveSkinVariables(resolver?: SkinVariablesResolver): Record<string, BloggerProperty> | undefined {
   return typeof resolver === 'function' ? resolver() : resolver;
 }
 
@@ -327,8 +333,9 @@ export function resolveHoverAtPosition(
   precedingContext?: string | (() => string | undefined),
   options?: BloggerResolverContext,
 ): BloggerHoverResult | undefined {
+  const skinVars = resolveSkinVariables(options?.skinVariables);
   return resolveHoverCardAtPosition(
-    (segments, localVars) => navigatePropertyPath(segments, localVars)?.target,
+    (segments, localVars) => navigatePropertyPath(segments, localVars, undefined, skinVars)?.target,
     lineText,
     character,
     precedingContext,

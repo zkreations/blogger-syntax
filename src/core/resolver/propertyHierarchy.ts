@@ -24,6 +24,7 @@ export function navigatePropertyPath(
   segments: readonly string[],
   localVariables?: Record<string, BloggerProperty>,
   rootTree: Record<string, BloggerProperty> = bloggerGlobalRoot,
+  skinVariables?: Record<string, BloggerProperty>,
 ): PropertyNavigationResult | undefined {
   if (segments.length === 0) {
     return undefined;
@@ -79,6 +80,13 @@ export function navigatePropertyPath(
     }
 
     let nextProp = currentMap[segment];
+
+    if (nextProp && nextProp.name === 'vars' && targetProperty.name === 'skin' && skinVariables) {
+      nextProp = {
+        ...nextProp,
+        children: skinVariables,
+      };
+    }
 
     // Handle array indexing (e.g. 0, [0], i)
     if (!nextProp && targetProperty.type === 'array' && targetProperty.itemChildren) {

@@ -74,6 +74,9 @@ export class TemplateLanguageService {
     const getLocalVariables = () => {
       return this.scopeTracker.getActiveVariables(docKey, version, documentText, offset);
     };
+    const getSkinVariables = () => {
+      return this.scopeTracker.getSkinVariableProperties(docKey, version, documentText);
+    };
 
     const widgetType = this.scopeTracker.getEnclosingWidgetType(docKey, version, documentText, offset);
     const includables = this.scopeTracker.getAvailableIncludables(docKey, version, documentText, offset);
@@ -87,6 +90,7 @@ export class TemplateLanguageService {
       enclosingMessageName,
       nearestOpenTag,
       lineSuffix,
+      skinVariables: getSkinVariables,
     };
 
     let result = this.pathResolver.resolveFromLinePrefix(linePrefix, resolverContext);
@@ -147,6 +151,9 @@ export class TemplateLanguageService {
     const getLocalVariables = () => {
       return this.scopeTracker.getActiveVariables(docKey, version, documentText, offset);
     };
+    const getSkinVariables = () => {
+      return this.scopeTracker.getSkinVariableProperties(docKey, version, documentText);
+    };
 
     const widgetType = this.scopeTracker.getEnclosingWidgetType(docKey, version, documentText, offset);
     const enclosingMessageName = this.scopeTracker.getEnclosingMessageName(documentText, offset);
@@ -165,7 +172,7 @@ export class TemplateLanguageService {
       lineText,
       character,
       getPrecedingContext,
-      { localVariables: getLocalVariables, widgetType, enclosingMessageName },
+      { localVariables: getLocalVariables, widgetType, enclosingMessageName, skinVariables: getSkinVariables },
     );
 
     if (!result) {

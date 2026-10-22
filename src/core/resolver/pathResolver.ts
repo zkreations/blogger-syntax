@@ -31,6 +31,7 @@ import {
 import {
   resolveHoverAtPosition as resolveHoverAtPositionDirect,
   resolveLocalVariables,
+  resolveSkinVariables,
 } from './hoverCardResolver.js';
 import { navigatePropertyPath } from './propertyHierarchy.js';
 
@@ -167,24 +168,27 @@ export class BloggerPathResolver {
   private navigatePath(
     segments: readonly string[],
     localVariables?: Record<string, BloggerProperty>,
+    skinVariables?: Record<string, BloggerProperty>,
   ): PropertyNavigationResult | undefined {
-    return navigatePropertyPath(segments, localVariables, this.rootTree);
+    return navigatePropertyPath(segments, localVariables, this.rootTree, skinVariables);
   }
 
   public resolvePropertyFromPath(
     segments: readonly string[],
     localVariables?: Record<string, BloggerProperty>,
+    skinVariables?: Record<string, BloggerProperty>,
   ): BloggerProperty | undefined {
     if (segments.length === 0) {
       return undefined;
     }
-    return this.navigatePath(segments, localVariables)?.target;
+    return this.navigatePath(segments, localVariables, skinVariables)?.target;
   }
 
   public resolveDataPath(
     segments: readonly string[],
     localVariables?: Record<string, BloggerProperty>,
     widgetType?: string,
+    skinVariables?: Record<string, BloggerProperty>,
   ): readonly BloggerSuggestion[] {
     if (segments.length === 0) {
       const suggestions: BloggerSuggestion[] = [];
@@ -260,12 +264,15 @@ export class BloggerPathResolver {
       return suggestions;
     }
 
-    const node = this.navigatePath(segments, localVariables);
+    const node = this.navigatePath(segments, localVariables, skinVariables);
     if (!node?.target || !node?.children) {
       return [];
     }
 
     const basePath = segments.join('.');
+    const isSkinVars = segments.length === 2 && segments[0] === 'skin' && segments[1] === 'vars';
+    const isSkinVarChild = segments.length === 3 && segments[0] === 'skin' && segments[1] === 'vars';
+
     const categorized = getCategorizedPropertyMembers(node.target);
     if (categorized && categorized.length > 0) {
       return categorized.map(m => ({
@@ -274,16 +281,26 @@ export class BloggerPathResolver {
         description: m.property.description,
         example: m.property.example ?? `data:${basePath}.${m.property.name}`,
         deprecated: m.property.deprecated,
-        kind: 'property',
-        detail: `(Blogger Data: ${m.property.type.charAt(0).toUpperCase() + m.property.type.slice(1)})`,
-        categoryBadge: m.categoryBadge,
+        kind: isSkinVars ? ('variable' as const) : 'property',
+        detail: isSkinVars
+          ? `(Theme Variable: ${m.property.type})`
+          : isSkinVarChild
+            ? `(Theme Modifier: ${m.property.type.charAt(0).toUpperCase() + m.property.type.slice(1)})`
+            : `(Blogger Data: ${m.property.type.charAt(0).toUpperCase() + m.property.type.slice(1)})`,
+        categoryBadge: isSkinVars ? 'Theme' : m.categoryBadge,
         sortPriority: m.sortPriority,
       }));
     }
 
     return Object.values(node.children).map(prop => ({
       ...this.mapPropertyToSuggestion(prop, basePath),
-      categoryBadge: 'Property',
+      kind: isSkinVars ? ('variable' as const) : 'property',
+      detail: isSkinVars
+        ? `(Theme Variable: ${prop.type})`
+        : isSkinVarChild
+          ? `(Theme Modifier: ${prop.type.charAt(0).toUpperCase() + prop.type.slice(1)})`
+          : undefined,
+      categoryBadge: isSkinVars ? 'Theme' : 'Property',
       sortPriority: 0,
     }));
   }
@@ -292,6 +309,7 @@ export class BloggerPathResolver {
     text: string,
     localVariables?: Record<string, BloggerProperty>,
     widgetType?: string,
+    skinVariables?: Record<string, BloggerProperty>,
   ): BloggerResolveResult | undefined {
     // 1. Data path context (data: or data:path. or data:path.partial)
     const dataMatch = DATA_PREFIX_REGEX.exec(text);
@@ -301,7 +319,7 @@ export class BloggerPathResolver {
 
       if (rawPath === '') {
         return {
-          suggestions: this.resolveDataPath([], localVariables, widgetType),
+          suggestions: this.resolveDataPath([], localVariables, widgetType, skinVariables),
           replacementLength: 0,
         };
       }
@@ -310,7 +328,7 @@ export class BloggerPathResolver {
         const normalized = rawPath.slice(0, -1).replace(/\[/g, '.').replace(/\]/g, '');
         const segments = normalized.split('.').filter(Boolean);
         return {
-          suggestions: this.resolveDataPath(segments, localVariables, widgetType),
+          suggestions: this.resolveDataPath(segments, localVariables, widgetType, skinVariables),
           replacementLength: 0,
         };
       }
@@ -319,7 +337,7 @@ export class BloggerPathResolver {
       const segments = normalized.split('.').filter(Boolean);
       const lastSegment = segments.pop() ?? '';
       return {
-        suggestions: this.resolveDataPath(segments, localVariables, widgetType),
+        suggestions: this.resolveDataPath(segments, localVariables, widgetType, skinVariables),
         replacementLength: lastSegment.length,
       };
     }
@@ -397,8 +415,9 @@ export class BloggerPathResolver {
     isLoopContext: boolean = false,
     lineSuffix?: string,
     widgetType?: string,
+    skinVariables?: Record<string, BloggerProperty>,
   ): BloggerResolveResult | undefined {
-    const dataOrLambda = this.resolveDataOrLambda(expressionText, localVariables, widgetType);
+    const dataOrLambda = this.resolveDataOrLambda(expressionText, localVariables, widgetType, skinVariables);
     if (dataOrLambda) {
       return dataOrLambda;
     }
@@ -895,6 +914,7 @@ export class BloggerPathResolver {
 
       if (isExpressionAttribute(attrName, tagName)) {
         let localVariables = resolveLocalVariables(options?.localVariables);
+        const skinVars = resolveSkinVariables(options?.skinVariables);
         if (effectiveWidgetType && WIDGET_DATA_DICTIONARIES[effectiveWidgetType]) {
           localVariables = {
             ...WIDGET_DATA_DICTIONARIES[effectiveWidgetType],
@@ -914,6 +934,7 @@ export class BloggerPathResolver {
           attrName === 'values' && tagName === 'b:loop',
           options?.lineSuffix,
           effectiveWidgetType,
+          skinVars,
         );
       }
 
@@ -929,7 +950,8 @@ export class BloggerPathResolver {
     }
 
     const localVars = resolveLocalVariables(options?.localVariables);
-    const bareExprResult = this.resolveDataOrLambda(linePrefix, localVars, options?.widgetType);
+    const skinVars = resolveSkinVariables(options?.skinVariables);
+    const bareExprResult = this.resolveDataOrLambda(linePrefix, localVars, options?.widgetType, skinVars);
     if (bareExprResult) {
       return bareExprResult;
     }

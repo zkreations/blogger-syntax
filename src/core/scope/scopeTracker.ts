@@ -1,3 +1,4 @@
+import type { BloggerSkinVariableSymbol } from 'blogger-spec/data-path';
 import type { BloggerProperty } from '../models/types.js';
 import type { ForwardedIncludeItem } from './typeInferencer.js';
 import { getSpecCatalog } from 'blogger-spec/catalogs';
@@ -8,6 +9,10 @@ import {
   WIDGET_DATA_DICTIONARIES,
   widgetMetaProperties,
 } from '../resolver/dataModel.js';
+import {
+  buildSkinVariableProperties,
+  extractSkinVariables,
+} from '../resolver/skinVariableResolver.js';
 import {
   inferIncludableVariables,
   inferLoopVariables,
@@ -54,7 +59,15 @@ function findEnclosingWidgetOrMarkup(stack: readonly BloggerScopeBlock[]): Blogg
 }
 
 export class BloggerScopeTracker {
-  private readonly documentCache = new Map<string, { version: number; rootBlocks: BloggerScopeBlock[] }>();
+  private readonly documentCache = new Map<
+    string,
+    {
+      version: number;
+      rootBlocks: BloggerScopeBlock[];
+      skinVariableSymbols?: Record<string, BloggerSkinVariableSymbol> | undefined;
+      skinVariableProperties?: Record<string, BloggerProperty> | undefined;
+    }
+  >();
 
   public parseScopes(text: string): BloggerScopeBlock[] {
     const rootBlocks: BloggerScopeBlock[] = [];
@@ -264,13 +277,74 @@ export class BloggerScopeTracker {
 
   public getScopeBlocks(documentKey: string, version: number, text: string): BloggerScopeBlock[] {
     const cached = this.documentCache.get(documentKey);
-    if (cached && cached.version === version) {
+    if (cached && cached.version === version && cached.rootBlocks.length > 0) {
       return cached.rootBlocks;
     }
 
     const rootBlocks = this.parseScopes(text);
-    this.documentCache.set(documentKey, { version, rootBlocks });
+    if (cached && cached.version === version) {
+      cached.rootBlocks = rootBlocks;
+    }
+    else {
+      this.documentCache.set(documentKey, { version, rootBlocks });
+    }
     return rootBlocks;
+  }
+
+  public getSkinVariableProperties(
+    documentKey: string,
+    version: number,
+    text: string,
+  ): Record<string, BloggerProperty> {
+    const cached = this.documentCache.get(documentKey);
+    if (cached && cached.version === version && cached.skinVariableProperties) {
+      return cached.skinVariableProperties;
+    }
+
+    const symbols = cached && cached.version === version && cached.skinVariableSymbols
+      ? cached.skinVariableSymbols
+      : extractSkinVariables(text);
+    const properties = buildSkinVariableProperties(symbols);
+
+    if (cached && cached.version === version) {
+      cached.skinVariableSymbols = symbols;
+      cached.skinVariableProperties = properties;
+    }
+    else {
+      this.documentCache.set(documentKey, {
+        version,
+        rootBlocks: [],
+        skinVariableSymbols: symbols,
+        skinVariableProperties: properties,
+      });
+    }
+
+    return properties;
+  }
+
+  public getSkinVariableSymbols(
+    documentKey: string,
+    version: number,
+    text: string,
+  ): Record<string, BloggerSkinVariableSymbol> {
+    const cached = this.documentCache.get(documentKey);
+    if (cached && cached.version === version && cached.skinVariableSymbols) {
+      return cached.skinVariableSymbols;
+    }
+
+    const symbols = extractSkinVariables(text);
+    if (cached && cached.version === version) {
+      cached.skinVariableSymbols = symbols;
+    }
+    else {
+      this.documentCache.set(documentKey, {
+        version,
+        rootBlocks: [],
+        skinVariableSymbols: symbols,
+      });
+    }
+
+    return symbols;
   }
 
   public getInnermostBlockAtOffset(
