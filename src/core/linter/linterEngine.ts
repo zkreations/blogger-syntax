@@ -1,4 +1,5 @@
 import type { BloggerDiagnosticCode } from 'blogger-spec';
+import type { BloggerStructureDiagnostic } from 'blogger-spec/parser';
 import type { BloggerDiagnostic, BloggerQuickFix, BloggerTextEdit, LinterOptions } from './linterTypes.js';
 import { STRICTLY_SELF_CLOSING_TAGS } from 'blogger-spec';
 import { getSpecCatalog } from 'blogger-spec/catalogs';
@@ -266,7 +267,7 @@ export function lintBloggerDocument(
   const maskedText = maskComments(documentText);
   const tokens = scanDirectiveTokens(documentText, { catalog });
 
-  const specDiagnostics = validateTemplateStructure(tokens, catalog, {
+  const specDiagnostics: readonly BloggerStructureDiagnostic[] = validateTemplateStructure(tokens, catalog, {
     validateExpressions: true,
   });
 
