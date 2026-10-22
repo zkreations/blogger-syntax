@@ -328,14 +328,21 @@ export function lintBloggerDocument(
         });
       }
     }
-    else if (sd.code === 'BX1019' && sd.tagStart !== undefined && sd.tagEnd !== undefined) {
-      const rawText = documentText.slice(sd.tagStart, sd.tagEnd);
-      const iteratorName = rawText.startsWith('data:')
-        ? rawText.slice(5)
-        : (/lambda iterator property 'data:([^']+)'/i.exec(sd.message)?.[1] ?? rawText.replace(/^data:/, ''));
+    else if (sd.suggestedReplacement !== undefined && sd.tagStart !== undefined && sd.tagEnd !== undefined) {
+      let title = `Replace with '${sd.suggestedReplacement}'`;
+      if (sd.code === 'BX1038') {
+        title = `Replace with boolean literal '${sd.suggestedReplacement}'`;
+      }
+      else if (sd.code === 'BX1019') {
+        title = `Remove redundant 'data:' prefix (use '${sd.suggestedReplacement}')`;
+      }
+      else if ((sd.code as string) === 'BX1049') {
+        title = 'Insert whitespace after \':\'';
+      }
+
       quickFixes.push({
-        title: `Remove redundant 'data:' prefix (use '${iteratorName}')`,
-        newText: iteratorName,
+        title,
+        newText: sd.suggestedReplacement,
         range,
         isPreferred: true,
       });
@@ -347,17 +354,6 @@ export function lintBloggerDocument(
       quickFixes.push({
         title: `Rewrite unary negation as '${newText}'`,
         newText,
-        range,
-        isPreferred: true,
-      });
-    }
-    else if (sd.code === 'BX1038' && sd.tagStart !== undefined && sd.tagEnd !== undefined) {
-      const rawText = documentText.slice(sd.tagStart, sd.tagEnd);
-      const unquoted = rawText.replace(/^['"]|['"]$/g, '');
-      const boolVal = unquoted.toLowerCase() === 'true' ? 'true' : 'false';
-      quickFixes.push({
-        title: `Replace with boolean literal '${boolVal}'`,
-        newText: boolVal,
         range,
         isPreferred: true,
       });
@@ -438,15 +434,6 @@ export function lintBloggerDocument(
           });
         }
       }
-    }
-    else if ((sd.code as string) === 'BX1049' && sd.tagStart !== undefined && sd.tagEnd !== undefined) {
-      const insertRange = createRange(lineOffsets, sd.tagEnd, sd.tagEnd);
-      quickFixes.push({
-        title: 'Insert whitespace after \':\'',
-        newText: ' ',
-        range: insertRange,
-        isPreferred: true,
-      });
     }
     else if (sd.rule?.replacement && !sd.rule.replacement.includes('...') && sd.tagStart !== undefined && sd.tagEnd !== undefined) {
       quickFixes.push({

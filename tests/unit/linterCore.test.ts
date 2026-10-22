@@ -710,6 +710,36 @@ describe('linter core engine', () => {
       expect(diag2).toBeDefined();
       expect(diag2?.quickFixes).toHaveLength(1);
       expect(diag2?.quickFixes?.[0]?.newText).toBe('true');
+
+      const xml3 = '<b:eval expr="data:skin.vars.c_newer == &quot;true&quot; ? true : false"/>';
+      const diags3 = lintBloggerDocument(xml3);
+      const diag3 = diags3.find(d => d.code === 'BX1038');
+
+      expect(diag3).toBeDefined();
+      expect(diag3?.quickFixes).toHaveLength(1);
+      expect(diag3?.quickFixes?.[0]?.newText).toBe('true');
+
+      const xml4 = '<b:eval expr="data:skin.vars.c_newer == &quot;false&quot; ? true : false"/>';
+      const diags4 = lintBloggerDocument(xml4);
+      const diag4 = diags4.find(d => d.code === 'BX1038');
+
+      expect(diag4).toBeDefined();
+      expect(diag4?.quickFixes).toHaveLength(1);
+      expect(diag4?.quickFixes?.[0]?.newText).toBe('false');
+    });
+
+    it('offers accurate quick fixes for strict equality operators (BX1018)', () => {
+      const xmlEq = `<b:eval expr='data:a === data:b'/>`;
+      const diagsEq = lintBloggerDocument(xmlEq);
+      const diagEq = diagsEq.find(d => d.code === 'BX1018');
+      expect(diagEq).toBeDefined();
+      expect(diagEq?.quickFixes?.[0]?.newText).toBe('==');
+
+      const xmlNeq = `<b:eval expr='data:a !== data:b'/>`;
+      const diagsNeq = lintBloggerDocument(xmlNeq);
+      const diagNeq = diagsNeq.find(d => d.code === 'BX1018');
+      expect(diagNeq).toBeDefined();
+      expect(diagNeq?.quickFixes?.[0]?.newText).toBe('!=');
     });
 
     it('flags primitive scalar payload in b:include data attribute (BX1031) and offers wrapping quick fix', () => {
@@ -786,7 +816,7 @@ describe('linter core engine', () => {
       expect(diag).toBeDefined();
       expect(diag?.severity).toBe('error');
       expect(diag?.quickFixes).toHaveLength(1);
-      expect(diag?.quickFixes?.[0]?.newText).toBe(' ');
+      expect(diag?.quickFixes?.[0]?.newText).toBe(': ');
       expect(diag?.quickFixes?.[0]?.title).toBe('Insert whitespace after \':\'');
 
       const xmlValid = `<b:eval expr='data:blog.homepageUrl params { m: "1" }'/>`;
