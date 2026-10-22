@@ -372,4 +372,157 @@ describe('theme Designer Skin Variables (data:skin.vars.*)', () => {
       expect(hover).toBeUndefined();
     });
   });
+
+  describe('linter Diagnostics for Theme Designer Skin Variables', () => {
+    const service = new TemplateLanguageService();
+
+    it('should not report errors for valid skin variables in empirical template', () => {
+      const diags = service.getDiagnostics(EMPIRICAL_TEMPLATE);
+      const skinDiags = diags.filter(d => d.code === 'BX1025' && (d.message.includes('skin variable') || d.message.includes('modifier')));
+      expect(skinDiags).toHaveLength(0);
+    });
+
+    it('should report error for undeclared bare variable $otracosa inside b:skin', () => {
+      const doc = `<b:skin><![CDATA[
+<Variable name="name" type="string"/>
+$name
+$otracosa
+]]></b:skin>`;
+
+      const diags = service.getDiagnostics(doc);
+      const err = diags.find(d => d.code === 'BX1025' && d.message.includes('$otracosa'));
+
+      expect(err).toBeDefined();
+      expect(err?.severity).toBe('error');
+      expect(err?.message).toContain('Undeclared skin variable "$otracosa"');
+    });
+
+    it('should report error for undeclared bare variable inside CSS comments in b:skin', () => {
+      const doc = `<b:skin><![CDATA[
+<Variable name="name" type="string"/>
+/* $otracosa */
+]]></b:skin>`;
+
+      const diags = service.getDiagnostics(doc);
+      const err = diags.find(d => d.code === 'BX1025' && d.message.includes('$otracosa'));
+
+      expect(err).toBeDefined();
+      expect(err?.severity).toBe('error');
+    });
+
+    it('should report error for undeclared parenthesized variable $(otracosa) inside b:skin', () => {
+      const doc = `<b:skin><![CDATA[
+<Variable name="name" type="string"/>
+$(name)
+$(otracosa)
+]]></b:skin>`;
+
+      const diags = service.getDiagnostics(doc);
+      const err = diags.find(d => d.code === 'BX1025' && d.message.includes('$(otracosa)'));
+
+      expect(err).toBeDefined();
+      expect(err?.severity).toBe('error');
+      expect(err?.message).toContain('Undeclared skin variable "$(otracosa)"');
+    });
+
+    it('should report error with quick fix when dotted variable is called without parentheses ($admin.name)', () => {
+      const doc = `<b:skin><![CDATA[
+<Variable name="admin.name" type="string"/>
+$admin.name
+]]></b:skin>`;
+
+      const diags = service.getDiagnostics(doc);
+      const err = diags.find(d => d.code === 'BX1025' && d.message.includes('admin.name'));
+
+      expect(err).toBeDefined();
+      expect(err?.severity).toBe('error');
+      expect(err?.message).toContain('Variable "admin.name" contains dots and must be accessed with parentheses');
+      expect(err?.quickFixes).toBeDefined();
+      expect(err?.quickFixes?.[0]?.newText).toBe('$(admin.name)');
+    });
+
+    it('should report error for unknown modifier on valid variable in CSS ($(primary.unknownMod))', () => {
+      const doc = `<b:skin><![CDATA[
+<Variable name="primary" type="color"/>
+$(primary.unknownMod)
+]]></b:skin>`;
+
+      const diags = service.getDiagnostics(doc);
+      const err = diags.find(d => d.code === 'BX1025' && d.message.includes('unknownMod'));
+
+      expect(err).toBeDefined();
+      expect(err?.severity).toBe('error');
+      expect(err?.message).toContain('Unknown modifier "unknownMod" for skin variable "primary" of type "color"');
+    });
+
+    it('should report error for undeclared variable in XML data tag (<data:skin.vars.otracosa/>)', () => {
+      const doc = `<b:skin><![CDATA[
+<Variable name="name" type="string"/>
+]]></b:skin>
+<data:skin.vars.otracosa/>`;
+
+      const diags = service.getDiagnostics(doc);
+      const err = diags.find(d => d.code === 'BX1025' && d.message.includes('otracosa'));
+
+      expect(err).toBeDefined();
+      expect(err?.severity).toBe('error');
+      expect(err?.message).toContain('Undeclared skin variable "otracosa"');
+    });
+
+    it('should report error in expressions (expr:class="data:skin.vars.otracosa")', () => {
+      const doc = `<b:skin><![CDATA[
+<Variable name="name" type="string"/>
+]]></b:skin>
+<div expr:class='data:skin.vars.otracosa'/>`;
+
+      const diags = service.getDiagnostics(doc);
+      const err = diags.find(d => d.code === 'BX1025' && d.message.includes('otracosa'));
+
+      expect(err).toBeDefined();
+      expect(err?.severity).toBe('error');
+    });
+
+    it('should report error with quick fix when data:skin.vars uses dots instead of underscores for dotted variables', () => {
+      const doc = `<b:skin><![CDATA[
+<Variable name="admin.name" type="string"/>
+]]></b:skin>
+<data:skin.vars.admin.name/>`;
+
+      const diags = service.getDiagnostics(doc);
+      const err = diags.find(d => d.code === 'BX1025' && d.message.includes('admin'));
+
+      expect(err).toBeDefined();
+      expect(err?.severity).toBe('error');
+      expect(err?.message).toContain('dots in variable names must be replaced with underscores');
+      expect(err?.quickFixes?.[0]?.newText).toBe('data:skin.vars.admin_name');
+    });
+
+    it('should report error for unknown modifier on valid variable in data:skin.vars.<var>.<mod>', () => {
+      const doc = `<b:skin><![CDATA[
+<Variable name="primary" type="color"/>
+]]></b:skin>
+<data:skin.vars.primary.invalidMod/>`;
+
+      const diags = service.getDiagnostics(doc);
+      const err = diags.find(d => d.code === 'BX1025' && d.message.includes('invalidMod'));
+
+      expect(err).toBeDefined();
+      expect(err?.severity).toBe('error');
+      expect(err?.message).toContain('Unknown modifier "invalidMod" for skin variable "primary" of type "color"');
+    });
+
+    it('should work identically inside b:template-skin', () => {
+      const doc = `<b:template-skin><![CDATA[
+<Variable name="brand" type="string"/>
+$brand
+$unknown
+]]></b:template-skin>`;
+
+      const diags = service.getDiagnostics(doc);
+      const err = diags.find(d => d.code === 'BX1025' && d.message.includes('$unknown'));
+
+      expect(err).toBeDefined();
+      expect(err?.severity).toBe('error');
+    });
+  });
 });

@@ -5,7 +5,9 @@ import { STRICTLY_SELF_CLOSING_TAGS } from 'blogger-spec';
 import { getSpecCatalog } from 'blogger-spec/catalogs';
 import { parseExpression, scanDirectiveTokens, validateTemplateStructure } from 'blogger-spec/parser';
 import { tokenizeExpression } from 'blogger-spec/quota';
+import { getSkinTypeModifiers } from 'blogger-spec/type-system';
 import { findIncludableDefinition } from '../navigation/definitionResolver.js';
+import { extractSkinVariables } from '../resolver/skinVariableResolver.js';
 import { computeLineOffsets, createRange, maskComments } from './linterUtils.js';
 
 export { tokenizeExpression };
@@ -266,6 +268,7 @@ export function lintBloggerDocument(
   const lineOffsets = computeLineOffsets(documentText);
   const maskedText = maskComments(documentText);
   const tokens = scanDirectiveTokens(documentText, { catalog });
+  const skinSymbols = extractSkinVariables(documentText);
 
   const specDiagnostics: readonly BloggerStructureDiagnostic[] = validateTemplateStructure(tokens, catalog, {
     validateExpressions: true,
@@ -626,6 +629,229 @@ export function lintBloggerDocument(
           });
         }
       }
+    }
+  }
+
+  // 6. Theme Designer skin variables validation inside <b:skin> and <b:template-skin>
+  for (let i = 0; i < tokens.length; i++) {
+    const token = tokens[i]!;
+    const tagLower = token.tagName.toLowerCase();
+    if ((tagLower === 'b:skin' || tagLower === 'b:template-skin') && !token.isClosing && !token.isSelfClosing) {
+      let closeToken: DirectiveToken | undefined;
+      for (let j = i + 1; j < tokens.length; j++) {
+        const nextTok = tokens[j]!;
+        if (nextTok.tagName.toLowerCase() === tagLower && nextTok.isClosing) {
+          closeToken = nextTok;
+          break;
+        }
+      }
+
+      const contentStart = token.tagEnd;
+      const contentEnd = closeToken
+        ? closeToken.tagStart
+        : (documentText.includes(`</${token.tagName}`, token.tagEnd)
+            ? documentText.indexOf(`</${token.tagName}`, token.tagEnd)
+            : documentText.length);
+
+      if (contentEnd <= contentStart) {
+        continue;
+      }
+
+      const rawSlice = documentText.slice(contentStart, contentEnd);
+      const chars = rawSlice.split('');
+
+      // Mask CDATA delimiters if present
+      const cdataOpenIdx = rawSlice.indexOf('<![CDATA[');
+      if (cdataOpenIdx !== -1) {
+        for (let c = 0; c < 9; c++) {
+          chars[cdataOpenIdx + c] = ' ';
+        }
+      }
+      const cdataCloseIdx = rawSlice.lastIndexOf(']]>');
+      if (cdataCloseIdx !== -1) {
+        for (let c = 0; c < 3; c++) {
+          chars[cdataCloseIdx + c] = ' ';
+        }
+      }
+
+      // Mask inner directive tokens (Variable, Group, etc.)
+      for (let j = i + 1; j < tokens.length; j++) {
+        const innerTok = tokens[j]!;
+        if (innerTok.tagStart >= contentEnd) {
+          break;
+        }
+        if (innerTok.tagStart >= contentStart && innerTok.tagEnd <= contentEnd) {
+          const tokLocalStart = innerTok.tagStart - contentStart;
+          const tokLocalEnd = innerTok.tagEnd - contentStart;
+          for (let k = tokLocalStart; k < tokLocalEnd; k++) {
+            chars[k] = ' ';
+          }
+        }
+      }
+
+      const maskedSkinContent = chars.join('');
+
+      // 6.1. Parenthesized skin variables: $(varName) or $(varName.modifier)
+      const parenRegex = /\$\(([a-z_][\w.-]*)\)/gi;
+      for (const match of maskedSkinContent.matchAll(parenRegex)) {
+        if (match.index === undefined) {
+          continue;
+        }
+        const fullToken = match[0];
+        const inner = match[1]!;
+        const absStart = contentStart + match.index;
+        const absEnd = absStart + fullToken.length;
+        const range = createRange(lineOffsets, absStart, absEnd);
+
+        // Direct variable match
+        const exactVar = Object.values(skinSymbols).find(s => s.name === inner);
+        if (exactVar) {
+          continue;
+        }
+
+        // Variable with modifier: candVar.candMod
+        const lastDot = inner.lastIndexOf('.');
+        if (lastDot !== -1) {
+          const candVar = inner.slice(0, lastDot);
+          const candMod = inner.slice(lastDot + 1);
+          const baseVar = Object.values(skinSymbols).find(s => s.name === candVar);
+          if (baseVar) {
+            const modifiers = getSkinTypeModifiers(baseVar.type);
+            if (candMod in modifiers) {
+              continue;
+            }
+            diagnostics.push({
+              code: 'BX1025',
+              message: `Unknown modifier "${candMod}" for skin variable "${candVar}" of type "${baseVar.type}".`,
+              severity: 'error',
+              range,
+            });
+            continue;
+          }
+        }
+
+        diagnostics.push({
+          code: 'BX1025',
+          message: `Undeclared skin variable "$(${inner})". Variable is not declared in <b:skin> or <b:template-skin>.`,
+          severity: 'error',
+          range,
+        });
+      }
+
+      // 6.2. Bare skin variables: $varName
+      const bareRegex = /(?<![\w$])\$([a-z_]\w*)/gi;
+      for (const match of maskedSkinContent.matchAll(bareRegex)) {
+        if (match.index === undefined) {
+          continue;
+        }
+        const fullToken = match[0];
+        const varName = match[1]!;
+        const absStart = contentStart + match.index;
+        const absEnd = absStart + fullToken.length;
+        const range = createRange(lineOffsets, absStart, absEnd);
+
+        const exactVar = Object.values(skinSymbols).find(s => s.name === varName);
+        if (exactVar) {
+          continue;
+        }
+
+        const dottedVar = Object.values(skinSymbols).find(s => s.name?.startsWith(`${varName}.`));
+        if (dottedVar && dottedVar.name) {
+          const nextText = rawSlice.slice(match.index + fullToken.length);
+          const expectedSuffix = dottedVar.name.slice(varName.length);
+          const hasDottedSuffix = nextText.startsWith(expectedSuffix);
+          const highlightEnd = hasDottedSuffix ? absEnd + expectedSuffix.length : absEnd;
+          const highlightRange = createRange(lineOffsets, absStart, highlightEnd);
+
+          diagnostics.push({
+            code: 'BX1025',
+            message: `Undeclared skin variable "$${varName}". Variable "${dottedVar.name}" contains dots and must be accessed with parentheses: "$(${dottedVar.name})".`,
+            severity: 'error',
+            range: highlightRange,
+            quickFixes: [{
+              title: `Replace with '$(${dottedVar.name})'`,
+              newText: `$(${dottedVar.name})`,
+              range: highlightRange,
+              isPreferred: true,
+            }],
+          });
+          continue;
+        }
+
+        diagnostics.push({
+          code: 'BX1025',
+          message: `Undeclared skin variable "$${varName}". Variable is not declared in <b:skin> or <b:template-skin>.`,
+          severity: 'error',
+          range,
+        });
+      }
+    }
+  }
+
+  // 7. Validate data:skin.vars in template expressions and data tags (outside b:skin)
+  const skinVarUsageRegex = /\bdata:skin\.vars\.([a-zA-Z_]\w*(?:\.[a-zA-Z_]\w*)*)\b/g;
+  for (const match of maskedText.matchAll(skinVarUsageRegex)) {
+    if (match.index === undefined) {
+      continue;
+    }
+    const fullMatch = match[0];
+    const path = match[1]!;
+    const start = match.index;
+    const end = start + fullMatch.length;
+    const range = createRange(lineOffsets, start, end);
+
+    const segments = path.split('.');
+    const firstSegment = segments[0]!;
+
+    if (!(firstSegment in skinSymbols)) {
+      const normalizedPath = path.replace(/\./g, '_');
+      const matchingSymbol = Object.entries(skinSymbols).find(([normKey]) => normKey === normalizedPath);
+      if (matchingSymbol) {
+        diagnostics.push({
+          code: 'BX1025',
+          message: `Undeclared skin variable "${firstSegment}". In expressions, dots in variable names must be replaced with underscores: "data:skin.vars.${matchingSymbol[0]}".`,
+          severity: 'error',
+          range,
+          quickFixes: [{
+            title: `Replace with 'data:skin.vars.${matchingSymbol[0]}'`,
+            newText: `data:skin.vars.${matchingSymbol[0]}`,
+            range,
+            isPreferred: true,
+          }],
+        });
+        continue;
+      }
+
+      diagnostics.push({
+        code: 'BX1025',
+        message: `Undeclared skin variable "${firstSegment}". Variable is not declared in <b:skin> or <b:template-skin>.`,
+        severity: 'error',
+        range,
+      });
+      continue;
+    }
+
+    const symbol = skinSymbols[firstSegment]!;
+    const modSegments = segments.slice(1);
+    if (modSegments.length === 1) {
+      const modName = modSegments[0]!;
+      const modifiers = getSkinTypeModifiers(symbol.type);
+      if (!(modName in modifiers)) {
+        diagnostics.push({
+          code: 'BX1025',
+          message: `Unknown modifier "${modName}" for skin variable "${symbol.name ?? firstSegment}" of type "${symbol.type}".`,
+          severity: 'error',
+          range,
+        });
+      }
+    }
+    else if (modSegments.length > 1) {
+      diagnostics.push({
+        code: 'BX1025',
+        message: `Unknown modifier "${modSegments.join('.')}" for skin variable "${symbol.name ?? firstSegment}".`,
+        severity: 'error',
+        range,
+      });
     }
   }
 
