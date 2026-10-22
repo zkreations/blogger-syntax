@@ -171,8 +171,8 @@ importers:
   .:
     dependencies:
       blogger-spec:
-        specifier: 0.15.0
-        version: 0.15.0
+        specifier: 0.16.0
+        version: 0.16.0
     devDependencies:
       '@antfu/eslint-config':
         specifier: ^9.5.1
@@ -1125,8 +1125,8 @@ packages:
   bl@4.1.0:
     resolution: {integrity: sha512-1W07cM9gS6DcLperZfFSj+bWLtaPGSOHWhPiGzXmvVJbRLdG82sH/Kn8EtW1VqWVA54AKf2h5k5BbnIbwF3h6w==}
 
-  blogger-spec@0.15.0:
-    resolution: {integrity: sha512-Eac06NRmfiWKMuTVism2D9HctixohE16ve35309JzrN9optZYmDdpUJqqWUguNw2esf3Y7QE/WjnCMy93laJkA==}
+  blogger-spec@0.16.0:
+    resolution: {integrity: sha512-n4+acPsxPMwuI3A+0zt7lbmKbdoNdAOoiZgF3VcW/FNR40Y+lzqNOImx5h+KeeUPNu0hUKipNI+Y7nN/DueRRQ==}
 
   boolbase@1.0.0:
     resolution: {integrity: sha512-JZOSA7Mo9sNGB8+UjSgzdLtokWAky1zbztM3WRLCbZ70/3cTANmQmOdR7y2g+J0e2WXywy1yS468tY+IruqEww==}
@@ -3979,7 +3979,7 @@ snapshots:
       readable-stream: 3.6.2
     optional: true
 
-  blogger-spec@0.15.0: {}
+  blogger-spec@0.16.0: {}
 
   boolbase@1.0.0: {}
 
