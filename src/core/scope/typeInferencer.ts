@@ -1,4 +1,11 @@
+import type {
+  BloggerArrayExpressionNode,
+  BloggerDataPathNode,
+  BloggerLiteralNode,
+  BloggerObjectExpressionNode,
+} from 'blogger-spec/ast';
 import type { BloggerDataType, BloggerProperty } from '../models/types.js';
+import { parseExpression } from 'blogger-spec/ast';
 import { getSpecCatalog } from 'blogger-spec/catalogs';
 import { resolveDataPath } from 'blogger-spec/data-path';
 import { getArrayElementProperty, inferExpressionType } from '../parser/exprParser.js';
@@ -40,6 +47,115 @@ export function resolvePropertyFromScope(
 }
 
 /**
+ * Parses array literals containing objects or scalar elements to infer loop item properties.
+ */
+export function parseArrayLiteralElementProperties(
+  valuesExpr: string,
+  localVariables?: Record<string, BloggerProperty>,
+  rootTree: Record<string, BloggerProperty> = bloggerGlobalRoot,
+): { type: BloggerDataType; children?: Record<string, BloggerProperty> | undefined } | undefined {
+  const trimmed = valuesExpr.trim();
+  const isArrayCandidate = (trimmed.startsWith('[') && trimmed.endsWith(']'))
+    || (trimmed.startsWith('{') && trimmed.endsWith('}') && trimmed.includes('['));
+  if (!isArrayCandidate) {
+    return undefined;
+  }
+
+  try {
+    const ast = parseExpression(trimmed, { tolerant: true });
+    if (!ast || ast.type !== 'ArrayExpression') {
+      return undefined;
+    }
+
+    const arrayNode = ast as BloggerArrayExpressionNode;
+    if (arrayNode.elements.length === 0) {
+      return { type: 'object' };
+    }
+
+    const children: Record<string, BloggerProperty> = {};
+    let hasObjects = false;
+    let scalarType: BloggerDataType | undefined;
+
+    for (const el of arrayNode.elements) {
+      if (el.type === 'ObjectExpression') {
+        hasObjects = true;
+        const objNode = el as BloggerObjectExpressionNode;
+        for (const prop of objNode.properties) {
+          const key = prop.key;
+          if (!key) {
+            continue;
+          }
+
+          let propType: BloggerDataType = 'string';
+          let propDesc = `Property \`${key}\` of loop item.`;
+          let propChildren: Record<string, BloggerProperty> | undefined;
+
+          if (prop.value.type === 'Literal') {
+            const lit = prop.value as BloggerLiteralNode;
+            if (typeof lit.value === 'number') {
+              propType = 'number';
+            }
+            else if (typeof lit.value === 'boolean') {
+              propType = 'boolean';
+            }
+            else {
+              propType = 'string';
+            }
+            propDesc = `Passed literal value: ${lit.raw ?? lit.value}`;
+          }
+          else if (prop.value.type === 'DataPath') {
+            const dp = prop.value as BloggerDataPathNode;
+            const raw = dp.raw ?? '';
+            const segments = raw.startsWith('data:') ? raw.slice(5).split('.').filter(Boolean) : raw.split('.').filter(Boolean);
+            const resolved = resolvePropertyFromScope(segments, localVariables, rootTree);
+            if (resolved) {
+              propType = resolved.type;
+              propDesc = resolved.description ?? `Data path property \`${raw}\`.`;
+              propChildren = resolved.children;
+            }
+          }
+
+          children[key] = {
+            name: key,
+            type: propType,
+            description: propDesc,
+            ...(propChildren ? { children: propChildren } : {}),
+          };
+        }
+      }
+      else if (el.type === 'Literal') {
+        const lit = el as BloggerLiteralNode;
+        if (typeof lit.value === 'number') {
+          scalarType = 'number';
+        }
+        else if (typeof lit.value === 'boolean') {
+          scalarType = 'boolean';
+        }
+        else {
+          scalarType = 'string';
+        }
+      }
+    }
+
+    if (hasObjects) {
+      return {
+        type: 'object',
+        children: Object.keys(children).length > 0 ? children : undefined,
+      };
+    }
+
+    if (scalarType) {
+      return { type: scalarType };
+    }
+
+    return { type: 'object' };
+  }
+  catch {
+    return undefined;
+  }
+}
+
+/**
  * Infers variable properties defined in a `<b:loop>` tag.
  */
 export function inferLoopVariables(
@@ -61,52 +177,63 @@ export function inferLoopVariables(
       };
     }
     else {
-      const segments = extractDataPathSegments(valuesExpr);
-      let resolvedProp = resolvePropertyFromScope(segments, localVariables);
+      const literalElements = parseArrayLiteralElementProperties(valuesExpr, localVariables);
+      if (literalElements) {
+        result[cleanVarName] = {
+          name: cleanVarName,
+          type: literalElements.type,
+          description: `Loop variable representing each item in \`${valuesExpr}\`.`,
+          children: literalElements.children,
+        };
+      }
+      else {
+        const segments = extractDataPathSegments(valuesExpr);
+        let resolvedProp = resolvePropertyFromScope(segments, localVariables);
 
-      if (!resolvedProp) {
-        const specResolved = resolveDataPath(segments, {
-          catalog: getSpecCatalog(),
-          widgetType: enclosingWidgetType ?? '',
-        });
-        if (specResolved) {
-          let itemChildren: Record<string, BloggerProperty> | undefined;
-          let children: Record<string, BloggerProperty> | undefined;
+        if (!resolvedProp) {
+          const specResolved = resolveDataPath(segments, {
+            catalog: getSpecCatalog(),
+            widgetType: enclosingWidgetType ?? '',
+          });
+          if (specResolved) {
+            let itemChildren: Record<string, BloggerProperty> | undefined;
+            let children: Record<string, BloggerProperty> | undefined;
 
-          if (specResolved.definition?.item_properties) {
-            itemChildren = buildPropertiesFromSpec(specResolved.definition.item_properties, specResolved.path);
+            if (specResolved.definition?.item_properties) {
+              itemChildren = buildPropertiesFromSpec(specResolved.definition.item_properties, specResolved.path);
+            }
+            if (specResolved.definition?.properties) {
+              children = buildPropertiesFromSpec(specResolved.definition.properties, specResolved.path);
+            }
+
+            resolvedProp = {
+              name: specResolved.name,
+              type: specResolved.type === 'array[object]' || specResolved.isCollection ? 'array' : (specResolved.type as BloggerDataType),
+              description: specResolved.description,
+              ...(children ? { children } : {}),
+              ...(itemChildren ? { itemChildren } : {}),
+            };
           }
-          if (specResolved.definition?.properties) {
-            children = buildPropertiesFromSpec(specResolved.definition.properties, specResolved.path);
-          }
-
-          resolvedProp = {
-            name: specResolved.name,
-            type: specResolved.type === 'array[object]' || specResolved.isCollection ? 'array' : (specResolved.type as BloggerDataType),
-            description: specResolved.description,
-            ...(children ? { children } : {}),
-            ...(itemChildren ? { itemChildren } : {}),
-          };
         }
+
+        let children = resolvedProp?.children;
+        let type: BloggerDataType = resolvedProp?.type ?? 'object';
+
+        if (resolvedProp?.type === 'array') {
+          const itemProp = getArrayElementProperty(resolvedProp);
+          children = itemProp?.children ?? resolvedProp.itemChildren;
+          type = itemProp?.type ?? 'object';
+        }
+
+        result[cleanVarName] = {
+          name: cleanVarName,
+          type,
+          description: resolvedProp?.description
+            ? `Loop variable for \`${valuesExpr}\`: ${resolvedProp.description}`
+            : `Loop variable representing each item in \`${valuesExpr}\`.`,
+          children,
+        };
       }
-
-      let children = resolvedProp?.children;
-      let type: BloggerDataType = resolvedProp?.type ?? 'object';
-
-      if (resolvedProp?.type === 'array') {
-        const itemProp = getArrayElementProperty(resolvedProp);
-        children = itemProp?.children ?? resolvedProp.itemChildren;
-        type = itemProp?.type ?? 'object';
-      }
-
-      result[cleanVarName] = {
-        name: cleanVarName,
-        type,
-        description: resolvedProp?.description
-          ? `Loop variable for \`${valuesExpr}\`: ${resolvedProp.description}`
-          : `Loop variable representing each item in \`${valuesExpr}\`.`,
-        children,
-      };
     }
   }
 

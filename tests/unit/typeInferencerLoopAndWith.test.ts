@@ -41,6 +41,23 @@ describe('typeInferencer - Loop and With Variable Inference', () => {
       expect(vars.link?.children?.name).toBeDefined();
       expect(vars.link?.children?.target).toBeDefined();
     });
+
+    it('infers object properties from literal array of objects in b:loop', () => {
+      const vars = inferLoopVariables('[{ name: "Daniel", age: 20 }, { name: "Abel", age: 30 }]', 'person');
+      expect(vars.person).toBeDefined();
+      expect(vars.person?.type).toBe('object');
+      expect(vars.person?.children?.name).toBeDefined();
+      expect(vars.person?.children?.name?.type).toBe('string');
+      expect(vars.person?.children?.age).toBeDefined();
+      expect(vars.person?.children?.age?.type).toBe('number');
+    });
+
+    it('infers scalar type for literal array of numbers in b:loop', () => {
+      const vars = inferLoopVariables('[1, 2, 3]', 'n');
+      expect(vars.n).toBeDefined();
+      expect(vars.n?.type).toBe('number');
+      expect(vars.n?.children).toBeUndefined();
+    });
   });
 
   describe('inferWithVariables', () => {

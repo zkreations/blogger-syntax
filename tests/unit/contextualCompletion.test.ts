@@ -497,5 +497,85 @@ describe('contextualCompletion and Hover', () => {
       const items = completionProvider.provideCompletionItems(doc, position);
       expect(items).toBeUndefined();
     });
+
+    it('should suggest properties for loop item with array literal in b:loop', () => {
+      const lines = [
+        '<b:loop values=\'[{ name: "Daniel", age: 20 }, { name: "Abel", age: 30 }]\' var=\'person\'>',
+        '  <data:person.',
+        '</b:loop>',
+      ];
+      const doc = createMockDocument(lines, 'file:///loopLiteralObject.xml');
+      const position = new vscode.Position(1, '  <data:person.'.length);
+
+      const items = completionProvider.provideCompletionItems(doc, position) as vscode.CompletionItem[];
+      expect(items).toBeDefined();
+      const labels = items.map(getItemLabel);
+      expect(labels).toContain('name');
+      expect(labels).toContain('age');
+    });
+
+    it('should strictly shadow outer loop variable when inner loop reuses the same var name', () => {
+      const lines = [
+        '<b:loop values=\'[{ name: "Mickey", age: 10 }]\' var=\'person\'>',
+        '  <b:loop values=\'[{ nombre: "Daniel", edad: 20 }, { nombre: "Abel", edad: 30 }]\' var=\'person\'>',
+        '    <data:person.',
+        '  </b:loop>',
+        '  <data:person.',
+        '</b:loop>',
+      ];
+      const doc = createMockDocument(lines, 'file:///loopShadowing.xml');
+
+      // Inside inner loop (line 2)
+      const innerPosition = new vscode.Position(2, '    <data:person.'.length);
+      const innerItems = completionProvider.provideCompletionItems(doc, innerPosition) as vscode.CompletionItem[];
+      expect(innerItems).toBeDefined();
+      const innerLabels = innerItems.map(getItemLabel);
+      expect(innerLabels).toContain('nombre');
+      expect(innerLabels).toContain('edad');
+      expect(innerLabels).not.toContain('name');
+      expect(innerLabels).not.toContain('age');
+
+      // Outside inner loop, inside outer loop (line 4)
+      const outerPosition = new vscode.Position(4, '  <data:person.'.length);
+      const outerItems = completionProvider.provideCompletionItems(doc, outerPosition) as vscode.CompletionItem[];
+      expect(outerItems).toBeDefined();
+      const outerLabels = outerItems.map(getItemLabel);
+      expect(outerLabels).toContain('name');
+      expect(outerLabels).toContain('age');
+      expect(outerLabels).not.toContain('nombre');
+      expect(outerLabels).not.toContain('edad');
+    });
+
+    it('should strictly shadow outer with variable when inner with reuses the same var name', () => {
+      const lines = [
+        '<b:with value=\'{ name: "Mickey", age: 10 }\' var=\'person\'>',
+        '  <b:with value=\'{ nombre: "Daniel", edad: 20 }\' var=\'person\'>',
+        '    <data:person.',
+        '  </b:with>',
+        '  <data:person.',
+        '</b:with>',
+      ];
+      const doc = createMockDocument(lines, 'file:///withShadowing.xml');
+
+      // Inside inner with (line 2)
+      const innerPosition = new vscode.Position(2, '    <data:person.'.length);
+      const innerItems = completionProvider.provideCompletionItems(doc, innerPosition) as vscode.CompletionItem[];
+      expect(innerItems).toBeDefined();
+      const innerLabels = innerItems.map(getItemLabel);
+      expect(innerLabels).toContain('nombre');
+      expect(innerLabels).toContain('edad');
+      expect(innerLabels).not.toContain('name');
+      expect(innerLabels).not.toContain('age');
+
+      // Outside inner with, inside outer with (line 4)
+      const outerPosition = new vscode.Position(4, '  <data:person.'.length);
+      const outerItems = completionProvider.provideCompletionItems(doc, outerPosition) as vscode.CompletionItem[];
+      expect(outerItems).toBeDefined();
+      const outerLabels = outerItems.map(getItemLabel);
+      expect(outerLabels).toContain('name');
+      expect(outerLabels).toContain('age');
+      expect(outerLabels).not.toContain('nombre');
+      expect(outerLabels).not.toContain('edad');
+    });
   });
 });
