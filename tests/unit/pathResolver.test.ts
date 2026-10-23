@@ -1,7 +1,7 @@
 import type { BloggerProperty } from '../../src/core/models/types.js';
 import { getSpecCatalog } from 'blogger-spec/catalogs';
 import { describe, expect, it } from 'vitest';
-import { blogWidgetProperties, singlePostProperties } from '../../src/core/resolver/dataModel.js';
+import { blogWidgetProperties, singlePostProperties } from '../../src/core/resolver/dataPathAdapter.js';
 import { BloggerPathResolver } from '../../src/core/resolver/pathResolver.js';
 import {
   resolveBloggerTagSuggestions,

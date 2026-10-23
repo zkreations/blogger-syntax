@@ -3,7 +3,7 @@ import type { BloggerHoverResult, BloggerProperty, BloggerResolveResult, Blogger
 import { toSkinVarIdentifier } from 'blogger-spec/data-path';
 import { scanDirectiveTokens } from 'blogger-spec/parser';
 import { getSkinTypeModifiers } from 'blogger-spec/type-system';
-import { toBloggerDataType } from './specModelAdapter.js';
+import { toBloggerDataType } from './dataPathAdapter.js';
 
 export function extractSkinVariables(text: string): Record<string, BloggerSkinVariableSymbol> {
   const result: Record<string, BloggerSkinVariableSymbol> = {};
@@ -97,6 +97,7 @@ export function buildSkinVariableProperties(
     result[normalizedName] = {
       name: normalizedName,
       type: propType,
+      skinType: varType,
       description,
       example: `data:skin.vars.${normalizedName}`,
       ...(hasChildren ? { children } : {}),

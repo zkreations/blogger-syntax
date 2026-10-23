@@ -2,10 +2,12 @@ import type { BloggerDataType, BloggerProperty } from '../models/types.js';
 import { parseExpression } from 'blogger-spec/ast';
 import { getSpecCatalog } from 'blogger-spec/catalogs';
 import { resolveDataPath } from 'blogger-spec/data-path';
+import { getExpressionCursorContext } from 'blogger-spec/parser';
 import { getTypeModifiers, inferExpressionType as specInferType } from 'blogger-spec/type-system';
-import { bloggerGlobalRoot } from '../resolver/dataModel.js';
-import { navigatePropertyPath } from '../resolver/propertyHierarchy.js';
-import { buildPropertiesFromSpec } from '../resolver/specModelAdapter.js';
+import { buildPropertiesFromSpec, getPropertyMembers, resolveDataProperty } from '../resolver/dataPathAdapter.js';
+import { inferSingularParamName } from '../utils/snippetFormatter.js';
+
+export { inferSingularParamName };
 
 export interface ActiveLambdaContext {
   readonly paramName: string;
@@ -100,6 +102,7 @@ export function resolveCollectionProperty(
   collectionExpr: string,
   localVariables?: Record<string, BloggerProperty>,
   lambdaScope?: Record<string, BloggerProperty>,
+  enclosingWidgetType?: string,
 ): BloggerProperty | undefined {
   let trimmed = collectionExpr.trim();
 
@@ -118,7 +121,7 @@ export function resolveCollectionProperty(
         return baseParamProp;
       }
       const segments = match[2].split('.').filter(Boolean);
-      return navigatePropertyPath(segments, undefined, baseParamProp.children)?.target;
+      return resolveDataProperty(segments, { variables: baseParamProp.children });
     }
   }
 
@@ -128,7 +131,10 @@ export function resolveCollectionProperty(
     return undefined;
   }
 
-  return navigatePropertyPath(segments, localVariables, bloggerGlobalRoot)?.target;
+  return resolveDataProperty(segments, {
+    variables: localVariables,
+    widgetType: enclosingWidgetType ?? (localVariables ? undefined : ''),
+  });
 }
 
 /**
@@ -241,9 +247,13 @@ export function resolveLambdaContextAtCursor(
         currentToken = parts[parts.length - 1] ?? '';
       }
 
-      const targetProperty = chain.length === 0
-        ? activeScopes[baseParam]
-        : navigatePropertyPath(chain, undefined, activeScopes[baseParam]?.children)?.target;
+      let targetProperty: BloggerProperty | undefined = activeScopes[baseParam];
+      for (const seg of chain) {
+        if (!targetProperty)
+          break;
+        const members = getPropertyMembers(targetProperty);
+        targetProperty = members?.[seg];
+      }
 
       return {
         activeParam: innermost.paramName,
@@ -361,7 +371,13 @@ export function resolveLambdaHoverAtPosition(
         }
 
         const memberPath = parts.slice(1);
-        const resolved = navigatePropertyPath(memberPath, undefined, activeScopes[baseParam]?.children)?.target;
+        let resolved: BloggerProperty | undefined = activeScopes[baseParam];
+        for (const seg of memberPath) {
+          if (!resolved)
+            break;
+          const members = getPropertyMembers(resolved);
+          resolved = members?.[seg];
+        }
         if (resolved) {
           return {
             title: `(property) ${token}`,
@@ -470,6 +486,19 @@ function findEffectiveOperand(beforeOp: string): string {
 export function extractLeftOperandAtCursor(
   expressionText: string,
 ): { operand: string; partialOp: string } | undefined {
+  const ctx = getExpressionCursorContext(expressionText, expressionText.length);
+  if (ctx.expectedKind === 'operator' && ctx.leftOperand) {
+    let raw = ctx.leftOperand;
+    if (raw.startsWith('(') && raw.endsWith(')')) {
+      raw = raw.slice(1, -1).trim();
+    }
+    const operand = raw.startsWith('data:') ? raw.slice('data:'.length) : raw;
+    return {
+      operand,
+      partialOp: ctx.partialOperator ?? '',
+    };
+  }
+
   const opMatch = /(?:data:[\w.[\]]*[\w\]]|[a-zA-Z_]\w*(?:\.\w+)*|\d+(?:\.\d+)?|"[^"]*"|'[^']*'|[)\]}])\s+([a-zA-Z_!=+\-*/?:%]*)$/.exec(expressionText);
   if (!opMatch) {
     return undefined;
@@ -480,7 +509,8 @@ export function extractLeftOperandAtCursor(
     return undefined;
   }
 
-  const operand = findEffectiveOperand(beforeOp);
+  const rawOperand = findEffectiveOperand(beforeOp);
+  const operand = rawOperand.startsWith('data:') ? rawOperand.slice('data:'.length) : rawOperand;
   return {
     operand,
     partialOp: typedOp,
@@ -490,37 +520,16 @@ export function extractLeftOperandAtCursor(
 export function extractPrecedingExpressionForMember(
   expressionText: string,
 ): { operand: string; partialMember: string } | undefined {
-  const memberMatch = /\)\.(\w*)$/.exec(expressionText);
-  if (!memberMatch) {
-    return undefined;
+  const ctx = getExpressionCursorContext(expressionText, expressionText.length);
+  if (ctx.expectedKind === 'member' && ctx.leftOperand && ctx.leftOperand.startsWith('(')) {
+    const raw = ctx.leftOperand;
+    const operand = raw.startsWith('(') && raw.endsWith(')') ? raw.slice(1, -1).trim() : raw;
+    return {
+      operand,
+      partialMember: ctx.partialMember ?? '',
+    };
   }
-  const partialMember = memberMatch[1] ?? '';
-  const closingParenIdx = expressionText.length - (partialMember.length + 2);
-
-  let depth = 0;
-  let openParenIdx = -1;
-  for (let i = closingParenIdx; i >= 0; i--) {
-    if (expressionText[i] === ')') {
-      depth++;
-    }
-    else if (expressionText[i] === '(') {
-      depth--;
-      if (depth === 0) {
-        openParenIdx = i;
-        break;
-      }
-    }
-  }
-
-  if (openParenIdx < 0) {
-    return undefined;
-  }
-
-  const innerExpr = expressionText.slice(openParenIdx + 1, closingParenIdx).trim();
-  return {
-    operand: innerExpr,
-    partialMember,
-  };
+  return undefined;
 }
 
 /**
@@ -653,32 +662,6 @@ export function inferExpressionType(
   return { type: 'unknown' };
 }
 
-/**
- * Infers a singular parameter name (e.g. 'p', 'l', 'c', 'item') from a collection expression or property.
- */
-export function inferSingularParamName(operand: string, prop?: BloggerProperty): string {
-  const rawName = prop?.name ?? operand.split(/[:.[\]]/).filter(Boolean).pop()?.toLowerCase() ?? '';
-  switch (rawName) {
-    case 'posts':
-      return 'p';
-    case 'labels':
-      return 'l';
-    case 'comments':
-      return 'c';
-    case 'links':
-      return 'l';
-    case 'items':
-      return 'item';
-    case 'widgets':
-      return 'w';
-    default:
-      if (rawName.length > 2 && rawName.endsWith('s')) {
-        return rawName[0]?.toLowerCase() ?? 'item';
-      }
-      return 'item';
-  }
-}
-
 export interface LambdaPreArrowContext {
   readonly operator: string;
   readonly paramName?: string | undefined;
@@ -693,23 +676,33 @@ export interface LambdaPreArrowContext {
 export function detectLambdaPreArrowContext(
   expressionText: string,
 ): LambdaPreArrowContext | undefined {
-  const match = /(?:^|[^\w:.])(?:data:[\w.[\]]+|[a-z_]\w*(?:\.\w+)*|\([^)]+\))\s+(filter|where|map|select|count|first|any|all|none)\s*\(\s*(?:([a-z_]\w*)(\s*))?$/i.exec(expressionText);
-  if (!match) {
+  const ctx = getExpressionCursorContext(expressionText, expressionText.length);
+  const lastParen = expressionText.lastIndexOf('(');
+  const beforeParen = lastParen !== -1 ? expressionText.slice(0, lastParen).trimEnd() : expressionText;
+  const kwMatch = /\b(filter|where|map|select|count|first|any|all|none)$/i.exec(beforeParen);
+  if (!kwMatch) {
     return undefined;
   }
-  const operator = match[1]!;
-  const paramName = match[2];
-  const trailingSpace = match[3] ?? '';
-  const isWaitingForArrow = Boolean(paramName && trailingSpace.length > 0);
-
-  const beforeOp = expressionText.slice(0, match.index + match[0].indexOf(operator)).trim();
+  const op = kwMatch[1]!;
+  const beforeOp = beforeParen.slice(0, kwMatch.index).trim();
   const colMatch = /(?:data:[\w.[\]]+|[a-z_]\w*(?:\.\w+)*|\([^)]+\))\s*$/i.exec(beforeOp);
-  const collectionOperand = colMatch ? colMatch[0].trim() : undefined;
+  const col = colMatch ? colMatch[0].trim() : undefined;
 
-  return {
-    operator,
-    paramName,
-    isWaitingForArrow,
-    collectionOperand,
-  };
+  if (ctx.expectedKind === 'lambda_param' && ctx.enclosingLambda?.isWaitingParam) {
+    return {
+      operator: op,
+      paramName: undefined,
+      isWaitingForArrow: false,
+      collectionOperand: col,
+    };
+  }
+  if (ctx.expectedKind === 'lambda_arrow' && ctx.enclosingLambda?.isWaitingForArrow) {
+    return {
+      operator: op,
+      paramName: ctx.enclosingLambda.paramName,
+      isWaitingForArrow: true,
+      collectionOperand: col,
+    };
+  }
+  return undefined;
 }

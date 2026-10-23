@@ -164,8 +164,6 @@ export class TemplateLanguageService {
 
     const widgetType = this.scopeTracker.getEnclosingWidgetType(docKey, version, documentText, offset);
     const enclosingMessageName = this.scopeTracker.getEnclosingMessageName(documentText, offset);
-    const includableBlock = this.scopeTracker.getIncludableBlockAtOffset(docKey, version, documentText, offset);
-    const inferredWidgetContext = includableBlock?.inferredWidgetContext;
 
     const getPrecedingContext = (): string | undefined => {
       if (lineStart === 0) {
@@ -187,7 +185,6 @@ export class TemplateLanguageService {
         enclosingMessageName,
         skinVariables: getSkinVariables,
         skinSymbols: getSkinSymbols,
-        inferredWidgetContext,
       },
     );
 

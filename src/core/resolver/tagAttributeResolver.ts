@@ -28,118 +28,81 @@ export interface BloggerSkinVariableTypeDetail {
   readonly attributes: Record<string, BloggerTagAttribute>;
 }
 
-export const bloggerSkinVariableTypeDetails: Record<BloggerSkinVariableType, BloggerSkinVariableTypeDetail> = {
-  color: {
-    type: 'color',
-    skinTypeLabel: 'color(skin)',
-    description: 'Defines a color skin variable for Blogger Template Designer CSS.',
-    example: '<Variable name="text.color" description="Text Color" type="color" default="#333333" value="#333333" hideEditor="false"/>',
-    snippetBody: 'Variable name="$1" description="$2" type="color" default="$3" value="$4"/>$0',
-    attributes: {
-      name: { name: 'name', type: 'string', required: true, description: 'Unique variable identifier name. Letters, numbers, and dots are allowed.' },
-      description: { name: 'description', type: 'string', required: true, description: 'Variable label shown in Template Designer.' },
-      type: { name: 'type', type: 'string', required: true, description: 'Variable type: color(skin).' },
-      default: { name: 'default', type: 'string', required: true, description: 'Default color value (hex, rgb, rgba).' },
-      value: { name: 'value', type: 'string', required: true, description: 'Current color value.' },
-      hideEditor: { name: 'hideEditor', type: 'string', required: false, description: 'Hides the variable form in the design tool (true or false).' },
+function buildSkinVariableTypeDetails(): Record<BloggerSkinVariableType, BloggerSkinVariableTypeDetail> {
+  const directive = getSpecCatalog().getDirective('Variable');
+  const dirAttrs = directive?.attributes ?? {};
+  const typeAttrs = directive?.type_attributes ?? {};
+
+  const typeDescriptions: Record<BloggerSkinVariableType, { desc: string; example: string }> = {
+    color: {
+      desc: 'Defines a color skin variable for Blogger Template Designer CSS.',
+      example: '<Variable name="text.color" description="Text Color" type="color" default="#333333" value="#333333" hideEditor="false"/>',
     },
-  },
-  font: {
-    type: 'font',
-    skinTypeLabel: 'font(skin)',
-    description: 'Defines a font skin variable with font family, size, and styling options.',
-    example: '<Variable name="body.font" description="Body Font" type="font" family="Arial, sans-serif" size="14px" default="normal normal 14px Arial, sans-serif" value="normal normal 14px Arial, sans-serif" hideEditor="false"/>',
-    snippetBody: 'Variable name="$1" description="$2" type="font" default="$3" value="$4"/>$0',
-    attributes: {
-      name: { name: 'name', type: 'string', required: true, description: 'Unique variable identifier name. Letters, numbers, and dots are allowed.' },
-      description: { name: 'description', type: 'string', required: true, description: 'Variable label shown in Template Designer.' },
-      type: { name: 'type', type: 'string', required: true, description: 'Variable type: font(skin).' },
-      family: { name: 'family', type: 'string', required: false, description: 'Specifies the font family (e.g. Arial, "Roboto", sans-serif).' },
-      size: { name: 'size', type: 'string', required: false, description: 'Specifies the font size (e.g. 14px, 1rem).' },
-      default: { name: 'default', type: 'string', required: true, description: 'Default font value.' },
-      value: { name: 'value', type: 'string', required: true, description: 'Current font value.' },
-      hideEditor: { name: 'hideEditor', type: 'string', required: false, description: 'Hides the variable form in the design tool (true or false).' },
+    font: {
+      desc: 'Defines a font skin variable with font family, size, and styling options.',
+      example: '<Variable name="body.font" description="Body Font" type="font" family="Arial, sans-serif" size="14px" default="normal normal 14px Arial, sans-serif" value="normal normal 14px Arial, sans-serif" hideEditor="false"/>',
     },
-  },
-  length: {
-    type: 'length',
-    skinTypeLabel: 'length(skin)',
-    description: 'Defines a length / dimension skin variable with optional min and max boundaries.',
-    example: '<Variable name="content.width" description="Content Width" type="length" min="600px" max="1200px" default="960px" value="960px" hideEditor="false"/>',
-    snippetBody: 'Variable name="$1" description="$2" type="length" default="$3" value="$4"/>$0',
-    attributes: {
-      name: { name: 'name', type: 'string', required: true, description: 'Unique variable identifier name. Letters, numbers, and dots are allowed.' },
-      description: { name: 'description', type: 'string', required: true, description: 'Variable label shown in Template Designer.' },
-      type: { name: 'type', type: 'string', required: true, description: 'Variable type: length(skin).' },
-      min: { name: 'min', type: 'string', required: false, description: 'Minimum value accepted by length(skin) variable.' },
-      max: { name: 'max', type: 'string', required: false, description: 'Maximum value accepted by length(skin) variable.' },
-      default: { name: 'default', type: 'string', required: true, description: 'Default length value (must be within min and max).' },
-      value: { name: 'value', type: 'string', required: true, description: 'Current length value (must be within min and max).' },
-      hideEditor: { name: 'hideEditor', type: 'string', required: false, description: 'Hides or forces display of variable form in design tool (true or false).' },
+    length: {
+      desc: 'Defines a length / dimension skin variable with optional min and max boundaries.',
+      example: '<Variable name="content.width" description="Content Width" type="length" min="600px" max="1200px" default="960px" value="960px" hideEditor="false"/>',
     },
-  },
-  background: {
-    type: 'background',
-    skinTypeLabel: 'background(skin)',
-    description: 'Defines a background skin variable containing color, image url, alignment, or positioning.',
-    example: '<Variable name="body.background" description="Body Background" type="background" color="#ffffff" default="$(color) url(https://...) repeat fixed top left" value="$(color) url(https://...) repeat fixed top left"/>',
-    snippetBody: 'Variable name="$1" description="$2" type="background" default="$3" value="$4"/>$0',
-    attributes: {
-      name: { name: 'name', type: 'string', required: true, description: 'Unique variable identifier name. Letters, numbers, and dots are allowed.' },
-      description: { name: 'description', type: 'string', required: true, description: 'Variable label shown in Template Designer.' },
-      type: { name: 'type', type: 'string', required: true, description: 'Variable type: background(skin).' },
-      color: { name: 'color', type: 'string', required: false, description: 'Background color code or $color variable reference.' },
-      default: { name: 'default', type: 'string', required: true, description: 'Default background CSS value.' },
-      value: { name: 'value', type: 'string', required: true, description: 'Current background CSS value.' },
-      hideEditor: { name: 'hideEditor', type: 'string', required: false, description: 'Hides the variable form in the design tool (true or false).' },
+    background: {
+      desc: 'Defines a background skin variable containing color, image url, alignment, or positioning.',
+      example: '<Variable name="body.background" description="Body Background" type="background" color="#ffffff" default="$(color) url(https://...) repeat fixed top left" value="$(color) url(https://...) repeat fixed top left"/>',
     },
-  },
-  string: {
-    type: 'string',
-    skinTypeLabel: 'string(skin)',
-    description: 'Defines a string skin variable for text or custom CSS values. Note: Distinct from runtime data:string.',
-    example: '<Variable name="custom.text" description="Custom Text" type="string" default="Sample text" value="Sample text"/>',
-    snippetBody: 'Variable name="$1" description="$2" type="string" default="$3" value="$4"/>$0',
-    attributes: {
-      name: { name: 'name', type: 'string', required: true, description: 'Unique variable identifier name. Letters, numbers, and dots are allowed.' },
-      description: { name: 'description', type: 'string', required: true, description: 'Variable label shown in Template Designer.' },
-      type: { name: 'type', type: 'string', required: true, description: 'Variable type: string(skin) (template skin variable, distinct from runtime data:string).' },
-      default: { name: 'default', type: 'string', required: false, description: 'Default string value.' },
-      value: { name: 'value', type: 'string', required: true, description: 'Current string value.' },
-      hideEditor: { name: 'hideEditor', type: 'string', required: false, description: 'Hides the variable form in the design tool (true or false).' },
+    string: {
+      desc: 'Defines a string skin variable for text or custom CSS values. Note: Distinct from runtime data:string.',
+      example: '<Variable name="custom.text" description="Custom Text" type="string" default="Sample text" value="Sample text"/>',
     },
-  },
-  url: {
-    type: 'url',
-    skinTypeLabel: 'url(skin)',
-    description: 'Defines a URL skin variable containing an image or resource URL. Note: Distinct from runtime data:url.',
-    example: '<Variable name="header.image" description="Header Image" type="url" default="url(https://...)" value="url(https://...)"/>',
-    snippetBody: 'Variable name="$1" description="$2" type="url" default="$3" value="$4"/>$0',
-    attributes: {
-      name: { name: 'name', type: 'string', required: true, description: 'Unique variable identifier name. Letters, numbers, and dots are allowed.' },
-      description: { name: 'description', type: 'string', required: true, description: 'Variable label shown in Template Designer.' },
-      type: { name: 'type', type: 'string', required: true, description: 'Variable type: url(skin) (template skin variable, distinct from runtime data:url).' },
-      default: { name: 'default', type: 'string', required: true, description: 'Default URL value (typically wrapped in url(...)).' },
-      value: { name: 'value', type: 'string', required: true, description: 'Current URL value (typically wrapped in url(...)).' },
-      hideEditor: { name: 'hideEditor', type: 'string', required: false, description: 'Hides the variable form in the design tool (true or false).' },
+    url: {
+      desc: 'Defines a URL skin variable containing an image or resource URL. Note: Distinct from runtime data:url.',
+      example: '<Variable name="header.image" description="Header Image" type="url" default="url(https://...)" value="url(https://...)"/>',
     },
-  },
-  automatic: {
-    type: 'automatic',
-    skinTypeLabel: 'automatic(skin)',
-    description: 'Defines an automatic skin variable computed or generated automatically by the theme engine.',
-    example: '<Variable name="body.rule" description="Body Rule" type="automatic" default="" value=""/>',
-    snippetBody: 'Variable name="$1" description="$2" type="automatic" default="$3" value="$4"/>$0',
-    attributes: {
-      name: { name: 'name', type: 'string', required: true, description: 'Unique variable identifier name. Letters, numbers, and dots are allowed.' },
-      description: { name: 'description', type: 'string', required: true, description: 'Variable label shown in Template Designer.' },
-      type: { name: 'type', type: 'string', required: true, description: 'Variable type: automatic(skin).' },
-      default: { name: 'default', type: 'string', required: false, description: 'Default automatic variable value.' },
-      value: { name: 'value', type: 'string', required: true, description: 'Current automatic variable value.' },
-      hideEditor: { name: 'hideEditor', type: 'string', required: false, description: 'Hides the variable form in the design tool (true or false).' },
+    automatic: {
+      desc: 'Defines an automatic skin variable computed or generated automatically by the theme engine.',
+      example: '<Variable name="body.rule" description="Body Rule" type="automatic" default="" value=""/>',
     },
-  },
-};
+  };
+
+  const result: Partial<Record<BloggerSkinVariableType, BloggerSkinVariableTypeDetail>> = {};
+
+  for (const type of bloggerSkinVariableTypes) {
+    const typeConfig = typeAttrs[type];
+    const allowed = typeConfig?.allowed ?? Object.keys(dirAttrs);
+    const required = typeConfig?.required ?? ['name', 'description', 'type'];
+
+    const attributes: Record<string, BloggerTagAttribute> = {};
+    for (const attrName of allowed) {
+      const def = dirAttrs[attrName];
+      if (def) {
+        let attrDesc = def.description ?? '';
+        if (attrName === 'type') {
+          attrDesc = `Variable type: ${type}(skin).${type === 'string' || type === 'url' ? ` (template skin variable, distinct from runtime data:${type}).` : ''}`;
+        }
+        attributes[attrName] = {
+          name: attrName,
+          type: def.type ?? 'string',
+          required: required.includes(attrName),
+          description: attrDesc,
+        };
+      }
+    }
+
+    const info = typeDescriptions[type];
+    result[type] = {
+      type,
+      skinTypeLabel: `${type}(skin)`,
+      description: info.desc,
+      example: info.example,
+      snippetBody: `Variable name="$1" description="$2" type="${type}" default="$3" value="$4"/>$0`,
+      attributes,
+    };
+  }
+
+  return result as Record<BloggerSkinVariableType, BloggerSkinVariableTypeDetail>;
+}
+
+export const bloggerSkinVariableTypeDetails: Record<BloggerSkinVariableType, BloggerSkinVariableTypeDetail> = buildSkinVariableTypeDetails();
 
 export const bloggerSkinVariableTags: readonly BloggerTagDefinition[] = Object.freeze(
   bloggerSkinVariableTypes.map((type) => {

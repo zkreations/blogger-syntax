@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { blogWidgetProperties, singlePostProperties } from '../../src/core/resolver/dataModel.js';
-import { BloggerScopeTracker, inferIncludableWidgetType } from '../../src/core/scope/scopeTracker.js';
+import { blogWidgetProperties, singlePostProperties } from '../../src/core/resolver/dataPathAdapter.js';
+import { BloggerScopeTracker } from '../../src/core/scope/scopeTracker.js';
 import { extractDataPathSegments, inferLoopVariables, inferWithVariables } from '../../src/core/scope/typeInferencer.js';
 
 describe('typeInferencer', () => {
@@ -432,130 +432,6 @@ describe('bloggerScopeTracker', () => {
       expect(env).toBeDefined();
       expect(env.hasSymbol('post')).toBe(false);
       expect(env.hasSymbol('top')).toBe(false);
-    });
-  });
-
-  describe('inferIncludableWidgetType and Common markup scoping', () => {
-    it('should infer widget type from preceding comment directive', () => {
-      const res = inferIncludableWidgetType('myCustomSub', '<!-- @widget Header -->\n');
-      expect(res).toBeDefined();
-      expect(res?.widgetType).toBe('Header');
-      expect(res?.source).toBe('directive');
-      expect(res?.ruleDetail).toContain('<!-- @widget Header -->');
-    });
-
-    it('should infer widget type from inside body comment directive', () => {
-      const res = inferIncludableWidgetType('articleCard', undefined, '\n  <!-- @widget Blog -->\n  <div/>');
-      expect(res).toBeDefined();
-      expect(res?.widgetType).toBe('Blog');
-      expect(res?.source).toBe('directive');
-    });
-
-    it('should infer widget type from prefix conventions', () => {
-      expect(inferIncludableWidgetType('widget:Header')?.widgetType).toBe('Header');
-      expect(inferIncludableWidgetType('w:Header')?.widgetType).toBe('Header');
-      expect(inferIncludableWidgetType('common:Header')?.widgetType).toBe('Header');
-      expect(inferIncludableWidgetType('@Header')?.widgetType).toBe('Header');
-      expect(inferIncludableWidgetType('widget-Header')?.widgetType).toBe('Header');
-      expect(inferIncludableWidgetType('widget_Header')?.widgetType).toBe('Header');
-    });
-
-    it('should infer widget type from widget prefix with separator', () => {
-      expect(inferIncludableWidgetType('Header:main')?.widgetType).toBe('Header');
-      expect(inferIncludableWidgetType('Header-title')?.widgetType).toBe('Header');
-      expect(inferIncludableWidgetType('Blog:postComments')?.widgetType).toBe('Blog');
-      expect(inferIncludableWidgetType('Blog-comments')?.widgetType).toBe('Blog');
-      expect(inferIncludableWidgetType('BlogArchive:flat')?.widgetType).toBe('BlogArchive');
-      expect(inferIncludableWidgetType('BlogList:item')?.widgetType).toBe('BlogList');
-      expect(inferIncludableWidgetType('TextList:entry')?.widgetType).toBe('TextList');
-      expect(inferIncludableWidgetType('Text:body')?.widgetType).toBe('Text');
-      expect(inferIncludableWidgetType('HTML:raw')?.widgetType).toBe('HTML');
-      expect(inferIncludableWidgetType('Feed:rss')?.widgetType).toBe('Feed');
-    });
-
-    it('should NOT match arbitrary substrings or camelCase to avoid false positives', () => {
-      expect(inferIncludableWidgetType('myHeader')).toBeUndefined();
-      expect(inferIncludableWidgetType('customBlog')).toBeUndefined();
-      expect(inferIncludableWidgetType('postImage')).toBeUndefined();
-      expect(inferIncludableWidgetType('cardImage')).toBeUndefined();
-      expect(inferIncludableWidgetType('subHeader')).toBeUndefined();
-      expect(inferIncludableWidgetType('userFeedback')).toBeUndefined();
-    });
-
-    it('should inject widget variables when parsing <b:includable> in Common markup', () => {
-      const tracker = new BloggerScopeTracker();
-      const code = [
-        '<b:defaultmarkups>',
-        '  <b:defaultmarkup type="Common">',
-        '    <b:includable id="widget:Header">',
-        '      <span><data:title/></span>',
-        '    </b:includable>',
-        '  </b:defaultmarkup>',
-        '</b:defaultmarkups>',
-      ].join('\n');
-
-      const insideOffset = code.indexOf('<data:title/>');
-      const vars = tracker.getActiveVariables('doc_common', 1, code, insideOffset);
-
-      expect(vars.title).toBeDefined();
-      expect(vars.title?.type).toBe('string');
-      expect(vars.widget).toBeDefined();
-
-      const encType = tracker.getEnclosingWidgetType('doc_common', 1, code, insideOffset);
-      expect(encType).toBe('Header');
-    });
-
-    it('should parse inherited parameters from @widget directive with parentheses', () => {
-      const res = inferIncludableWidgetType('comment:form', '<!-- @widget Blog (post, comment, this) -->\n');
-      expect(res).toBeDefined();
-      expect(res?.widgetType).toBe('Blog');
-      expect(res?.source).toBe('directive');
-      expect(res?.inheritedParams).toEqual(['post', 'comment', 'this']);
-      expect(res?.ruleDetail).toContain('<!-- @widget Blog (post, comment, this) -->');
-    });
-
-    it('should parse inherited parameters from @widget directive with square brackets', () => {
-      const res = inferIncludableWidgetType('comment:form', undefined, '  <!-- @widget Blog [post, this] -->\n');
-      expect(res).toBeDefined();
-      expect(res?.widgetType).toBe('Blog');
-      expect(res?.inheritedParams).toEqual(['post', 'this']);
-      expect(res?.ruleDetail).toContain('<!-- @widget Blog (post, this) -->');
-    });
-
-    it('should handle @widget directive with empty parentheses gracefully', () => {
-      const res = inferIncludableWidgetType('articleCard', '<!-- @widget Blog () -->\n');
-      expect(res).toBeDefined();
-      expect(res?.widgetType).toBe('Blog');
-      expect(res?.inheritedParams).toBeUndefined();
-      expect(res?.ruleDetail).toBe('Inferred from comment directive \'<!-- @widget Blog -->\'');
-    });
-
-    it('should inject inherited parameters and widget variables in Common includable scope', () => {
-      const tracker = new BloggerScopeTracker();
-      const code = [
-        '<b:defaultmarkups>',
-        '  <b:defaultmarkup type="Common">',
-        '    <!-- @widget Blog (post, this) -->',
-        '    <b:includable id="comment:form">',
-        '      <span><data:post.title/></span>',
-        '    </b:includable>',
-        '  </b:defaultmarkup>',
-        '</b:defaultmarkups>',
-      ].join('\n');
-
-      const insideOffset = code.indexOf('<data:post.title/>');
-      const vars = tracker.getActiveVariables('doc_inherited', 1, code, insideOffset);
-
-      expect(vars.post).toBeDefined();
-      expect(vars.post?.children?.title).toBeDefined();
-      expect(vars.this).toBeDefined();
-      expect(vars.this?.children?.posts).toBeDefined();
-      expect(vars.this?.children?.messages).toBeDefined();
-      expect(vars.posts).toBeDefined();
-
-      const env = tracker.getScopeEnvironmentAt('doc_inherited', 1, code, insideOffset);
-      expect(env.hasSymbol('post')).toBe(true);
-      expect(env.hasSymbol('this')).toBe(true);
     });
   });
 });

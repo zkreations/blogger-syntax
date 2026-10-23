@@ -8,7 +8,6 @@ import type {
   BloggerSuggestion,
 } from '../models/types.js';
 import type { BloggerIncludablesInfo, BloggerResolverContext, LocalVariablesResolver } from './hoverCardResolver.js';
-import type { PropertyNavigationResult } from './propertyHierarchy.js';
 import type { TagAttributeContext } from './tagAttributeResolver.js';
 import { getSpecCatalog } from 'blogger-spec/catalogs';
 import { getNearestUnclosedTag } from 'blogger-spec/parser';
@@ -26,16 +25,18 @@ import {
 import {
   bloggerGlobalRoot,
   getCategorizedPropertyMembers,
+  getDataPathSuggestions,
+  getPropertyMembers,
+  resolveDataProperty,
   WIDGET_DATA_DICTIONARIES,
   widgetMetaProperties,
-} from './dataModel.js';
+} from './dataPathAdapter.js';
 import {
   resolveHoverAtPosition as resolveHoverAtPositionDirect,
   resolveLocalVariables,
   resolveSkinSymbols,
   resolveSkinVariables,
 } from './hoverCardResolver.js';
-import { navigatePropertyPath } from './propertyHierarchy.js';
 import { resolveSkinCssVariables } from './skinVariableResolver.js';
 
 import { bloggerTags, hasAttributeValueCompletions, isExpressionAttribute, parseTagAttributeContext, resolveBloggerTagSuggestions, resolveDefaultMarkupTypesSuggestions, resolveDescriptionsSuggestions, resolveSkinVariableTypesSuggestions, resolveTagAttributeSuggestions, resolveWidgetTypesSuggestions } from './tagAttributeResolver.js';
@@ -155,27 +156,6 @@ function detectOperandPosition(expressionText: string): { isOperandStart: boolea
 }
 
 export class BloggerPathResolver {
-  private readonly rootTree: Record<string, BloggerProperty> = bloggerGlobalRoot;
-
-  private mapPropertyToSuggestion(prop: BloggerProperty, basePath?: string): BloggerSuggestion {
-    return {
-      name: prop.name,
-      type: prop.type,
-      description: prop.description,
-      example: prop.example ?? (basePath ? `data:${basePath}.${prop.name}` : `data:${prop.name}`),
-      deprecated: prop.deprecated,
-      kind: 'property',
-    };
-  }
-
-  private navigatePath(
-    segments: readonly string[],
-    localVariables?: Record<string, BloggerProperty>,
-    skinVariables?: Record<string, BloggerProperty>,
-  ): PropertyNavigationResult | undefined {
-    return navigatePropertyPath(segments, localVariables, this.rootTree, skinVariables);
-  }
-
   public resolvePropertyFromPath(
     segments: readonly string[],
     localVariables?: Record<string, BloggerProperty>,
@@ -184,7 +164,10 @@ export class BloggerPathResolver {
     if (segments.length === 0) {
       return undefined;
     }
-    return this.navigatePath(segments, localVariables, skinVariables)?.target;
+    return resolveDataProperty(segments, {
+      variables: localVariables,
+      skinVariables: skinVariables ? (skinVariables as any) : undefined,
+    });
   }
 
   public resolveDataPath(
@@ -193,119 +176,12 @@ export class BloggerPathResolver {
     widgetType?: string,
     skinVariables?: Record<string, BloggerProperty>,
   ): readonly BloggerSuggestion[] {
-    if (segments.length === 0) {
-      const suggestions: BloggerSuggestion[] = [];
-      const widgetDict = widgetType && WIDGET_DATA_DICTIONARIES[widgetType] ? WIDGET_DATA_DICTIONARIES[widgetType] : undefined;
-      const seen = new Set<string>();
-
-      if (localVariables) {
-        for (const [name, prop] of Object.entries(localVariables)) {
-          seen.add(name);
-          const isGlobal = Boolean(this.rootTree[name]);
-          const isWidget = Boolean(widgetDict && widgetDict[name]);
-          if (!isGlobal && !isWidget) {
-            suggestions.push({
-              name: prop.name,
-              type: prop.type,
-              description: prop.description ?? `Template variable \`${prop.name}\`.`,
-              example: `data:${prop.name}`,
-              deprecated: prop.deprecated,
-              kind: 'variable',
-              categoryBadge: 'Local',
-              sortPriority: 0,
-            });
-          }
-          else if (isWidget) {
-            suggestions.push({
-              name: prop.name,
-              type: prop.type,
-              description: prop.description,
-              example: `data:${prop.name}`,
-              deprecated: prop.deprecated,
-              kind: 'property',
-              categoryBadge: widgetType ? `Widget: ${widgetType}` : 'Widget',
-              sortPriority: 10,
-            });
-          }
-        }
-      }
-
-      if (widgetDict) {
-        for (const [name, prop] of Object.entries(widgetDict)) {
-          if (!seen.has(name)) {
-            seen.add(name);
-            suggestions.push({
-              name: prop.name,
-              type: prop.type,
-              description: prop.description,
-              example: `data:${prop.name}`,
-              deprecated: prop.deprecated,
-              kind: 'property',
-              categoryBadge: widgetType ? `Widget: ${widgetType}` : 'Widget',
-              sortPriority: 10,
-            });
-          }
-        }
-      }
-
-      for (const [name, prop] of Object.entries(this.rootTree)) {
-        if (!seen.has(name) || (localVariables && !widgetDict?.[name] && name === 'widget')) {
-          suggestions.push({
-            name: prop.name,
-            type: prop.type,
-            description: prop.description,
-            example: `data:${prop.name}`,
-            deprecated: prop.deprecated,
-            kind: 'property',
-            detail: `(Blogger Global: ${prop.name})`,
-            categoryBadge: 'Global',
-            sortPriority: 20,
-          });
-        }
-      }
-
-      return suggestions;
-    }
-
-    const node = this.navigatePath(segments, localVariables, skinVariables);
-    if (!node?.target || !node?.children) {
-      return [];
-    }
-
-    const basePath = segments.join('.');
-    const isSkinVars = segments.length === 2 && segments[0] === 'skin' && segments[1] === 'vars';
-    const isSkinVarChild = segments.length === 3 && segments[0] === 'skin' && segments[1] === 'vars';
-
-    const categorized = getCategorizedPropertyMembers(node.target);
-    if (categorized && categorized.length > 0) {
-      return categorized.map(m => ({
-        name: m.property.name,
-        type: m.property.type,
-        description: m.property.description,
-        example: m.property.example ?? `data:${basePath}.${m.property.name}`,
-        deprecated: m.property.deprecated,
-        kind: isSkinVars ? ('variable' as const) : 'property',
-        detail: isSkinVars
-          ? `(Theme Variable: ${m.property.type})`
-          : isSkinVarChild
-            ? `(Theme Modifier: ${m.property.type.charAt(0).toUpperCase() + m.property.type.slice(1)})`
-            : `(Blogger Data: ${m.property.type.charAt(0).toUpperCase() + m.property.type.slice(1)})`,
-        categoryBadge: isSkinVars ? 'Theme' : m.categoryBadge,
-        sortPriority: m.sortPriority,
-      }));
-    }
-
-    return Object.values(node.children).map(prop => ({
-      ...this.mapPropertyToSuggestion(prop, basePath),
-      kind: isSkinVars ? ('variable' as const) : 'property',
-      detail: isSkinVars
-        ? `(Theme Variable: ${prop.type})`
-        : isSkinVarChild
-          ? `(Theme Modifier: ${prop.type.charAt(0).toUpperCase() + prop.type.slice(1)})`
-          : undefined,
-      categoryBadge: isSkinVars ? 'Theme' : 'Property',
-      sortPriority: 0,
-    }));
+    const pathStr = segments.join('.');
+    return getDataPathSuggestions(pathStr, {
+      widgetType,
+      variables: localVariables,
+      skinVariables: skinVariables ? (skinVariables as any) : undefined,
+    });
   }
 
   public resolveSkinCssVariables(
@@ -545,6 +421,29 @@ export class BloggerPathResolver {
           };
         }
       }
+      else {
+        const members = getPropertyMembers(fakeProp);
+        if (members && Object.keys(members).length > 0) {
+          const suggestions: BloggerSuggestion[] = Object.values(members)
+            .filter(prop => !memberExpr.partialMember || prop.name.startsWith(memberExpr.partialMember))
+            .map(prop => ({
+              name: prop.name,
+              type: prop.type,
+              description: prop.description,
+              example: `(${memberExpr.operand}).${prop.name}`,
+              kind: 'property' as const,
+              deprecated: prop.deprecated,
+              categoryBadge: fakeProp.type === 'array' ? 'Array' : 'String',
+              sortPriority: 0,
+            }));
+          if (suggestions.length > 0) {
+            return {
+              suggestions,
+              replacementLength: memberExpr.partialMember.length,
+            };
+          }
+        }
+      }
     }
 
     // 4. Infix operator position (<operand> <space> [partialOp])
@@ -608,7 +507,7 @@ export class BloggerPathResolver {
 
       if (localVariables) {
         for (const [name, prop] of Object.entries(localVariables)) {
-          const isGlobal = Boolean(this.rootTree[name]);
+          const isGlobal = Boolean(bloggerGlobalRoot[name]);
           const isWidget = Boolean(widgetDict && widgetDict[name]);
           if (!isGlobal && !isWidget) {
             const qualifiedName = `data:${name}`;
@@ -652,7 +551,7 @@ export class BloggerPathResolver {
       else if (localVariables) {
         // Fallback if widgetType was not explicitly passed in resolver context
         for (const [name, prop] of Object.entries(localVariables)) {
-          if (!seenDataProps.has(name) && !this.rootTree[name]) {
+          if (!seenDataProps.has(name) && !bloggerGlobalRoot[name]) {
             const qualifiedName = `data:${name}`;
             if (!typedPrefix || qualifiedName.startsWith(typedPrefix) || name.startsWith(typedPrefix)) {
               suggestions.push({
@@ -671,7 +570,7 @@ export class BloggerPathResolver {
       }
 
       // 4. Global root properties (with data: prefix)
-      for (const [name, prop] of Object.entries(this.rootTree)) {
+      for (const [name, prop] of Object.entries(bloggerGlobalRoot)) {
         const qualifiedName = `data:${name}`;
         if (!typedPrefix || qualifiedName.startsWith(typedPrefix) || name.startsWith(typedPrefix)) {
           suggestions.push({

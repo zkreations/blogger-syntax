@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { blogWidgetProperties, singlePostProperties } from '../../src/core/resolver/dataModel.js';
+import { blogWidgetProperties, singlePostProperties } from '../../src/core/resolver/dataPathAdapter.js';
 import {
   inferLoopVariables,
   inferWithVariables,

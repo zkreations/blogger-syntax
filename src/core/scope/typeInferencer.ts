@@ -11,16 +11,12 @@ import { resolveDataPath } from 'blogger-spec/data-path';
 import { getArrayElementProperty, inferExpressionType } from '../parser/exprParser.js';
 import {
   bloggerGlobalRoot,
-  commentProperties,
+  buildPropertiesFromSpec,
   createArrayProperties,
-  labelItemProperties,
-  linkItemProperties,
   messagesProperties,
-  singlePostProperties,
+  resolveDataProperty,
   WIDGET_DATA_DICTIONARIES,
-} from '../resolver/dataModel.js';
-import { navigatePropertyPath } from '../resolver/propertyHierarchy.js';
-import { buildPropertiesFromSpec } from '../resolver/specModelAdapter.js';
+} from '../resolver/dataPathAdapter.js';
 
 const PATH_EXTRACTOR_REGEX = /^(?:data:)?([\w.]+)/;
 
@@ -42,9 +38,13 @@ export function extractDataPathSegments(expression: string): string[] {
 export function resolvePropertyFromScope(
   segments: readonly string[],
   localVariables?: Record<string, BloggerProperty>,
-  rootTree: Record<string, BloggerProperty> = bloggerGlobalRoot,
+  _rootTree: Record<string, BloggerProperty> = bloggerGlobalRoot,
+  widgetType?: string,
 ): BloggerProperty | undefined {
-  return navigatePropertyPath(segments, localVariables, rootTree)?.target;
+  return resolveDataProperty(segments, {
+    variables: localVariables,
+    widgetType: widgetType ?? (localVariables ? undefined : ''),
+  });
 }
 
 /**
@@ -189,7 +189,7 @@ export function inferLoopVariables(
       }
       else {
         const segments = extractDataPathSegments(valuesExpr);
-        let resolvedProp = resolvePropertyFromScope(segments, localVariables);
+        let resolvedProp = resolvePropertyFromScope(segments, localVariables, bloggerGlobalRoot, enclosingWidgetType);
 
         if (!resolvedProp) {
           const specResolved = resolveDataPath(segments, {
@@ -500,53 +500,7 @@ export function inferIncludableVariables(
     return result;
   }
 
-  // 3. Fallback semantic conventions by parameter name resolved via canonical blogger-spec
-  const catalog = getSpecCatalog();
-  if (cleanVarName === 'post') {
-    const postItemProps = catalog.getWidget('Blog')?.canonical?.posts?.item_properties;
-    result[cleanVarName] = {
-      name: 'post',
-      type: 'object',
-      description: 'Current post object context.',
-      children: postItemProps ? buildPropertiesFromSpec(postItemProps, 'widget.Blog.posts[]') : singlePostProperties,
-    };
-    return result;
-  }
-
-  if (cleanVarName === 'comment') {
-    const commentItemProps = catalog.getWidget('Blog')?.canonical?.posts?.item_properties?.comments?.item_properties;
-    result[cleanVarName] = {
-      name: 'comment',
-      type: 'object',
-      description: 'Current comment item context.',
-      children: commentItemProps ? buildPropertiesFromSpec(commentItemProps, 'widget.Blog.posts[].comments[]') : commentProperties,
-    };
-    return result;
-  }
-
-  if (cleanVarName === 'label') {
-    const labelItemProps = catalog.getWidget('Label')?.canonical?.labels?.item_properties;
-    result[cleanVarName] = {
-      name: 'label',
-      type: 'object',
-      description: 'Current label item context.',
-      children: labelItemProps ? buildPropertiesFromSpec(labelItemProps, 'widget.Label.labels[]') : labelItemProperties,
-    };
-    return result;
-  }
-
-  if (cleanVarName === 'link') {
-    const linkItemProps = catalog.getWidget('LinkList')?.canonical?.links?.item_properties;
-    result[cleanVarName] = {
-      name: 'link',
-      type: 'object',
-      description: 'Current link item context.',
-      children: linkItemProps ? buildPropertiesFromSpec(linkItemProps, 'widget.LinkList.links[]') : linkItemProperties,
-    };
-    return result;
-  }
-
-  // 4. Generic parameter fallback
+  // 3. Generic parameter fallback
   result[cleanVarName] = {
     name: cleanVarName,
     type: 'object',

@@ -23,7 +23,7 @@ describe('linter core engine', () => {
       const growthDiag = sectionDiags.find(d => d.message.includes('growth'));
       expect(growthDiag).toBeDefined();
       expect(growthDiag?.tags).toContain('deprecated');
-      expect(growthDiag?.quickFixes?.[0]?.newText).toBe('');
+      expect(growthDiag?.quickFixes?.[0]?.newText).toBe('CSS Flexbox / Grid');
     });
 
     it('detects deprecated attributes on <b:widget>', () => {
@@ -32,14 +32,14 @@ describe('linter core engine', () => {
 
       const widgetDiag = diags.find(d => d.code === 'BX1024');
       expect(widgetDiag).toBeDefined();
-      expect(widgetDiag?.quickFixes?.[0]?.newText).toBe('');
+      expect(widgetDiag?.quickFixes?.[0]?.newText).toBe('CSS media queries or data:blog.isMobileRequest');
     });
 
     it('detects deprecated data:blog.isMobile and offers quick fix to data:blog.isMobileRequest', () => {
       const xml = `<b:eval expr='data:blog.isMobile ? "mobile" : "desktop"'/>`;
       const diags = lintBloggerDocument(xml);
 
-      const isMobileDiag = diags.find(d => d.code === 'BX1024' && d.message.includes('isMobile'));
+      const isMobileDiag = diags.find(d => d.code === 'BX1050' && d.message.includes('isMobile'));
       expect(isMobileDiag).toBeDefined();
       expect(isMobileDiag?.quickFixes?.[0]?.newText).toBe('data:blog.isMobileRequest');
     });
@@ -48,7 +48,7 @@ describe('linter core engine', () => {
       const xml = `<b:eval expr='data:view.isMobile ? "mobile" : "desktop"'/>`;
       const diags = lintBloggerDocument(xml);
 
-      const isMobileDiag = diags.find(d => d.code === 'BX1024' && d.message.includes('isMobile'));
+      const isMobileDiag = diags.find(d => d.code === 'BX1050' && d.message.includes('isMobile'));
       expect(isMobileDiag).toBeDefined();
       expect(isMobileDiag?.quickFixes?.[0]?.newText).toBe('data:blog.isMobileRequest');
     });
@@ -57,7 +57,7 @@ describe('linter core engine', () => {
       const xml = `<link expr:href='data:blog.canonicalUrl' rel='canonical'/>`;
       const diags = lintBloggerDocument(xml);
 
-      const canonDiag = diags.find(d => d.code === 'BX1024' && d.message.includes('canonicalUrl'));
+      const canonDiag = diags.find(d => d.code === 'BX1050' && d.message.includes('canonicalUrl'));
       expect(canonDiag).toBeDefined();
       expect(canonDiag?.quickFixes?.[0]?.newText).toBe('data:blog.url.canonical');
     });
@@ -93,7 +93,7 @@ describe('linter core engine', () => {
       const xml = `<div expr:class='data:blog.mobileClass'></div>`;
       const diags = lintBloggerDocument(xml);
 
-      const mobileClassDiag = diags.find(d => d.code === 'BX1024' && d.message.includes('mobileClass'));
+      const mobileClassDiag = diags.find(d => d.code === 'BX1050' && d.message.includes('mobileClass'));
       expect(mobileClassDiag).toBeDefined();
     });
   });

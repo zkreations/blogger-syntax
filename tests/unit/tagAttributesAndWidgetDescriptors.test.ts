@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { blogWidgetProperties, labelWidgetProperties, singlePostProperties } from '../../src/core/resolver/dataModel.js';
+import { blogWidgetProperties, labelWidgetProperties, singlePostProperties } from '../../src/core/resolver/dataPathAdapter.js';
 import { BloggerPathResolver, parseTagAttributeContext } from '../../src/core/resolver/pathResolver.js';
 
 describe('tag attribute completion & canonical data:widgets descriptors', () => {

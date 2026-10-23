@@ -6,8 +6,8 @@ import type {
 import type { InferredWidgetResolution } from '../scope/scopeTracker.js';
 import { getSpecCatalog } from 'blogger-spec/catalogs';
 import { resolveLambdaHoverAtPosition } from '../parser/exprParser.js';
+import { resolveDataProperty } from './dataPathAdapter.js';
 import { bloggerOperatorsCatalog } from './pathResolver.js';
-import { navigatePropertyPath } from './propertyHierarchy.js';
 import { resolveSkinCssHover } from './skinVariableResolver.js';
 import {
   bloggerCommonAttributes,
@@ -385,7 +385,11 @@ export function resolveHoverAtPosition(
 
   const skinVars = resolveSkinVariables(options?.skinVariables);
   return resolveHoverCardAtPosition(
-    (segments, localVars) => navigatePropertyPath(segments, localVars, undefined, skinVars)?.target,
+    (segments, localVars) => resolveDataProperty(segments, {
+      widgetType: options?.widgetType ?? '',
+      variables: localVars,
+      skinVariables: skinVars ? (skinVars as any) : undefined,
+    }),
     lineText,
     character,
     precedingContext,

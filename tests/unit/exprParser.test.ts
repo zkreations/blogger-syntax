@@ -10,7 +10,7 @@ import {
   resolveLambdaContextAtCursor,
   resolveLambdaHoverAtPosition,
 } from '../../src/core/parser/exprParser.js';
-import { blogWidgetProperties, singlePostProperties } from '../../src/core/resolver/dataModel.js';
+import { blogWidgetProperties, singlePostProperties } from '../../src/core/resolver/dataPathAdapter.js';
 
 describe('exprParser - Expression Parsing & Lambda Scopes', () => {
   describe('getArrayElementProperty', () => {

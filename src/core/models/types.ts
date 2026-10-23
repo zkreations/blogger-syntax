@@ -14,6 +14,7 @@ export type BloggerDataType
 export interface BloggerProperty {
   readonly name: string;
   readonly type: BloggerDataType;
+  readonly skinType?: string | undefined;
   readonly description?: string | undefined;
   readonly deprecated?: boolean | undefined;
   readonly example?: string | undefined;

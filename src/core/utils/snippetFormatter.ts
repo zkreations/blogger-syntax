@@ -1,3 +1,5 @@
+import type { BloggerProperty } from '../models/types.js';
+
 /**
  * Cleans VS Code snippet placeholders and converts a snippet template into clean, readable code.
  *
@@ -38,4 +40,31 @@ export function cleanSnippetBody(snippetBody: string, ensureOpenTag: boolean = t
   }
 
   return cleaned;
+}
+
+/**
+ * Infers a singular parameter name (e.g. 'p', 'l', 'c', 'item') from a collection expression or property.
+ * Useful for building snippet strings in VS Code autocompletion.
+ */
+export function inferSingularParamName(operand: string, prop?: BloggerProperty): string {
+  const rawName = prop?.name ?? operand.split(/[:.[\]]/).filter(Boolean).pop()?.toLowerCase() ?? '';
+  switch (rawName) {
+    case 'posts':
+      return 'p';
+    case 'labels':
+      return 'l';
+    case 'comments':
+      return 'c';
+    case 'links':
+      return 'l';
+    case 'items':
+      return 'item';
+    case 'widgets':
+      return 'w';
+    default:
+      if (rawName.length > 2 && rawName.endsWith('s')) {
+        return rawName[0]?.toLowerCase() ?? 'item';
+      }
+      return 'item';
+  }
 }

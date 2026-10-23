@@ -3,7 +3,7 @@ import {
   blogWidgetProperties,
   skinProperties,
   widgetsMapProperties,
-} from '../../src/core/resolver/dataModel.js';
+} from '../../src/core/resolver/dataPathAdapter.js';
 import { BloggerPathResolver } from '../../src/core/resolver/pathResolver.js';
 import { bloggerTags } from '../../src/core/resolver/tagAttributeResolver.js';
 

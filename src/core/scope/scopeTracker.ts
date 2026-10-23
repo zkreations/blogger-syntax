@@ -8,7 +8,7 @@ import {
   messagesProperties,
   WIDGET_DATA_DICTIONARIES,
   widgetMetaProperties,
-} from '../resolver/dataModel.js';
+} from '../resolver/dataPathAdapter.js';
 import {
   buildSkinVariableProperties,
   extractSkinVariables,
@@ -39,7 +39,6 @@ export interface BloggerScopeBlock {
   readonly widgetType?: string | undefined;
   readonly widgetId?: string | undefined;
   readonly includableId?: string | undefined;
-  readonly inferredWidgetContext?: InferredWidgetResolution | undefined;
   readonly openTagStartOffset?: number | undefined;
   readonly openTagEndOffset?: number | undefined;
   readonly startOffset: number;
@@ -48,105 +47,6 @@ export interface BloggerScopeBlock {
   readonly children: BloggerScopeBlock[];
   readonly parent?: BloggerScopeBlock | undefined;
   readonly scopeEnvironment?: ScopeEnvironment | undefined;
-}
-
-const CANONICAL_WIDGET_TYPES = Object.keys(getSpecCatalog().getAllWidgets()).sort((a, b) => b.length - a.length);
-
-function getCanonicalWidgetType(name: string): string | undefined {
-  return CANONICAL_WIDGET_TYPES.find(w => w.toLowerCase() === name.toLowerCase());
-}
-
-function parseDirectiveMatch(match: RegExpExecArray): InferredWidgetResolution | undefined {
-  const rawWidgetName = match[1];
-  if (!rawWidgetName) {
-    return undefined;
-  }
-  const canonical = getCanonicalWidgetType(rawWidgetName);
-  if (!canonical) {
-    return undefined;
-  }
-
-  const rawParams = match[2] ?? match[3];
-  const inheritedParams = rawParams
-    ? rawParams.split(/[,\s]+/).map(p => p.trim()).filter(Boolean)
-    : undefined;
-  const hasParams = Boolean(inheritedParams && inheritedParams.length > 0);
-
-  return {
-    widgetType: canonical,
-    source: 'directive',
-    ruleDetail: hasParams
-      ? `Inferred from comment directive '<!-- @widget ${canonical} (${inheritedParams!.join(', ')}) -->'`
-      : `Inferred from comment directive '<!-- @widget ${canonical} -->'`,
-    ...(hasParams ? { inheritedParams } : {}),
-  };
-}
-
-export function inferIncludableWidgetType(
-  includableId: string | undefined,
-  precedingText?: string,
-  insideText?: string,
-): InferredWidgetResolution | undefined {
-  if (precedingText) {
-    const match = /<!--\s*@widget\s+([\w-]+)(?:\s*(?:\(([^)]*)\)|\[([^\]]*)\]))?\s*-->\s*$/.exec(precedingText);
-    if (match) {
-      const res = parseDirectiveMatch(match);
-      if (res) {
-        return res;
-      }
-    }
-  }
-
-  if (insideText) {
-    const match = /^\s*<!--\s*@widget\s+([\w-]+)(?:\s*(?:\(([^)]*)\)|\[([^\]]*)\]))?\s*-->/.exec(insideText);
-    if (match) {
-      const res = parseDirectiveMatch(match);
-      if (res) {
-        return res;
-      }
-    }
-  }
-
-  if (!includableId) {
-    return undefined;
-  }
-
-  const prefixMatch = /^(?:(?:widget|w|common)[:@\-_.]|@)(\w+)$/i.exec(includableId);
-  if (prefixMatch?.[1]) {
-    const canonical = getCanonicalWidgetType(prefixMatch[1]);
-    if (canonical) {
-      return {
-        widgetType: canonical,
-        source: 'convention',
-        ruleDetail: `Inferred from ID convention '${includableId}'`,
-      };
-    }
-  }
-
-  for (const wType of CANONICAL_WIDGET_TYPES) {
-    if (includableId.toLowerCase() === wType.toLowerCase()) {
-      return {
-        widgetType: wType,
-        source: 'convention',
-        ruleDetail: `Inferred from exact widget ID '${includableId}'`,
-      };
-    }
-
-    const prefix = wType.toLowerCase();
-    const idLower = includableId.toLowerCase();
-    if (idLower.startsWith(prefix) && idLower.length > prefix.length) {
-      const sep = idLower[prefix.length];
-      if (sep === ':' || sep === '@' || sep === '-' || sep === '_' || sep === '.') {
-        return {
-          widgetType: wType,
-          source: 'convention',
-          ruleDetail: `Inferred from widget prefix '${wType}${sep}' in '${includableId}'`,
-        };
-      }
-    }
-  }
-
-  return undefined;
 }
 
 function mergeStackVariables(stack: readonly BloggerScopeBlock[]): Record<string, BloggerProperty> {
@@ -246,7 +146,6 @@ export class BloggerScopeTracker {
       let widgetType: string | undefined;
       let widgetId: string | undefined;
       let includableId: string | undefined;
-      let inferredWidgetContext: InferredWidgetResolution | undefined;
 
       if (fullTag === 'b:widget') {
         widgetId = attrs.id?.value;
@@ -299,19 +198,6 @@ export class BloggerScopeTracker {
         const forwardedData = includableId ? includeInvocations.get(includableId) : undefined;
         widgetType = enclosingBlock?.widgetType;
 
-        const isCommonMarkup = enclosingBlock?.widgetType
-          ? enclosingBlock.widgetType.split(',').map(s => s.trim().toLowerCase()).some(t => t === 'common' || t === 'all')
-          : false;
-
-        const precedingText = text.slice(Math.max(0, tagStartOffset - 250), tagStartOffset);
-        const insideText = text.slice(tagEndOffset, Math.min(text.length, tagEndOffset + 250));
-        if (isCommonMarkup || !enclosingBlock?.widgetType || precedingText.includes('@widget') || insideText.includes('@widget')) {
-          inferredWidgetContext = inferIncludableWidgetType(includableId, precedingText, insideText);
-          if (inferredWidgetContext) {
-            widgetType = inferredWidgetContext.widgetType;
-          }
-        }
-
         variables = inferIncludableVariables(
           varName,
           forwardedData,
@@ -319,49 +205,9 @@ export class BloggerScopeTracker {
           widgetType,
         );
 
-        const widgetDict = widgetType ? WIDGET_DATA_DICTIONARIES[widgetType] : undefined;
-        if (inferredWidgetContext && widgetDict) {
-          Object.assign(variables, widgetDict);
-          variables.widget = {
-            name: 'widget',
-            type: 'object',
-            description: 'Current enclosing widget properties.',
-            children: widgetMetaProperties,
-          };
-        }
-
-        if (inferredWidgetContext?.inheritedParams) {
-          for (const param of inferredWidgetContext.inheritedParams) {
-            const paramVars = inferIncludableVariables(param, undefined, activeVarsAtOpen, widgetType);
-            Object.assign(variables, paramVars);
-          }
-        }
-
         const symbols: Record<string, any> = {};
         if (varName) {
           symbols[varName] = { name: varName, scopeType: 'includable' };
-        }
-        if (inferredWidgetContext && widgetDict) {
-          for (const [propName, propDef] of Object.entries(widgetDict)) {
-            symbols[propName] = {
-              name: propName,
-              type: propDef.type,
-              scopeType: 'widget',
-              requiresDataPrefix: true,
-              metadata: { description: propDef.description },
-            };
-          }
-        }
-        if (inferredWidgetContext?.inheritedParams) {
-          for (const param of inferredWidgetContext.inheritedParams) {
-            const propDef = variables[param];
-            symbols[param] = {
-              name: param,
-              type: propDef?.type ?? 'object',
-              scopeType: 'includable',
-              metadata: { description: propDef?.description },
-            };
-          }
         }
 
         scopeEnv.pushScope('includable', {
@@ -399,7 +245,6 @@ export class BloggerScopeTracker {
         widgetType,
         widgetId,
         includableId,
-        ...(inferredWidgetContext ? { inferredWidgetContext } : {}),
         openTagStartOffset: tagStartOffset,
         openTagEndOffset: tagEndOffset,
         startOffset: fullTag === 'b:widget' ? tagStartOffset : tagEndOffset,
@@ -578,18 +423,12 @@ export class BloggerScopeTracker {
     offset: number,
   ): string | undefined {
     const includable = this.getIncludableBlockAtOffset(documentKey, version, text, offset);
-    if (includable?.inferredWidgetContext?.widgetType) {
-      return includable.inferredWidgetContext.widgetType;
-    }
     if (includable?.widgetType && includable.widgetType !== 'Common') {
       return includable.widgetType;
     }
 
     let block = this.getInnermostBlockAtOffset(documentKey, version, text, offset);
     while (block) {
-      if (block.inferredWidgetContext?.widgetType) {
-        return block.inferredWidgetContext.widgetType;
-      }
       if (block.widgetType) {
         return block.widgetType;
       }

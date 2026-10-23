@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { navigatePropertyPath } from '../../src/core/resolver/propertyHierarchy.js';
+import { navigatePropertyPath } from '../../src/core/resolver/dataPathAdapter.js';
 
 describe('propertyHierarchy', () => {
   it('should return undefined for empty segments', () => {

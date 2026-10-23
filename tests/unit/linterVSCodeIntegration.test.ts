@@ -120,13 +120,13 @@ describe('linter VS Code Integration', () => {
 
       expect(actions.length).toBeGreaterThan(0);
       const action = actions[0]!;
-      expect(action.title).toBe('Remove obsolete attribute "growth"');
+      expect(action.title).toBe('Migrate \'growth\' to \'CSS Flexbox / Grid\'');
       expect(action.isPreferred).toBe(true);
       expect(action.edit).toBeDefined();
 
       const edits = (action.edit as any).entries.get('file:///test-fix.xml');
       expect(edits).toBeDefined();
-      expect(edits[0].newText).toBe('');
+      expect(edits[0].newText).toBe('CSS Flexbox / Grid');
 
       diagnosticProvider.dispose();
     });

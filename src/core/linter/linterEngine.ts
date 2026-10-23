@@ -1,16 +1,12 @@
 import type { BloggerDiagnosticCode } from 'blogger-spec';
 import type { BloggerStructureDiagnostic } from 'blogger-spec/parser';
-import type { BloggerProperty } from '../models/types.js';
 import type { BloggerDiagnostic, BloggerQuickFix, BloggerTextEdit, LinterOptions } from './linterTypes.js';
-import { STRICTLY_SELF_CLOSING_TAGS } from 'blogger-spec';
 import { getSpecCatalog } from 'blogger-spec/catalogs';
-import { parseExpression, scanDirectiveTokens, validateTemplateStructure } from 'blogger-spec/parser';
+import { scanDirectiveTokens, validateTemplateStructure } from 'blogger-spec/parser';
 import { tokenizeExpression } from 'blogger-spec/quota';
 import { getSkinTypeModifiers } from 'blogger-spec/type-system';
-import { findIncludableDefinition } from '../navigation/definitionResolver.js';
-import { bloggerGlobalRoot, getPropertyMembers, getWidgetDescriptor } from '../resolver/dataModel.js';
+import { messagesProperties, resolveDataProperty } from '../resolver/dataPathAdapter.js';
 import { buildSkinVariableProperties, extractSkinVariables } from '../resolver/skinVariableResolver.js';
-import { toBloggerDataType } from '../resolver/specModelAdapter.js';
 import { BloggerScopeTracker } from '../scope/scopeTracker.js';
 import {
   buildSuppressionQuickFixes,
@@ -22,248 +18,11 @@ import { computeLineOffsets, createRange, maskComments } from './linterUtils.js'
 export { tokenizeExpression };
 export type { BloggerExpressionToken as Token } from 'blogger-spec';
 
-type DirectiveToken = ReturnType<typeof scanDirectiveTokens>[number];
-
-interface DeprecatedDataProperty {
-  readonly pattern: RegExp;
-  readonly message: string;
-  readonly replacement?: string;
-}
-
-const DEPRECATED_DATA_PROPERTIES: readonly DeprecatedDataProperty[] = [
-  {
-    pattern: /\bdata:(?:blog|view)\.isMobile\b/g,
-    message: 'data:blog.isMobile and data:view.isMobile are deprecated in Blogger Layouts v3. Use data:blog.isMobileRequest.',
-    replacement: 'data:blog.isMobileRequest',
-  },
-  {
-    pattern: /\bdata:blog\.canonicalUrl\b/g,
-    message: 'data:blog.canonicalUrl is deprecated. Use data:blog.url.canonical.',
-    replacement: 'data:blog.url.canonical',
-  },
-  {
-    pattern: /\bdata:blog\.mobileClass\b/g,
-    message: 'data:blog.mobileClass is obsolete in Blogger Layouts v3.',
-  },
-];
-
-const HALLUCINATED_DATA_PROPERTIES = [
-  {
-    pattern: /\.(?:hasTitle|isFeatured)\b/g,
-    code: 'BX1025' as BloggerDiagnosticCode,
-    message: 'Property is not part of the Blogger data model (e.g. hasTitle, isFeatured do not exist).',
-  },
-  {
-    pattern: /\bdata:(?:headerTitle|logoUrl)\b/g,
-    code: 'BX1025' as BloggerDiagnosticCode,
-    message: 'Property is hallucinated; Header widget uses data:title and data:image.',
-  },
-  {
-    pattern: /\bdata:categories\b/g,
-    code: 'BX1025' as BloggerDiagnosticCode,
-    message: 'Property "data:categories" is hallucinated; Label widget uses "data:labels".',
-  },
-  {
-    pattern: /\b(?:data:)?comment\.replies\b/g,
-    code: 'BX1025' as BloggerDiagnosticCode,
-    message: 'Nested "comment.replies" collection is hallucinated; Blogger comments are flat and filtered via (c => c.inReplyTo == comment.id).',
-  },
-  {
-    pattern: /\b(?:data:)?(?:comment|author)\.author\.photo\.url\b|\bauthor\.photo\.url\b/g,
-    code: 'BX1025' as BloggerDiagnosticCode,
-    message: 'Property "author.photo.url" is hallucinated; use "author.authorPhoto.image" or "authorAvatarSrc".',
-  },
-];
-
 const INVERTED_ATTR_MAP: Readonly<Record<string, string>> = {
   BX1014: 'var',
   BX1015: 'id',
   BX1016: 'name',
 };
-
-interface HallucinatedDirectiveConfig {
-  readonly targetTag: string;
-  readonly attrMap: Readonly<Record<string, string>>;
-  readonly requiredAttrs?: readonly string[];
-}
-
-const HALLUCINATED_DIRECTIVE_MAP: Readonly<Record<string, HallucinatedDirectiveConfig>> = {
-  BX1001: {
-    targetTag: 'b:loop',
-    attrMap: { each: 'var', item: 'var', as: 'var', var: 'var', in: 'values', of: 'values', items: 'values', collection: 'values', values: 'values', index: 'index' },
-    requiredAttrs: ['values'],
-  },
-  BX1002: {
-    targetTag: 'b:loop',
-    attrMap: { each: 'var', item: 'var', as: 'var', var: 'var', in: 'values', of: 'values', items: 'values', collection: 'values', values: 'values', index: 'index' },
-    requiredAttrs: ['values'],
-  },
-  BX1003: {
-    targetTag: 'b:with',
-    attrMap: { name: 'var', var: 'var', id: 'var', key: 'var', value: 'value', val: 'value', expr: 'value' },
-    requiredAttrs: ['value', 'var'],
-  },
-  BX1004: {
-    targetTag: 'b:with',
-    attrMap: { name: 'var', var: 'var', id: 'var', key: 'var', value: 'value', val: 'value', expr: 'value' },
-    requiredAttrs: ['value', 'var'],
-  },
-  BX1005: {
-    targetTag: 'b:with',
-    attrMap: { name: 'var', var: 'var', id: 'var', key: 'var', value: 'value', val: 'value', expr: 'value' },
-    requiredAttrs: ['value', 'var'],
-  },
-  BX1006: {
-    targetTag: 'b:elseif',
-    attrMap: { cond: 'cond', test: 'cond', expr: 'cond' },
-    requiredAttrs: ['cond'],
-  },
-  BX1007: {
-    targetTag: 'b:switch',
-    attrMap: { var: 'var', expr: 'var', value: 'var' },
-  },
-  BX1008: {
-    targetTag: 'b:case',
-    attrMap: { value: 'value', val: 'value', test: 'value', expr: 'value', cond: 'value' },
-    requiredAttrs: ['value'],
-  },
-  BX1009: {
-    targetTag: 'b:default',
-    attrMap: {},
-  },
-  BX1010: {
-    targetTag: 'b:includable',
-    attrMap: { id: 'id', name: 'id' },
-    requiredAttrs: ['id'],
-  },
-  BX1011: {
-    targetTag: 'b:includable',
-    attrMap: { id: 'id', name: 'id' },
-    requiredAttrs: ['id'],
-  },
-  BX1012: {
-    targetTag: 'b:includable',
-    attrMap: { id: 'id', name: 'id' },
-    requiredAttrs: ['id'],
-  },
-};
-
-function buildHallucinatedDirectiveQuickFix(
-  sd: { readonly code: string; readonly tagStart?: number | undefined; readonly tagEnd?: number | undefined },
-  config: HallucinatedDirectiveConfig,
-  tokens: readonly DirectiveToken[],
-  lineOffsets: readonly number[],
-  documentText: string,
-): BloggerQuickFix | undefined {
-  if (sd.tagStart === undefined || sd.tagEnd === undefined) {
-    return undefined;
-  }
-
-  const openToken = tokens.find(t => t.tagStart === sd.tagStart && t.tagEnd === sd.tagEnd)
-    ?? tokens.find(t => t.tagStart <= sd.tagStart! && t.tagEnd >= sd.tagEnd!);
-
-  if (!openToken) {
-    return undefined;
-  }
-
-  const isStrictlySelfClosing = STRICTLY_SELF_CLOSING_TAGS.has(config.targetTag);
-  const parts: string[] = [];
-  const handledAttrs = new Set<string>();
-  const rawAttrs = openToken.attributes ?? {};
-
-  for (const [attrName, attr] of Object.entries(rawAttrs)) {
-    if (!attr) {
-      continue;
-    }
-    let prefix = '';
-    let baseName = attrName;
-    if (attrName.startsWith('expr:')) {
-      prefix = 'expr:';
-      baseName = attrName.slice(5);
-    }
-    const targetName = config.attrMap[baseName] ?? baseName;
-    const finalName = `${prefix}${targetName}`;
-    handledAttrs.add(targetName);
-    const quote = attr.quote || '\'';
-    parts.push(`${finalName}=${quote}${attr.value}${quote}`);
-  }
-
-  if (config.requiredAttrs) {
-    for (const req of config.requiredAttrs) {
-      if (!handledAttrs.has(req)) {
-        parts.push(`${req}='...'`);
-      }
-    }
-  }
-
-  const attrsString = parts.length > 0 ? ` ${parts.join(' ')}` : '';
-  const closingSlash = isStrictlySelfClosing ? '/>' : (openToken.isSelfClosing ? '/>' : '>');
-  const openTagReplacement = `<${config.targetTag}${attrsString}${closingSlash}`;
-  const openRange = createRange(lineOffsets, openToken.tagStart, openToken.tagEnd);
-
-  const edits: BloggerTextEdit[] = [
-    { range: openRange, newText: openTagReplacement },
-  ];
-
-  if (!openToken.isSelfClosing) {
-    let depth = 0;
-    let closingToken: DirectiveToken | undefined;
-    for (const tok of tokens) {
-      if (tok.tagStart < openToken.tagStart) {
-        continue;
-      }
-      if (tok.tagName.toLowerCase() === openToken.tagName.toLowerCase()) {
-        if (!tok.isClosing && !tok.isSelfClosing) {
-          depth++;
-        }
-        else if (tok.isClosing) {
-          depth--;
-          if (depth === 0) {
-            closingToken = tok;
-            break;
-          }
-        }
-      }
-    }
-
-    if (closingToken) {
-      let startOffset = closingToken.tagStart;
-      let endOffset = closingToken.tagEnd;
-
-      if (isStrictlySelfClosing) {
-        const lineStart = documentText.lastIndexOf('\n', startOffset - 1);
-        const effectiveLineStart = lineStart === -1 ? 0 : lineStart + 1;
-        const prefix = documentText.slice(effectiveLineStart, startOffset);
-        if (/^[ \t]*$/.test(prefix)) {
-          startOffset = effectiveLineStart;
-          if (documentText[endOffset] === '\r' && documentText[endOffset + 1] === '\n') {
-            endOffset += 2;
-          }
-          else if (documentText[endOffset] === '\n') {
-            endOffset += 1;
-          }
-          else if (lineStart !== -1) {
-            startOffset = lineStart > 0 && documentText[lineStart - 1] === '\r' ? lineStart - 1 : lineStart;
-          }
-        }
-      }
-
-      const closingRange = createRange(lineOffsets, startOffset, endOffset);
-      edits.push({
-        range: closingRange,
-        newText: isStrictlySelfClosing ? '' : `</${config.targetTag}>`,
-      });
-    }
-  }
-
-  return {
-    title: `Replace <${openToken.tagName}> with <${config.targetTag}${isStrictlySelfClosing ? '/>' : '>'}>`,
-    newText: openTagReplacement,
-    range: openRange,
-    edits,
-    isPreferred: true,
-  };
-}
 
 export function lintBloggerDocument(
   documentText: string,
@@ -275,12 +34,10 @@ export function lintBloggerDocument(
 
   const catalog = getSpecCatalog();
   const lineOffsets = computeLineOffsets(documentText);
-  const maskedText = maskComments(documentText);
   const tokens = scanDirectiveTokens(documentText, { catalog });
-  const skinSymbols = extractSkinVariables(documentText);
 
-  const specDiagnostics: readonly BloggerStructureDiagnostic[] = validateTemplateStructure(tokens, catalog, {
-    validateExpressions: true,
+  const specDiagnostics: readonly BloggerStructureDiagnostic[] = validateTemplateStructure(documentText, catalog, {
+    validateExpressions: options?.rules?.structure !== false,
   });
 
   const diagnostics: BloggerDiagnostic[] = [];
@@ -290,16 +47,9 @@ export function lintBloggerDocument(
     const end = sd.tagEnd ?? start;
     const range = createRange(lineOffsets, start, end);
 
-    const attrName = sd.attribute ?? (/Attribute '([^']+)' on/i.exec(sd.message)?.[1]);
     const quickFixes: BloggerQuickFix[] = [];
-    if (sd.code in HALLUCINATED_DIRECTIVE_MAP) {
-      const config = HALLUCINATED_DIRECTIVE_MAP[sd.code]!;
-      const fix = buildHallucinatedDirectiveQuickFix(sd, config, tokens, lineOffsets, documentText);
-      if (fix) {
-        quickFixes.push(fix);
-      }
-    }
-    else if (sd.code in INVERTED_ATTR_MAP && sd.tagStart !== undefined && sd.tagEnd !== undefined) {
+
+    if (sd.code in INVERTED_ATTR_MAP && sd.tagStart !== undefined && sd.tagEnd !== undefined) {
       const targetAttr = INVERTED_ATTR_MAP[sd.code]!;
       const rawAttrText = documentText.slice(sd.tagStart, sd.tagEnd);
       const eqIndex = rawAttrText.indexOf('=');
@@ -310,6 +60,29 @@ export function lintBloggerDocument(
         range,
         isPreferred: true,
       });
+    }
+    else if (sd.fixes && sd.fixes.length > 0) {
+      for (const fix of sd.fixes) {
+        const edits: BloggerTextEdit[] = fix.edits.map((e) => {
+          let newText = e.newText;
+          const tok = tokens.find(t => t.tagStart === e.start);
+          if (tok && tok.isSelfClosing && newText.endsWith('>') && !newText.endsWith('/>')) {
+            newText = `${newText.slice(0, -1)}/>`;
+          }
+          return {
+            range: createRange(lineOffsets, e.start, e.end),
+            newText,
+          };
+        });
+        const primaryEdit = edits[0];
+        quickFixes.push({
+          title: fix.title,
+          newText: primaryEdit ? primaryEdit.newText : '',
+          range: primaryEdit ? primaryEdit.range : range,
+          edits,
+          isPreferred: fix.isPreferred,
+        });
+      }
     }
     else if (sd.code === 'BX1022' && sd.tagStart !== undefined && sd.tagEnd !== undefined) {
       const missingMatch = /Mandatory attribute '([^']+)' is missing on <([^>]+)>/i.exec(sd.message);
@@ -340,25 +113,6 @@ export function lintBloggerDocument(
           isPreferred: true,
         });
       }
-    }
-    else if (sd.suggestedReplacement !== undefined && sd.tagStart !== undefined && sd.tagEnd !== undefined) {
-      let title = `Replace with '${sd.suggestedReplacement}'`;
-      if (sd.code === 'BX1038') {
-        title = `Replace with boolean literal '${sd.suggestedReplacement}'`;
-      }
-      else if (sd.code === 'BX1019') {
-        title = `Remove redundant 'data:' prefix (use '${sd.suggestedReplacement}')`;
-      }
-      else if ((sd.code as string) === 'BX1049') {
-        title = 'Insert whitespace after \':\'';
-      }
-
-      quickFixes.push({
-        title,
-        newText: sd.suggestedReplacement,
-        range,
-        isPreferred: true,
-      });
     }
     else if (sd.code === 'BX1030' && sd.tagStart !== undefined && sd.tagEnd !== undefined) {
       const rawExpr = documentText.slice(sd.tagStart, sd.tagEnd).trim();
@@ -448,25 +202,47 @@ export function lintBloggerDocument(
         }
       }
     }
-    else if (sd.rule?.replacement && !sd.rule.replacement.includes('...') && sd.tagStart !== undefined && sd.tagEnd !== undefined) {
-      quickFixes.push({
-        title: `Replace with '${sd.rule.replacement}'`,
-        newText: sd.rule.replacement,
-        range,
-        isPreferred: true,
-      });
+    else if (sd.code === 'BX1024' && sd.tagStart !== undefined && sd.tagEnd !== undefined) {
+      const attrName = sd.attribute ?? (/Attribute '([^']+)' on/i.exec(sd.message)?.[1]);
+      if (sd.suggestedReplacement && !sd.suggestedReplacement.includes(' ') && !sd.suggestedReplacement.includes('/')) {
+        quickFixes.push({
+          title: `Replace with '${sd.suggestedReplacement}'`,
+          newText: sd.suggestedReplacement,
+          range,
+          isPreferred: true,
+        });
+      }
+      else if (attrName) {
+        quickFixes.push({
+          title: `Remove obsolete attribute "${attrName}"`,
+          newText: '',
+          range,
+          isPreferred: true,
+        });
+      }
     }
-    else if (sd.code === 'BX1024' && attrName && sd.tagStart !== undefined && sd.tagEnd !== undefined) {
+    else if (sd.suggestedReplacement !== undefined && sd.tagStart !== undefined && sd.tagEnd !== undefined) {
+      let title = `Replace with '${sd.suggestedReplacement}'`;
+      if (sd.code === 'BX1038') {
+        title = `Replace with boolean literal '${sd.suggestedReplacement}'`;
+      }
+      else if (sd.code === 'BX1019') {
+        title = `Remove redundant 'data:' prefix (use '${sd.suggestedReplacement}')`;
+      }
+      else if ((sd.code as string) === 'BX1049') {
+        title = 'Insert whitespace after \':\'';
+      }
+
       quickFixes.push({
-        title: `Remove obsolete attribute "${attrName}"`,
-        newText: '',
+        title,
+        newText: sd.suggestedReplacement,
         range,
         isPreferred: true,
       });
     }
 
     const tags: ('deprecated' | 'unnecessary')[] = [];
-    if (sd.rule?.category === 'deprecation') {
+    if (sd.rule?.category === 'deprecation' || sd.code === 'BX1024' || sd.code === 'BX1050') {
       tags.push('deprecated');
     }
 
@@ -489,406 +265,44 @@ export function lintBloggerDocument(
     });
   }
 
-  // 1. Unresolved inclusions (BX1037)
-  for (const token of tokens) {
-    if (token.tagName.toLowerCase() !== 'b:include' || token.isClosing) {
-      continue;
-    }
-
-    if (token.attributes['expr:name']) {
-      continue;
-    }
-    const nameAttr = token.attributes.name;
-    if (!nameAttr || !nameAttr.value) {
-      continue;
-    }
-    const name = nameAttr.value.trim();
-    if (!name) {
-      continue;
-    }
-
-    const incMeta = catalog.getInclusion(name);
-    if (incMeta?.deprecated != null || incMeta?.category === 'deprecated' || name === 'quickedit') {
-      continue;
-    }
-
-    if (catalog.isServerInclusion(name)) {
-      continue;
-    }
-
-    const resolved = findIncludableDefinition(documentText, nameAttr.valueStart);
-    if (!resolved) {
-      const rule = catalog.getDiagnostic('BX1037');
-      const range = createRange(lineOffsets, nameAttr.valueStart, nameAttr.valueEnd);
-      const alreadyReported = diagnostics.some(
-        d => d.code === 'BX1037' && (
-          (d.range.start.line === range.start.line && Math.abs(d.range.start.character - range.start.character) <= 10)
-          || d.message.includes(`"${name}"`)
-        ),
-      );
-      if (!alreadyReported) {
-        diagnostics.push({
-          code: 'BX1037',
-          message: rule?.message ? `Unresolved inclusion "${name}". ${rule.message}` : `Unresolved inclusion "${name}". Subroutine is not defined in the template and is not a built-in server inclusion.`,
-          severity: 'error',
-          range,
-        });
-      }
-    }
-  }
-
-  // 2. Grammatical expression validation fallback
-  const expressionErrorsReportedRanges = new Set<string>();
-  for (const d of diagnostics) {
-    expressionErrorsReportedRanges.add(`${d.range.start.line}:${d.range.start.character}`);
-  }
-
-  for (const token of tokens) {
-    if (token.isClosing) {
-      continue;
-    }
-    for (const [attrName, attrToken] of Object.entries(token.attributes)) {
-      const isExpr = catalog.isDirectiveExpressionAttribute(token.tagName, attrName) || attrName.startsWith('expr:');
-      if (!isExpr || !attrToken.value || !attrToken.value.trim()) {
-        continue;
-      }
-
-      try {
-        parseExpression(attrToken.value, { catalog, tolerant: false });
-      }
-      catch (err: unknown) {
-        const rangeKey = `${attrToken.valueStart}`;
-        if (!expressionErrorsReportedRanges.has(rangeKey)) {
-          const range = createRange(lineOffsets, attrToken.valueStart, attrToken.valueEnd);
-          const errMsg = err instanceof Error ? err.message : 'Invalid Blogger expression syntax.';
-          diagnostics.push({
-            code: 'BX1041',
-            message: errMsg,
-            severity: 'error',
-            range,
-          });
-        }
-      }
-    }
-  }
-
-  // 3. Deprecated data properties in expressions (BX1024)
-  for (const dep of DEPRECATED_DATA_PROPERTIES) {
-    for (const match of maskedText.matchAll(dep.pattern)) {
-      if (match.index === undefined) {
-        continue;
-      }
-      const start = match.index;
-      const end = start + match[0].length;
-      const range = createRange(lineOffsets, start, end);
-
-      const quickFixes: BloggerQuickFix[] = [];
-      if (dep.replacement) {
-        quickFixes.push({
-          title: `Replace with '${dep.replacement}'`,
-          newText: dep.replacement,
-          range,
-          isPreferred: true,
-        });
-      }
-
-      diagnostics.push({
-        code: 'BX1024',
-        message: dep.message,
-        severity: 'warning',
-        range,
-        tags: ['deprecated'],
-        quickFixes: quickFixes.length > 0 ? quickFixes : undefined,
-      });
-    }
-  }
-
-  // 4. Hallucinated data properties (BX1025)
-  for (const hall of HALLUCINATED_DATA_PROPERTIES) {
-    for (const match of maskedText.matchAll(hall.pattern)) {
-      if (match.index === undefined) {
-        continue;
-      }
-      const start = match.index;
-      const end = start + match[0].length;
-      const range = createRange(lineOffsets, start, end);
-
-      diagnostics.push({
-        code: hall.code,
-        message: hall.message,
-        severity: 'warning',
-        range,
-      });
-    }
-  }
-
-  // 5. Unknown widget type validation
-  for (const token of tokens) {
-    if (token.tagName.toLowerCase() === 'b:widget' && !token.isClosing) {
-      const typeAttr = token.attributes.type;
-      if (typeAttr && typeAttr.value && !token.attributes['expr:type']) {
-        const wType = typeAttr.value.trim();
-        if (wType && !catalog.getWidget(wType)) {
-          const range = createRange(lineOffsets, typeAttr.valueStart, typeAttr.valueEnd);
-          diagnostics.push({
-            code: 'BX1025',
-            message: `Unknown widget type '${wType}'.`,
-            severity: 'warning',
-            range,
-          });
-        }
-      }
-    }
-  }
-
-  // 6. Theme Designer skin variables validation inside <b:skin> and <b:template-skin>
-  for (let i = 0; i < tokens.length; i++) {
-    const token = tokens[i]!;
-    const tagLower = token.tagName.toLowerCase();
-    if ((tagLower === 'b:skin' || tagLower === 'b:template-skin') && !token.isClosing && !token.isSelfClosing) {
-      let closeToken: DirectiveToken | undefined;
-      for (let j = i + 1; j < tokens.length; j++) {
-        const nextTok = tokens[j]!;
-        if (nextTok.tagName.toLowerCase() === tagLower && nextTok.isClosing) {
-          closeToken = nextTok;
-          break;
-        }
-      }
-
-      const contentStart = token.tagEnd;
-      const contentEnd = closeToken
-        ? closeToken.tagStart
-        : (documentText.includes(`</${token.tagName}`, token.tagEnd)
-            ? documentText.indexOf(`</${token.tagName}`, token.tagEnd)
-            : documentText.length);
-
-      if (contentEnd <= contentStart) {
-        continue;
-      }
-
-      const rawSlice = documentText.slice(contentStart, contentEnd);
-      const chars = rawSlice.split('');
-
-      // Mask CDATA delimiters if present
-      const cdataOpenIdx = rawSlice.indexOf('<![CDATA[');
-      if (cdataOpenIdx !== -1) {
-        for (let c = 0; c < 9; c++) {
-          chars[cdataOpenIdx + c] = ' ';
-        }
-      }
-      const cdataCloseIdx = rawSlice.lastIndexOf(']]>');
-      if (cdataCloseIdx !== -1) {
-        for (let c = 0; c < 3; c++) {
-          chars[cdataCloseIdx + c] = ' ';
-        }
-      }
-
-      // Mask inner directive tokens (Variable, Group, etc.)
-      for (let j = i + 1; j < tokens.length; j++) {
-        const innerTok = tokens[j]!;
-        if (innerTok.tagStart >= contentEnd) {
-          break;
-        }
-        if (innerTok.tagStart >= contentStart && innerTok.tagEnd <= contentEnd) {
-          const tokLocalStart = innerTok.tagStart - contentStart;
-          const tokLocalEnd = innerTok.tagEnd - contentStart;
-          for (let k = tokLocalStart; k < tokLocalEnd; k++) {
-            chars[k] = ' ';
-          }
-        }
-      }
-
-      const maskedSkinContent = chars.join('');
-
-      // 6.1. Parenthesized skin variables: $(varName) or $(varName.modifier)
-      const parenRegex = /\$\(([a-z_][\w.-]*)\)/gi;
-      for (const match of maskedSkinContent.matchAll(parenRegex)) {
-        if (match.index === undefined) {
-          continue;
-        }
-        const fullToken = match[0];
-        const inner = match[1]!;
-        const absStart = contentStart + match.index;
-        const absEnd = absStart + fullToken.length;
-        const range = createRange(lineOffsets, absStart, absEnd);
-
-        // Direct variable match
-        const exactVar = Object.values(skinSymbols).find(s => s.name === inner);
-        if (exactVar) {
-          continue;
-        }
-
-        // Variable with modifier: candVar.candMod
-        const lastDot = inner.lastIndexOf('.');
-        if (lastDot !== -1) {
-          const candVar = inner.slice(0, lastDot);
-          const candMod = inner.slice(lastDot + 1);
-          const baseVar = Object.values(skinSymbols).find(s => s.name === candVar);
-          if (baseVar) {
-            const modifiers = getSkinTypeModifiers(baseVar.type);
-            if (candMod in modifiers) {
-              continue;
-            }
-            diagnostics.push({
-              code: 'BX1025',
-              message: `Unknown modifier "${candMod}" for skin variable "${candVar}" of type "${baseVar.type}".`,
-              severity: 'error',
-              range,
-            });
-            continue;
-          }
-        }
-
-        diagnostics.push({
-          code: 'BX1025',
-          message: `Undeclared skin variable "$(${inner})". Variable is not declared in <b:skin> or <b:template-skin>.`,
-          severity: 'error',
-          range,
-        });
-      }
-
-      // 6.2. Bare skin variables: $varName
-      const bareRegex = /(?<![\w$])\$([a-z_]\w*)/gi;
-      for (const match of maskedSkinContent.matchAll(bareRegex)) {
-        if (match.index === undefined) {
-          continue;
-        }
-        const fullToken = match[0];
-        const varName = match[1]!;
-        const absStart = contentStart + match.index;
-        const absEnd = absStart + fullToken.length;
-        const range = createRange(lineOffsets, absStart, absEnd);
-
-        const exactVar = Object.values(skinSymbols).find(s => s.name === varName);
-        if (exactVar) {
-          continue;
-        }
-
-        const dottedVar = Object.values(skinSymbols).find(s => s.name?.startsWith(`${varName}.`));
-        if (dottedVar && dottedVar.name) {
-          const nextText = rawSlice.slice(match.index + fullToken.length);
-          const expectedSuffix = dottedVar.name.slice(varName.length);
-          const hasDottedSuffix = nextText.startsWith(expectedSuffix);
-          const highlightEnd = hasDottedSuffix ? absEnd + expectedSuffix.length : absEnd;
-          const highlightRange = createRange(lineOffsets, absStart, highlightEnd);
-
-          diagnostics.push({
-            code: 'BX1025',
-            message: `Undeclared skin variable "$${varName}". Variable "${dottedVar.name}" contains dots and must be accessed with parentheses: "$(${dottedVar.name})".`,
-            severity: 'error',
-            range: highlightRange,
-            quickFixes: [{
-              title: `Replace with '$(${dottedVar.name})'`,
-              newText: `$(${dottedVar.name})`,
-              range: highlightRange,
-              isPreferred: true,
-            }],
-          });
-          continue;
-        }
-
-        diagnostics.push({
-          code: 'BX1025',
-          message: `Undeclared skin variable "$${varName}". Variable is not declared in <b:skin> or <b:template-skin>.`,
-          severity: 'error',
-          range,
-        });
-      }
-    }
-  }
-
-  // 7. Validate data:skin.vars in template expressions (outside b:skin)
-  const skinVarUsageRegex = /(?<!<)\bdata:skin\.vars\.([a-z_]\w*(?:\.[a-z_]\w*)*)\b/gi;
-  for (const match of maskedText.matchAll(skinVarUsageRegex)) {
+  // Hallucinated comment.replies (BX1051)
+  for (const match of documentText.matchAll(/\b(?:data:)?comment\.replies\b/g)) {
     if (match.index === undefined) {
       continue;
     }
-    const fullMatch = match[0];
-    const path = match[1]!;
     const start = match.index;
-    const end = start + fullMatch.length;
-    const range = createRange(lineOffsets, start, end);
+    const end = start + match[0].length;
+    diagnostics.push({
+      code: 'BX1051',
+      message: 'Nested "comment.replies" collection is hallucinated; Blogger comments are flat and filtered via (c => c.inReplyTo == comment.id).',
+      severity: 'warning',
+      range: createRange(lineOffsets, start, end),
+    });
+  }
 
-    const segments = path.split('.');
-    const firstSegment = segments[0]!;
-
-    if (!(firstSegment in skinSymbols)) {
-      const normalizedPath = path.replace(/\./g, '_');
-      const matchingSymbol = Object.entries(skinSymbols).find(([normKey]) => normKey === normalizedPath);
-      if (matchingSymbol) {
+  // Unknown widget types (BX1025)
+  for (const token of tokens) {
+    if (token.tagName === 'b:widget' && !token.isClosing) {
+      const type = token.attributes.type?.value;
+      if (type && !catalog.getWidget(type)) {
         diagnostics.push({
           code: 'BX1025',
-          message: `Undeclared skin variable "${firstSegment}". In expressions, dots in variable names must be replaced with underscores: "data:skin.vars.${matchingSymbol[0]}".`,
+          message: `Unknown widget type '${type}'.`,
           severity: 'error',
-          range,
-          quickFixes: [{
-            title: `Replace with 'data:skin.vars.${matchingSymbol[0]}'`,
-            newText: `data:skin.vars.${matchingSymbol[0]}`,
-            range,
-            isPreferred: true,
-          }],
-        });
-        continue;
-      }
-
-      diagnostics.push({
-        code: 'BX1025',
-        message: `Undeclared skin variable "${firstSegment}". Variable is not declared in <b:skin> or <b:template-skin>.`,
-        severity: 'error',
-        range,
-      });
-      continue;
-    }
-
-    const symbol = skinSymbols[firstSegment]!;
-    const modSegments = segments.slice(1);
-    if (modSegments.length === 1) {
-      const modName = modSegments[0]!;
-      const modifiers = getSkinTypeModifiers(symbol.type);
-      if (!(modName in modifiers)) {
-        diagnostics.push({
-          code: 'BX1025',
-          message: `Unknown modifier "${modName}" for skin variable "${symbol.name ?? firstSegment}" of type "${symbol.type}".`,
-          severity: 'error',
-          range,
+          range: createRange(lineOffsets, token.tagStart, token.tagEnd),
         });
       }
-    }
-    else if (modSegments.length > 1) {
-      diagnostics.push({
-        code: 'BX1025',
-        message: `Unknown modifier "${modSegments.join('.')}" for skin variable "${symbol.name ?? firstSegment}".`,
-        severity: 'error',
-        range,
-      });
     }
   }
 
-  // 8. Validate unresolved <data:...> substitution tags in template
+  // Validate unresolved <data:...> substitution tags in template
   const scopeTracker = new BloggerScopeTracker();
+  const skinSymbols = extractSkinVariables(documentText);
   const skinProps = buildSkinVariableProperties(skinSymbols);
+  const maskedText = maskComments(documentText);
   const dataTagRegex = /<data:([a-z_]\w*(?:\.[a-z_]\w*)*)(?:\s[^>]*?)?\/?>/gi;
 
-  function isCommonIncludableWithoutWidget(offset: number): boolean {
-    const enclosingIncludable = scopeTracker.getIncludableBlockAtOffset('linter_run', 1, documentText, offset);
-    if (!enclosingIncludable || enclosingIncludable.inferredWidgetContext) {
-      return false;
-    }
-    let parent = enclosingIncludable.parent;
-    while (parent) {
-      if (parent.tag === 'b:defaultmarkup') {
-        const mType = parent.widgetType?.toLowerCase();
-        return mType ? (mType.includes('common') || mType.includes('all')) : false;
-      }
-      parent = parent.parent;
-    }
-    return false;
-  }
-
-  function buildUnresolvedDataMessage(path: string, offset: number): string {
-    if (isCommonIncludableWithoutWidget(offset)) {
-      return `<!--Can't find substitution for tag [${path}]--> This includable is in 'Common' markup and has no associated widget context. If this macro is meant for a specific widget, declare '<!-- @widget <WidgetType> -->' or use the '<WidgetType>:<id>' naming convention.`;
-    }
+  function buildUnresolvedDataMessage(path: string): string {
     return `<!--Can't find substitution for tag [${path}]-->`;
   }
 
@@ -901,9 +315,9 @@ export function lintBloggerDocument(
     const start = match.index;
     const end = start + fullTag.length;
 
-    // Skip if tag already has syntax errors (prohibited bracket indexing BX1032 or operators BX1048)
+    // Skip if tag already has syntax errors (prohibited bracket indexing BX1032 or operators BX1048 or deprecated BX1050)
     const hasSyntaxError = specDiagnostics.some(
-      sd => (sd.code === 'BX1032' || (sd.code as string) === 'BX1048')
+      sd => (sd.code === 'BX1032' || (sd.code as string) === 'BX1048' || sd.code === 'BX1050')
         && sd.tagStart !== undefined && sd.tagStart <= end
         && sd.tagEnd !== undefined && sd.tagEnd >= start,
     );
@@ -923,7 +337,7 @@ export function lintBloggerDocument(
       const normalizedRest = rest.replace(/\./g, '_');
       if (!(rest in skinSymbols) && (normalizedRest in skinSymbols)) {
         diagnostics.push({
-          code: 'BX1025',
+          code: 'BX1054',
           message: `<!--Can't find substitution for tag [${path}]-->`,
           severity: 'warning',
           range,
@@ -938,147 +352,115 @@ export function lintBloggerDocument(
       }
     }
 
-    let currentProp: BloggerProperty | undefined = first === 'widget'
-      ? activeVars.widget
-      : (activeVars[first] ?? bloggerGlobalRoot[first]);
-
-    if (!currentProp) {
-      if (first === 'messages') {
-        currentProp = { name: 'messages', type: 'object' };
-      }
-      else if (first === 'widgets') {
-        currentProp = bloggerGlobalRoot.widgets;
-      }
-      else if (first === 'skin') {
-        currentProp = bloggerGlobalRoot.skin;
-      }
-      else if (first !== 'widget') {
-        const globalDef = catalog.getGlobal(`data:${first}`) ?? catalog.getGlobal(first);
-        if (globalDef) {
-          currentProp = {
-            name: first,
-            type: (globalDef.cardinality === 'collection' ? 'array' : 'object'),
-            description: globalDef.description,
-          };
-        }
-      }
-    }
-
-    if (!currentProp) {
-      diagnostics.push({
-        code: 'BX1025',
-        message: buildUnresolvedDataMessage(path, start),
-        severity: 'warning',
-        range,
-      });
-      continue;
-    }
-
-    if (segments.length === 1) {
-      continue;
-    }
+    const widgetType = scopeTracker.getEnclosingWidgetType('linter_run', 1, documentText, start) ?? '';
 
     let isResolved = true;
-    for (let s = 1; s < segments.length; s++) {
-      const seg = segments[s]!;
-
-      // Special case: skin.vars
-      if (currentProp.name === 'skin' && seg === 'vars') {
-        if (s + 1 < segments.length) {
-          const varId = segments[s + 1]!;
-          const skinProp = skinProps[varId];
-          if (!skinProp) {
-            isResolved = false;
-            break;
-          }
-          currentProp = skinProp;
-          s++;
-          continue;
-        }
-        else {
-          break;
-        }
-      }
-
-      // Special case: messages.key
-      if (currentProp.name === 'messages') {
-        const msg = catalog.getMessage(seg);
-        if (!msg) {
-          isResolved = false;
-          break;
-        }
-        currentProp = { name: seg, type: 'string', description: msg.description };
-        continue;
-      }
-
-      // Special case: widgets.WidgetId
-      if (currentProp.name === 'widgets') {
-        const descriptorProps = getWidgetDescriptor(seg);
-        currentProp = {
-          name: seg,
-          type: 'object',
-          children: descriptorProps,
-        };
-        continue;
-      }
-
-      // Property members
-      const members = getPropertyMembers(currentProp);
-      if (members && Object.keys(members).length > 0) {
-        if (seg in members) {
-          currentProp = members[seg]!;
-          continue;
-        }
-
-        const skinMod = getSkinTypeModifiers(currentProp.type);
-        if (seg in skinMod) {
-          const modDef = skinMod[seg]!;
-          currentProp = {
-            name: seg,
-            type: toBloggerDataType(modDef.output_type),
-            description: modDef.description,
-          };
-          continue;
-        }
-
+    if (first === 'widget' && !activeVars.widget) {
+      isResolved = false;
+    }
+    else if (first === 'messages' && segments.length > 1 && !messagesProperties[segments[1]!]) {
+      isResolved = false;
+    }
+    else {
+      const resolved = resolveDataProperty(segments, {
+        variables: activeVars,
+        widgetType,
+        skinVariables: skinProps,
+      });
+      if (!resolved) {
         isResolved = false;
-        break;
-      }
-      else {
-        // Open/untyped object (e.g. generic parameter in b:includable without inferred type)
-        if (currentProp.type === 'object' || currentProp.type === 'unknown') {
-          break;
-        }
-        isResolved = false;
-        break;
       }
     }
 
     if (!isResolved) {
       diagnostics.push({
         code: 'BX1025',
-        message: buildUnresolvedDataMessage(path, start),
+        message: buildUnresolvedDataMessage(path),
         severity: 'warning',
         range,
       });
     }
   }
 
-  // 9. Filter by options if specified
+  // Validate CSS skin variable modifiers ($(var.modifier))
+  const skinBlockRegex = /<b:(?:template-)?skin\b[^>]*>([\s\S]*?)<\/b:(?:template-)?skin>/gi;
+  for (const match of documentText.matchAll(skinBlockRegex)) {
+    if (match.index === undefined) {
+      continue;
+    }
+    const blockStart = match.index;
+    const blockContent = match[0];
+    const cdataStart = blockContent.indexOf('<![CDATA[');
+    if (cdataStart === -1) {
+      continue;
+    }
+    const cdataContent = blockContent.slice(cdataStart + 9);
+    const baseOffset = blockStart + cdataStart + 9;
+    const parenRegex = /\$\(([a-z_][\w.-]*)\)/gi;
+    for (const pMatch of cdataContent.matchAll(parenRegex)) {
+      if (pMatch.index === undefined) {
+        continue;
+      }
+      const inner = pMatch[1]!;
+      const lastDot = inner.lastIndexOf('.');
+      if (lastDot !== -1) {
+        const candVar = inner.slice(0, lastDot);
+        const candMod = inner.slice(lastDot + 1);
+        const baseVar = Object.values(skinSymbols).find(s => s.name === candVar);
+        if (baseVar) {
+          const modifiers = getSkinTypeModifiers(baseVar.type);
+          if (!(candMod in modifiers)) {
+            const start = baseOffset + pMatch.index;
+            diagnostics.push({
+              code: 'BX1053',
+              message: `Unknown modifier "${candMod}" for skin variable "${candVar}" of type "${baseVar.type}".`,
+              severity: 'error',
+              range: createRange(lineOffsets, start, start + pMatch[0].length),
+            });
+          }
+        }
+      }
+    }
+  }
+
+  // Validate data:skin.vars in expressions
+  const skinVarUsageRegex = /(?<!<)\bdata:skin\.vars\.([a-z_]\w*(?:\.[a-z_]\w*)*)\b/gi;
+  for (const match of maskedText.matchAll(skinVarUsageRegex)) {
+    if (match.index === undefined) {
+      continue;
+    }
+    const fullMatch = match[0];
+    const path = match[1]!;
+    const segments = path.split('.');
+    const firstSegment = segments[0]!;
+    if (!(firstSegment in skinSymbols)) {
+      const normalizedPath = path.replace(/\./g, '_');
+      if (!(normalizedPath in skinSymbols)) {
+        diagnostics.push({
+          code: 'BX1053',
+          message: `Undeclared skin variable "${firstSegment}". Variable is not declared in <b:skin> or <b:template-skin>.`,
+          severity: 'error',
+          range: createRange(lineOffsets, match.index, match.index + fullMatch.length),
+        });
+      }
+    }
+  }
+
+  // Filter by options if specified
   const rules = options?.rules;
   const filtered = rules
     ? diagnostics.filter((diag) => {
         const ruleDef = catalog.getDiagnostic(diag.code as BloggerDiagnosticCode);
         const category = ruleDef?.category;
 
-        if (rules.unresolvedData === false && diag.message.startsWith('<!--Can\'t find substitution for tag')) {
+        if (rules.unresolvedData === false && (diag.code === 'BX1051' || diag.message.startsWith('<!--Can\'t find substitution for tag'))) {
           return false;
         }
 
-        if (rules.deprecations === false && (category === 'deprecation' || diag.tags?.includes('deprecated'))) {
+        if (rules.deprecations === false && (category === 'deprecation' || diag.tags?.includes('deprecated') || diag.code === 'BX1050')) {
           return false;
         }
-        if (rules.hallucinations === false && category === 'hallucination') {
+        if (rules.hallucinations === false && (category === 'hallucination' || diag.code === 'BX1051')) {
           return false;
         }
         if (rules.quotas === false && category === 'quota') {
@@ -1103,7 +485,7 @@ export function lintBloggerDocument(
       })
     : diagnostics;
 
-  // 10. Filter by comment suppression directives and attach suppression QuickFixes
+  // Filter by comment suppression directives and attach suppression QuickFixes
   const suppressionDirectives = scanSuppressionDirectives(documentText, lineOffsets);
   const finalDiagnostics: BloggerDiagnostic[] = [];
 

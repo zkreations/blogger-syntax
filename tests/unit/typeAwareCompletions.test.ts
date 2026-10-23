@@ -1,7 +1,7 @@
 import { resolveOperatorReturnType as computeOperatorReturnType, isTypeAssignable } from 'blogger-spec/type-system';
 import { describe, expect, it } from 'vitest';
 import { inferExpressionType } from '../../src/core/parser/exprParser.js';
-import { blogWidgetProperties, singlePostProperties } from '../../src/core/resolver/dataModel.js';
+import { blogWidgetProperties, singlePostProperties } from '../../src/core/resolver/dataPathAdapter.js';
 import { BloggerPathResolver } from '../../src/core/resolver/pathResolver.js';
 
 describe('typeAwareCompletions - Strict Type Awareness & Operator Filtering', () => {
