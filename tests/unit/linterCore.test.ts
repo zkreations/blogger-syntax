@@ -823,5 +823,41 @@ describe('linter core engine', () => {
       const diagsValid = lintBloggerDocument(xmlValid);
       expect(diagsValid.some(d => (d.code as string) === 'BX1049' || (d.code as string) === 'ANTIPATTERN_SYNTAX')).toBe(false);
     });
+
+    it('flags unescaped logical AND operator && in expressions (BX1055) as error with quick fix to and', () => {
+      const xml = `<b:eval expr='(a && b)'/>`;
+      const diags = lintBloggerDocument(xml);
+      const diag = diags.find(d => d.code === 'BX1055');
+
+      expect(diag).toBeDefined();
+      expect(diag?.severity).toBe('error');
+      expect(diag?.message).toContain('Use \'and\' instead');
+      expect(diag?.quickFixes).toBeDefined();
+      expect(diag?.quickFixes?.[0]?.newText).toBe('and');
+      expect(diag?.quickFixes?.[0]?.title).toBe('Replace \'&&\' with \'and\'');
+      expect(diag?.quickFixes?.[0]?.isPreferred).toBe(true);
+    });
+
+    it('flags escaped logical AND operator &amp;&amp; in expressions (BX1055) as warning with quick fix to and', () => {
+      const xml = `<b:eval expr='(a &amp;&amp; b)'/>`;
+      const diags = lintBloggerDocument(xml);
+      const diag = diags.find(d => d.code === 'BX1055');
+
+      expect(diag).toBeDefined();
+      expect(diag?.severity).toBe('warning');
+      expect(diag?.message).toContain('readability');
+      expect(diag?.quickFixes).toBeDefined();
+      expect(diag?.quickFixes?.[0]?.newText).toBe('and');
+      expect(diag?.quickFixes?.[0]?.title).toBe('Replace \'&amp;&amp;\' with \'and\'');
+      expect(diag?.quickFixes?.[0]?.isPreferred).toBe(true);
+    });
+
+    it('allows native \'and\' keyword in expressions without emitting BX1055', () => {
+      const xml = `<b:eval expr='(a and b)'/>`;
+      const diags = lintBloggerDocument(xml);
+      const diag = diags.find(d => d.code === 'BX1055');
+
+      expect(diag).toBeUndefined();
+    });
   });
 });

@@ -489,6 +489,22 @@ $(primary.unknownMod)
       expect(warn?.quickFixes?.[0]?.newText).toContain('data:skin.vars.admin_name');
     });
 
+    it('should NOT report BX1054 warning for skin:color and skin:font modifiers using dot notation', () => {
+      const doc = `<b:skin><![CDATA[
+<Group description="Accents">
+  <Variable name="primary" description="Accents" type="color" default="#fff" value="#fff"/>
+  <Variable name="fuente" description="Roboto Bold 22" type="font" default="bold 22px Roboto, sans-serif" hideEditor="true" value="bold 22px Roboto, sans-serif"/>
+</Group>
+]]></b:skin>
+<data:skin.vars.primary.red/>
+<data:skin.vars.fuente.family/>`;
+
+      const diags = service.getDiagnostics(doc);
+      const bx1054Diags = diags.filter(d => d.code === 'BX1054');
+
+      expect(bx1054Diags).toHaveLength(0);
+    });
+
     it('should report warning for unknown modifier on valid variable in data:skin.vars.<var>.<mod>', () => {
       const doc = `<b:skin><![CDATA[
 <Variable name="primary" type="color"/>
@@ -501,6 +517,51 @@ $(primary.unknownMod)
       expect(warn).toBeDefined();
       expect(warn?.severity).toBe('warning');
       expect(warn?.message).toBe('<!--Can\'t find substitution for tag [skin.vars.primary.invalidMod]-->');
+    });
+
+    it('should NOT report BX1053 for dotted skin variables with valid modifiers in CSS', () => {
+      const doc = `<b:skin><![CDATA[
+<Group description="Accents">
+  <Variable name="primary.accent" description="Accents" type="color" default="#fff" value="#fff"/>
+  <Variable name="fuente.prueba" description="Roboto Bold 22" type="font" default="bold 22px Roboto, sans-serif" hideEditor="true" value="bold 22px Roboto, sans-serif"/>
+</Group>
+$(primary.accent.red)
+$(fuente.prueba.family)
+]]></b:skin>`;
+
+      const diags = service.getDiagnostics(doc);
+      const bx1053Diags = diags.filter(d => d.code === 'BX1053');
+
+      expect(bx1053Diags).toHaveLength(0);
+    });
+
+    it('should reject invalid modifiers and spurious nested paths in CSS with BX1053 error', () => {
+      const doc = `<b:skin><![CDATA[
+<Group description="Accents">
+  <Variable name="primary" description="Accents" type="color" default="#fff" value="#fff"/>
+  <Variable name="fuente" description="Roboto Bold 22" type="font" default="bold 22px Roboto, sans-serif" hideEditor="true" value="bold 22px Roboto, sans-serif"/>
+</Group>
+$(fuente.family)
+$(primary.red)
+$(primary.prueba.prueba.red)
+$(fuente.prueba)
+$(fuente.prueba.family)
+]]></b:skin>`;
+
+      const diags = service.getDiagnostics(doc);
+      const bx1053Diags = diags.filter(d => d.code === 'BX1053');
+
+      expect(bx1053Diags).toHaveLength(3);
+      expect(bx1053Diags.every(d => d.severity === 'error')).toBe(true);
+
+      const nestedErr1 = bx1053Diags.find(d => d.message.includes('primary') && d.message.includes('prueba.prueba.red'));
+      expect(nestedErr1).toBeDefined();
+
+      const modErr = bx1053Diags.find(d => d.message.includes('fuente') && d.message.includes('prueba'));
+      expect(modErr).toBeDefined();
+
+      const nestedErr2 = bx1053Diags.find(d => d.message.includes('fuente') && d.message.includes('prueba.family'));
+      expect(nestedErr2).toBeDefined();
     });
 
     it('should work identically inside b:template-skin', () => {
