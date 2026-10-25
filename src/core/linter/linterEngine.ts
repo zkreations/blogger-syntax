@@ -4,7 +4,6 @@ import type { BloggerDiagnostic, BloggerQuickFix, BloggerTextEdit, LinterOptions
 import { getSpecCatalog } from 'blogger-spec/catalogs';
 import { scanDirectiveTokens, validateTemplateStructure } from 'blogger-spec/parser';
 import { tokenizeExpression } from 'blogger-spec/quota';
-import { getSkinTypeModifiers } from 'blogger-spec/type-system';
 import { messagesProperties, resolveDataProperty } from '../resolver/dataPathAdapter.js';
 import { buildSkinVariableProperties, extractSkinVariables } from '../resolver/skinVariableResolver.js';
 import { BloggerScopeTracker } from '../scope/scopeTracker.js';
@@ -379,47 +378,6 @@ export function lintBloggerDocument(
         severity: 'warning',
         range,
       });
-    }
-  }
-
-  // Validate CSS skin variable modifiers ($(var.modifier))
-  const skinBlockRegex = /<b:(?:template-)?skin\b[^>]*>([\s\S]*?)<\/b:(?:template-)?skin>/gi;
-  for (const match of documentText.matchAll(skinBlockRegex)) {
-    if (match.index === undefined) {
-      continue;
-    }
-    const blockStart = match.index;
-    const blockContent = match[0];
-    const cdataStart = blockContent.indexOf('<![CDATA[');
-    if (cdataStart === -1) {
-      continue;
-    }
-    const cdataContent = blockContent.slice(cdataStart + 9);
-    const baseOffset = blockStart + cdataStart + 9;
-    const parenRegex = /\$\(([a-z_][\w.-]*)\)/gi;
-    for (const pMatch of cdataContent.matchAll(parenRegex)) {
-      if (pMatch.index === undefined) {
-        continue;
-      }
-      const inner = pMatch[1]!;
-      const lastDot = inner.lastIndexOf('.');
-      if (lastDot !== -1) {
-        const candVar = inner.slice(0, lastDot);
-        const candMod = inner.slice(lastDot + 1);
-        const baseVar = Object.values(skinSymbols).find(s => s.name === candVar);
-        if (baseVar) {
-          const modifiers = getSkinTypeModifiers(baseVar.type);
-          if (!(candMod in modifiers)) {
-            const start = baseOffset + pMatch.index;
-            diagnostics.push({
-              code: 'BX1053',
-              message: `Unknown modifier "${candMod}" for skin variable "${candVar}" of type "${baseVar.type}".`,
-              severity: 'error',
-              range: createRange(lineOffsets, start, start + pMatch[0].length),
-            });
-          }
-        }
-      }
     }
   }
 
